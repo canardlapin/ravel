@@ -27,7 +27,7 @@ become the required compatibility baseline for later 1.x releases.
 | Test framework and Discipline integration | Strong | MUnit and MUnit-ScalaCheck run on both platforms. `RavelDiscipline` exposes a `RuleSet`, and the suite executes every property with deterministic single-worker parameters. | No standard typeclass hierarchy requires Cats law suites. |
 | Typeclass lawfulness and coherence | Strong | The closed dtype capability givens live in `DType`; compile tests reject unsupported arithmetic and rank evidence. Cast and identity behavior is tested. | The capabilities are closed witnesses, not user-extensible algebra instances. |
 | Backend or provider conformance | Not applicable | Ravel has one platform implementation per target and no public backend/provider registry. | Gale owns numerical backend selection. |
-| Cross-platform and cross-version CI | Present but incomplete | Local JVM, Node, real Chromium, and full-optimized Scala.js gates pass; CI is configured for JDK 21 and Node 22. | The remote workflow has not run in this evidence window, and only Scala 3.7.4 is configured. |
+| Cross-platform and cross-version CI | Strong for supported targets | Local and remote JVM, Node, real Chromium, representation, and full-optimized Scala.js gates pass on the first published commit; CI uses JDK 21 and Node 22. | Only Scala 3.7.4 is configured. |
 | Numerical and computational assurance | Strong | Exact primitive cases, IEEE edge values, empty fibers, deterministic floating merge order, generated layouts, and mutable injectivity are tested. | Ravel does not implement iterative or approximate algorithms. |
 | Differential and independent oracles | Strong | Coordinate reference models and direct Scala primitive operations check views, broadcasts, arithmetic, callbacks, and reductions without using optimized kernels. | External numerical libraries would add dependency without a distinct 1.0 oracle. |
 | Failure, convergence, and resource contracts | Strong | Bounds, shape, broadcast, slice, layout overflow, noncontiguous reshape, empty reduction, callback failure, and closed-builder failures are asserted. | Convergence and resource lifecycle are not applicable. |
@@ -37,7 +37,7 @@ become the required compatibility baseline for later 1.x releases.
 | Binary and source compatibility | Not applicable | The release contract declares that 1.0 establishes the first baseline. | Add MiMa or equivalent before the next 1.x release. |
 | Coverage and mutation signal | Missing | No scoverage or mutation report is configured. | Coverage would be diagnostic, not a replacement for generated and law tests. |
 | Benchmark and performance evidence | Strong | JMH and optimized Node probes disclose fixtures, runtime versions, throughput, allocations, regression budgets, and the oversized-dispatcher failure. | CI currently runs structural proof, not timing thresholds on a dedicated stable runner. |
-| Documentation and release evidence | Strong | Copy/view, ownership, casting, reduction, NumPy migration, Gale boundary, artifact POMs, local gates, and performance evidence are versioned. | Remote CI and repository publication remain unverified until they occur. |
+| Documentation and release evidence | Strong | Copy/view, ownership, casting, reduction, NumPy migration, Gale boundary, artifact POMs, local gates, remote CI, and performance evidence are versioned. | Maven Central publication remains unverified until the signed release succeeds. |
 
 ## Strongest evidence
 
@@ -65,6 +65,7 @@ current Ravel problem and are not recommended for 1.0.
 Locally executed commands include `sbt testAllFull`, `sbt
 representationProof`, platform artifact packaging and eviction reports, JMH
 with GC profiling, the optimized Node benchmark, and Gale's `sbt
-interopRavelTest`. The GitHub Actions workflow is configured but was not
-executed remotely. No published Maven Central artifacts or binary-compatibility
-baseline existed during this audit.
+interopRavelTest`. GitHub Actions run `30264191210` passed the JDK 21, Node 22,
+real-Chromium, laws, representation, and optimized-link gates on commit
+`7f7c90fe5cda40ca8aaccd038ea0edd71793622e`. No published Maven Central
+artifacts or binary-compatibility baseline existed during this audit.

@@ -23,6 +23,18 @@ representation link. JVM bytecode contains primitive array loads, arithmetic,
 and stores in the dtype-specific loops. The optimized JavaScript uses concrete
 typed arrays.
 
+## Remote CI
+
+Commit `7f7c90fe5cda40ca8aaccd038ea0edd71793622e` is the first commit on
+`canardlapin/ravel` `main`. GitHub Actions run
+[`30264191210`](https://github.com/canardlapin/ravel/actions/runs/30264191210)
+passed on Temurin JDK 21 and Node 22. Its cross-platform job completed both:
+
+- `sbt testAllFull`, covering the JVM, Node, reusable laws, real Chromium, and
+  full-optimized Scala.js links; and
+- `sbt representationProof`, covering both core suites and the optimized
+  representation probe.
+
 ## Gale integration
 
 Ravel `ravel-core` snapshots were published locally for integration
@@ -58,3 +70,12 @@ The final baselines and the 70-percent regression budget are recorded in
 [`benchmark-baselines.md`](benchmark-baselines.md). The JVM public addition
 allocates one result buffer plus 1,177 bytes of wrapper and plan overhead,
 within the 2,048-byte allowance. The raw probes reuse their output.
+
+## Publication boundary
+
+The repository contains a tag-triggered `sbt-ci-release` workflow for signed
+Central Portal publication. No release tag has been pushed and no Maven Central
+artifact is claimed in this evidence. Publication remains gated on the
+repository's `PGP_PASSPHRASE`, `PGP_SECRET`, `SONATYPE_USERNAME`, and
+`SONATYPE_PASSWORD` secrets and confirmation that `io.github.canardlapin` is an
+authorized Central Portal namespace.
