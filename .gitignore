@@ -1,0 +1,13 @@
+.bsp/
+.metals/
+.scala-build/
+.vscode/
+project/project/
+project/target/
+target/
+modules/**/target/
+.mote/local/
+.mote/tmp/
+*.class
+*.log
+.DS_Store

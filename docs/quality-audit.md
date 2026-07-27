@@ -1,0 +1,70 @@
+# Scala quality assurance audit
+
+## Verdict
+
+Ravel 1.0 has strong local assurance for its numerical storage contract,
+cross-platform semantics, ownership, adversarial layouts, and primitive-kernel
+structure. Its remaining quality gaps are repository automation around
+formatting, coverage diagnostics, and post-1.0 compatibility enforcement.
+
+## Context and applicability
+
+Ravel is a pure, eager numerical library for Scala 3.7.4 on the JVM and
+Scala.js. It publishes `ravel-core` and `ravel-laws`. It has no effect API,
+provider registry, concurrent resource lifecycle, Scala Native target, or
+matrix algorithm, so Cats Effect laws, backend conformance, convergence tests,
+and Scala Native CI are not applicable.
+
+The first 1.0 release has no prior binary baseline. The published 1.0 API will
+become the required compatibility baseline for later 1.x releases.
+
+## Scorecard
+
+| Assurance dimension | Rating | Evidence | Gap or rationale |
+|---|---|---|---|
+| ScalaCheck use and generator quality | Strong | Four cross-platform properties run 250 cases each with one worker over zero, singleton, ordinary shapes, composed views, broadcasting, and mutable locality. Failures retain ScalaCheck seed and shrinking. | Add specialized overflow generators if the layout algebra expands. |
+| Reusable law-test module | Strong | `ravel-laws` cross-publishes public shape, layout, view, broadcast, dtype, cast, kernel, mutable, and interop laws without internal API access. | None for 1.0. |
+| Test framework and Discipline integration | Strong | MUnit and MUnit-ScalaCheck run on both platforms. `RavelDiscipline` exposes a `RuleSet`, and the suite executes every property with deterministic single-worker parameters. | No standard typeclass hierarchy requires Cats law suites. |
+| Typeclass lawfulness and coherence | Strong | The closed dtype capability givens live in `DType`; compile tests reject unsupported arithmetic and rank evidence. Cast and identity behavior is tested. | The capabilities are closed witnesses, not user-extensible algebra instances. |
+| Backend or provider conformance | Not applicable | Ravel has one platform implementation per target and no public backend/provider registry. | Gale owns numerical backend selection. |
+| Cross-platform and cross-version CI | Present but incomplete | Local JVM, Node, real Chromium, and full-optimized Scala.js gates pass; CI is configured for JDK 21 and Node 22. | The remote workflow has not run in this evidence window, and only Scala 3.7.4 is configured. |
+| Numerical and computational assurance | Strong | Exact primitive cases, IEEE edge values, empty fibers, deterministic floating merge order, generated layouts, and mutable injectivity are tested. | Ravel does not implement iterative or approximate algorithms. |
+| Differential and independent oracles | Strong | Coordinate reference models and direct Scala primitive operations check views, broadcasts, arithmetic, callbacks, and reductions without using optimized kernels. | External numerical libraries would add dependency without a distinct 1.0 oracle. |
+| Failure, convergence, and resource contracts | Strong | Bounds, shape, broadcast, slice, layout overflow, noncontiguous reshape, empty reduction, callback failure, and closed-builder failures are asserted. | Convergence and resource lifecycle are not applicable. |
+| Work and allocation accounting | Strong | JMH separates setup, raw reusable-output loops, public allocating operations, and representative strided work. GC-normalized allocation and output size are recorded. | Node allocation is structurally inspected rather than reported as a stable byte counter. |
+| Compiler discipline | Strong | `-deprecation`, `-feature`, `-unchecked`, `-Wunused:all`, `-Wvalue-discard`, and `-Werror` apply to all projects. | None for the current compiler. |
+| Formatting and semantic rewrites | Missing | No Scalafmt, Scalafix, or equivalent check is configured. | Add a formatting-only gate separately to avoid mixing mechanical churn with 1.0 semantics. |
+| Binary and source compatibility | Not applicable | The release contract declares that 1.0 establishes the first baseline. | Add MiMa or equivalent before the next 1.x release. |
+| Coverage and mutation signal | Missing | No scoverage or mutation report is configured. | Coverage would be diagnostic, not a replacement for generated and law tests. |
+| Benchmark and performance evidence | Strong | JMH and optimized Node probes disclose fixtures, runtime versions, throughput, allocations, regression budgets, and the oversized-dispatcher failure. | CI currently runs structural proof, not timing thresholds on a dedicated stable runner. |
+| Documentation and release evidence | Strong | Copy/view, ownership, casting, reduction, NumPy migration, Gale boundary, artifact POMs, local gates, and performance evidence are versioned. | Remote CI and repository publication remain unverified until they occur. |
+
+## Strongest evidence
+
+The most useful checks generate legal and degenerate layouts, compare their
+logical values with coordinate models, and run the same semantics on JVM and
+Scala.js. The browser suite proves that JavaScript interop runs in a real
+browser, not only Node. The performance gate also found and corrected a
+dispatcher that passed semantic tests and bytecode primitive checks but was too
+large for HotSpot to compile.
+
+## Prioritized follow-up
+
+1. Add Scalafmt and a CI formatting check in a mechanical-only change.
+2. Add MiMa against the published 1.0 artifact before releasing 1.0.1 or 1.1.
+3. Add diagnostic scoverage reporting, with no threshold until exclusions and
+   generated-code behavior are understood.
+4. Add a Scala Next consumer compilation job if Ravel promises a wider compiler
+   consumption range than Scala 3.7.x.
+
+Cats, Cats Effect, `sbt-typelevel`, and a public backend abstraction solve no
+current Ravel problem and are not recommended for 1.0.
+
+## Verification boundary
+
+Locally executed commands include `sbt testAllFull`, `sbt
+representationProof`, platform artifact packaging and eviction reports, JMH
+with GC profiling, the optimized Node benchmark, and Gale's `sbt
+interopRavelTest`. The GitHub Actions workflow is configured but was not
+executed remotely. No published Maven Central artifacts or binary-compatibility
+baseline existed during this audit.

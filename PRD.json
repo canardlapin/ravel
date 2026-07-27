@@ -1,0 +1,1034 @@
+{
+  "document_type": "product_requirements_document",
+  "schema_version": "1.0",
+  "document": {
+    "title": "Ravel Product Requirements",
+    "status": "approved_for_phase_0",
+    "version": "0.1.0",
+    "last_updated": "2026-07-26",
+    "release_target": "1.0",
+    "role": "Machine-readable product scope, behavioral contract, and delivery gates.",
+    "source_documents": [
+      {
+        "path": "notes.txt",
+        "role": "Architecture rationale and detailed design notes."
+      },
+      {
+        "url": "https://docs.scala-lang.org/scala3/reference/metaprogramming/compiletime-ops.html",
+        "role": "Reference for singleton integer operations used by rank arithmetic."
+      }
+    ]
+  },
+  "product": {
+    "name": "Ravel",
+    "root_package": "ravel",
+    "primary_type": "NDArray[A, R]",
+    "artifacts": [
+      "ravel-core",
+      "ravel-laws"
+    ],
+    "gale_integration_artifact": "gale-interop-ravel",
+    "summary": "Ravel provides dense, eager, in-memory multidimensional arrays for Scala on the JVM and Scala.js.",
+    "problem": "Scala scientific libraries need one small dense-array substrate with explicit shape and layout semantics, primitive cross-platform storage, predictable allocation, and optional static rank information. Existing designs either place too much shape information in public types, use collection-oriented storage in numerical loops, or expose more collection compatibility than a dense array kernel requires.",
+    "solution": "Represent each array as a flat dtype-specific buffer plus shape, strides, and offset. Keep dimension sizes at runtime, optionally refine rank in the type, expose immutable arrays by default, isolate mutation and borrowing in distinct types, and dispatch eager numerical operations to monomorphic primitive kernels.",
+    "positioning": "Ravel is an array foundation beneath Gale and domain libraries. It is not a tensor framework, linear algebra library, storage engine, or NumPy reimplementation."
+  },
+  "personas": [
+    {
+      "id": "PER-001",
+      "name": "Scala scientific user",
+      "need": "Create, index, slice, broadcast, transform, and reduce dense arrays without learning type-level shape programming."
+    },
+    {
+      "id": "PER-002",
+      "name": "Gale algorithm author",
+      "need": "Use reusable dense buffers, rank-refined vectors and matrices, predictable layouts, and allocation-controlled kernels without importing matrix semantics into Ravel."
+    },
+    {
+      "id": "PER-003",
+      "name": "Domain-library author",
+      "need": "Build neuroimaging, signal-processing, or labeled-array types over a neutral dense representation while retaining domain metadata outside Ravel."
+    },
+    {
+      "id": "PER-004",
+      "name": "Scala.js integrator",
+      "need": "Copy to and explicitly borrow JavaScript typed arrays with accurate aliasing and strided-layout semantics."
+    }
+  ],
+  "goals": [
+    {
+      "id": "GOAL-001",
+      "statement": "Provide one dense rectangular rank-n array abstraction with runtime dimensions and optional static rank refinement."
+    },
+    {
+      "id": "GOAL-002",
+      "statement": "Use flat primitive storage and monomorphic built-in kernels on the JVM and Scala.js."
+    },
+    {
+      "id": "GOAL-003",
+      "statement": "Make viewing, copying, mutation, and external aliasing visible in API names or result types."
+    },
+    {
+      "id": "GOAL-004",
+      "statement": "Give built-in operations deterministic cross-platform semantics for layout, broadcasting, casting, reductions, NaNs, and signed zero."
+    },
+    {
+      "id": "GOAL-005",
+      "statement": "Verify optimized kernels against a deliberately slow reference implementation over adversarial layouts."
+    },
+    {
+      "id": "GOAL-006",
+      "statement": "Keep Ravel small enough to serve Gale and other scientific libraries without absorbing their domain semantics."
+    }
+  ],
+  "non_goals": [
+    {
+      "id": "NONGOAL-001",
+      "capability": "Matrix multiplication, BLAS operations, decompositions, factorizations, linear solves, and linear operators",
+      "owner": "Gale"
+    },
+    {
+      "id": "NONGOAL-002",
+      "capability": "Sparse arrays",
+      "owner": "Gale or a dedicated sparse module"
+    },
+    {
+      "id": "NONGOAL-003",
+      "capability": "FFTs and convolutions",
+      "owner": "Signal-processing modules"
+    },
+    {
+      "id": "NONGOAL-004",
+      "capability": "Probability distributions, random-number policy, variance, covariance, and quantiles",
+      "owner": "Random and statistics modules"
+    },
+    {
+      "id": "NONGOAL-005",
+      "capability": "Named axes, coordinates, missing-data policy, and domain metadata",
+      "owner": "Labeled-array and domain layers"
+    },
+    {
+      "id": "NONGOAL-006",
+      "capability": "Zarr, HDF5, NIfTI, Arrow, and other file or storage formats",
+      "owner": "I/O adapters"
+    },
+    {
+      "id": "NONGOAL-007",
+      "capability": "Chunked, distributed, or out-of-core execution",
+      "owner": "Array-source or chunked-array abstractions"
+    },
+    {
+      "id": "NONGOAL-008",
+      "capability": "GPU execution, backend registries, and parallel scheduling",
+      "owner": "Explicit accelerator and platform execution libraries"
+    },
+    {
+      "id": "NONGOAL-009",
+      "capability": "Automatic differentiation, lazy expression graphs, and JIT compilation",
+      "owner": "Separate transformation or optimizer layers"
+    },
+    {
+      "id": "NONGOAL-010",
+      "capability": "Exact type-level dimension sizes",
+      "owner": "Optional Sized refinement"
+    },
+    {
+      "id": "NONGOAL-011",
+      "capability": "Inheritance from Scala collection types",
+      "owner": "Not planned"
+    }
+  ],
+  "design_principles": [
+    {
+      "id": "PRINCIPLE-001",
+      "statement": "The fundamental value is buffer, shape, strides, and offset, not a nested collection."
+    },
+    {
+      "id": "PRINCIPLE-002",
+      "statement": "Runtime values carry dimension sizes; types carry only structural facts that survive ordinary runtime use."
+    },
+    {
+      "id": "PRINCIPLE-003",
+      "statement": "Owned immutable arrays are the default. Mutation and external aliasing require distinct types."
+    },
+    {
+      "id": "PRINCIPLE-004",
+      "statement": "A built-in operation dispatches once before its element loop; it does not perform generic numeric dispatch per element."
+    },
+    {
+      "id": "PRINCIPLE-005",
+      "statement": "Operations state whether they return a view, may copy, or always copy."
+    },
+    {
+      "id": "PRINCIPLE-006",
+      "statement": "Public guarantees are established by laws, differential tests, and structural inspection of generated loops."
+    }
+  ],
+  "public_model": {
+    "array_types": [
+      {
+        "name": "NDArray[A, R]",
+        "ownership": "owned",
+        "mutability": "immutable",
+        "aliasing_guarantee": "The backing buffer is not externally mutable through public APIs."
+      },
+      {
+        "name": "MutableNDArray[A, R]",
+        "ownership": "owned",
+        "mutability": "mutable",
+        "aliasing_guarantee": "Every public mutable layout is injective by construction."
+      },
+      {
+        "name": "BorrowedNDArray[A, R]",
+        "ownership": "external",
+        "mutability": "read-only through Ravel but externally mutable",
+        "aliasing_guarantee": "External writes may change values observed through the borrowed array."
+      }
+    ],
+    "rank_types": {
+      "dynamic": "AnyRank",
+      "static": "Rank[N <: Int]",
+      "aliases": {
+        "Array0[A]": "NDArray[A, Rank[0]]",
+        "Array1[A]": "NDArray[A, Rank[1]]",
+        "Array2[A]": "NDArray[A, Rank[2]]",
+        "Array3[A]": "NDArray[A, Rank[3]]",
+        "Array4[A]": "NDArray[A, Rank[4]]"
+      },
+      "drop_axis_guard": "Every public rank-lowering operation requires CanDropAxis[R]. Rank[0] cannot produce Rank[-1]. Dynamic-rank arrays perform an equivalent runtime check."
+    },
+    "layout_equation": "physicalIndex = offset + sum(logicalIndex[k] * stride[k])",
+    "shape_semantics": {
+      "dimension_type": "Int",
+      "dimension_constraint": "Each dimension is greater than or equal to zero.",
+      "rank_zero_size": 1,
+      "zero_axis_size": 0,
+      "size_type": "Int",
+      "intermediate_arithmetic_type": "Long"
+    }
+  },
+  "requirements": [
+    {
+      "id": "RAV-REP-001",
+      "category": "representation",
+      "priority": "must",
+      "statement": "Every array shall use one flat buffer plus immutable shape, strides, and offset metadata.",
+      "acceptance": [
+        "No core representation uses nested arrays or nested collections.",
+        "A slow reference accessor and optimized accessors return the same value for every valid logical index."
+      ]
+    },
+    {
+      "id": "RAV-REP-002",
+      "category": "representation",
+      "priority": "must",
+      "statement": "Fast-path dtypes shall use dtype-specific primitive buffers on each platform.",
+      "acceptance": [
+        "JVM Double, Float, Int, Boolean, Byte, Short, and Long storage uses the corresponding primitive Array.",
+        "Scala.js Boolean uses Uint8Array with values encoded as 0 or 1.",
+        "Scala.js Byte, Short, Int, Float, and Double use Int8Array, Int16Array, Int32Array, Float32Array, and Float64Array.",
+        "The Scala.js Long fallback is documented and excluded from the JavaScript fast-path performance contract."
+      ]
+    },
+    {
+      "id": "RAV-REP-003",
+      "category": "representation",
+      "priority": "must",
+      "statement": "Shared storage shall use sealed dtype-specific Data variants, while built-in kernels receive concrete raw-buffer arguments.",
+      "acceptance": [
+        "A generic PlatformBuffer[A] is not used as the parameter type of an inner primitive loop.",
+        "Each operation performs at most one dtype and layout dispatch before entering its built-in loop.",
+        "Compiler-output inspection finds no DType call, generic buffer access, iterator, tuple allocation, Option allocation, or virtual numeric dispatch inside a built-in primitive loop."
+      ]
+    },
+    {
+      "id": "RAV-LAY-001",
+      "category": "shape_and_layout",
+      "priority": "must",
+      "statement": "Shape products, canonical strides, offset transformations, axis coalescing, and reachable-address bounds shall use Long intermediates and checked narrowing to Int.",
+      "acceptance": [
+        "Overflow is rejected instead of wrapped.",
+        "A zero-sized shape such as (0, Int.MaxValue, Int.MaxValue) cannot silently overflow while constructing nominally unused strides.",
+        "Every accepted nonempty layout maps its complete logical domain inside the backing buffer."
+      ]
+    },
+    {
+      "id": "RAV-LAY-002",
+      "category": "shape_and_layout",
+      "priority": "must",
+      "statement": "Layout.offset shall always denote the physical address of logical index zero.",
+      "acceptance": [
+        "A view operation adjusts offset when introducing a negative stride.",
+        "The loop planner does not normalize an already adjusted negative-stride offset a second time.",
+        "Double reversal restores the original logical values and layout mapping."
+      ]
+    },
+    {
+      "id": "RAV-LAY-003",
+      "category": "shape_and_layout",
+      "priority": "must",
+      "statement": "Read-only layouts shall support positive strides, negative strides, zero strides, nonzero offsets, rank-zero arrays, and zero-length axes.",
+      "acceptance": [
+        "Generated tests cover each layout form and their compositions.",
+        "HasBroadcastStride is set only for a zero-stride axis whose logical length is greater than one."
+      ]
+    },
+    {
+      "id": "RAV-RANK-001",
+      "category": "rank_typing",
+      "priority": "must",
+      "statement": "Constructors with statically known arity shall infer Rank[N], while dynamic shape constructors shall return AnyRank.",
+      "acceptance": [
+        "NDArray.zeros[Double](3, 4) has type Array2[Double].",
+        "Shape.from returns a dynamic-rank Shape through a validating boundary.",
+        "requireRank[N] returns Either[RankMismatch, NDArray[A, Rank[N]]]."
+      ]
+    },
+    {
+      "id": "RAV-RANK-002",
+      "category": "rank_typing",
+      "priority": "must",
+      "statement": "Rank-lowering operations shall reject statically known Rank[0] and validate positive dynamic rank.",
+      "acceptance": [
+        "select, squeeze, and single-axis rank-lowering reductions do not compile for Rank[0].",
+        "The corresponding operation on AnyRank fails with a precise runtime error when the actual rank is zero.",
+        "No public operation produces Rank[-1]."
+      ]
+    },
+    {
+      "id": "RAV-DTYPE-001",
+      "category": "dtype",
+      "priority": "must",
+      "statement": "Ravel 1.0 shall expose a closed primitive dtype family consisting of Boolean, Byte, Short, Int, Long, Float, and Double.",
+      "acceptance": [
+        "Every supported dtype has a known physical representation and cross-platform copy semantics.",
+        "Boolean supports storage and elementwise equality but no numeric cast.",
+        "Byte and Short support storage, casts, ordering, comparisons, min, max, argMin, and argMax, but not pointwise arithmetic, sum, or product.",
+        "Int, Long, Float, and Double support same-dtype arithmetic."
+      ]
+    },
+    {
+      "id": "RAV-DTYPE-002",
+      "category": "dtype",
+      "priority": "must",
+      "statement": "Binary arithmetic shall require equal operand dtypes in 1.0.",
+      "acceptance": [
+        "Array1[Int] plus Array1[Int] compiles.",
+        "Array1[Int] plus Array1[Double] does not compile.",
+        "Array1[Byte] plus Array1[Byte] does not compile.",
+        "Users can opt into a different dtype with an explicit cast."
+      ]
+    },
+    {
+      "id": "RAV-DTYPE-003",
+      "category": "dtype",
+      "priority": "must",
+      "statement": "Numeric cast behavior shall follow one documented conversion table on the JVM and Scala.js.",
+      "acceptance": [
+        "Integral widening is exact where the target can represent every source value.",
+        "Integral narrowing retains low-order bits with signed two's-complement interpretation.",
+        "Integral-to-floating conversion uses IEEE rounding and may lose precision.",
+        "Float-to-Double is exact; Double-to-Float uses IEEE rounding, preserves signed zero, maps overflow to infinity, and preserves NaN classification without guaranteeing its payload.",
+        "Floating-to-Int or Long truncates toward zero, maps NaN to zero, and clamps infinities and finite out-of-range values.",
+        "Floating-to-Byte or Short applies the Int conversion followed by integral narrowing.",
+        "Cross-platform edge-case tests cover extrema, representability boundaries, infinities, NaNs, and signed zeros."
+      ]
+    },
+    {
+      "id": "RAV-DTYPE-004",
+      "category": "dtype",
+      "priority": "must",
+      "statement": "Integral arithmetic shall use fixed-width Scala semantics, and floating arithmetic shall use IEEE 754 semantics.",
+      "acceptance": [
+        "Int and Long overflow wraps.",
+        "Integral division by zero fails.",
+        "Documented edge cases such as abs(Int.MinValue) match the corresponding Scala primitive operation.",
+        "JVM and Scala.js parity tests cover the agreed behavior."
+      ]
+    },
+    {
+      "id": "RAV-OWN-001",
+      "category": "ownership",
+      "priority": "must",
+      "statement": "Normal public constructors shall copy input storage and return owned immutable NDArray values.",
+      "acceptance": [
+        "Changing the caller's original array after construction does not change the NDArray.",
+        "NDArray exposes no update method.",
+        "Owned NDArray does not expose its mutable backing array or typed array zero-copy."
+      ]
+    },
+    {
+      "id": "RAV-OWN-002",
+      "category": "ownership",
+      "priority": "must",
+      "statement": "Zero-copy external wrapping shall return BorrowedNDArray rather than NDArray.",
+      "acceptance": [
+        "BorrowedNDArray is not a subtype of NDArray.",
+        "External mutation is observable through BorrowedNDArray and documented as permitted.",
+        "Structural borrowed views remain BorrowedNDArray.",
+        "copy, map, arithmetic, and array-valued reductions allocate owned NDArray results.",
+        "No implicit conversion erases the borrowed marker."
+      ]
+    },
+    {
+      "id": "RAV-MUT-001",
+      "category": "mutation",
+      "priority": "must",
+      "statement": "Mutation shall be available only through MutableNDArray and trusted internal builders.",
+      "acceptance": [
+        "mutableCopy creates independent owned mutable storage.",
+        "freezeCopy returns an owned immutable copy isolated from later mutation.",
+        "Internal unsafeFreeze is unavailable from the ordinary public namespace."
+      ]
+    },
+    {
+      "id": "RAV-MUT-002",
+      "category": "mutation",
+      "priority": "must",
+      "statement": "Every public MutableNDArray layout shall be injective by construction.",
+      "acceptance": [
+        "Mutable layouts originate from canonical owned layouts or trusted injectivity-preserving transformations.",
+        "The implementation does not claim to perform a general runtime injectivity test.",
+        "A layout with shape (2, 2) and strides (1, 1) cannot be constructed as MutableLayout.",
+        "Mutable slicing, selection, reversal, transposition, axis permutation, singleton-axis insertion or removal, and legal reshape preserve injectivity.",
+        "Mutable broadcasting is unavailable."
+      ]
+    },
+    {
+      "id": "RAV-VIEW-001",
+      "category": "views",
+      "priority": "must",
+      "statement": "Ravel shall provide composable axis-local structural operations with explicit storage behavior.",
+      "acceptance": [
+        "select, slice, narrow, reverse, swapAxes, permuteAxes, newAxis, squeeze, and broadcastTo return views.",
+        "reverse represents reversal with a negative stride.",
+        "broadcastTo returns a read-only zero-stride view where expansion is required.",
+        "contiguous returns the same value when already canonical contiguous or an owned contiguous copy otherwise.",
+        "copy and flattenCopy always copy.",
+        "reshapeView never copies."
+      ]
+    },
+    {
+      "id": "RAV-VIEW-002",
+      "category": "views",
+      "priority": "must",
+      "statement": "Slice(start, stopExclusive, step) shall be the canonical slicing value, with Scala Range accepted only as convenience sugar.",
+      "acceptance": [
+        "Slice rejects step equal to zero.",
+        "Positive slices use boundaries in [0, axisLength].",
+        "Negative slices use start in [0, axisLength) and stopExclusive in [-1, axisLength).",
+        "Slice(axisLength - 1, -1, -1) performs a complete reversal.",
+        "Empty slices are valid.",
+        "Ravel does not reinterpret negative Slice endpoints as indices from the end.",
+        "Inclusive Scala Range conversion adjusts its endpoint with checked Long arithmetic."
+      ]
+    },
+    {
+      "id": "RAV-VIEW-003",
+      "category": "views",
+      "priority": "must",
+      "statement": "Axis-taking APIs shall accept and normalize negative axes consistently.",
+      "acceptance": [
+        "Existing axes accept values in [-rank, rank).",
+        "newAxis accepts insertion positions from -(rank + 1) through rank.",
+        "permuteAxes normalizes every entry and rejects duplicates or omissions.",
+        "Element indices remain nonnegative in 1.0."
+      ]
+    },
+    {
+      "id": "RAV-VIEW-004",
+      "category": "views",
+      "priority": "must",
+      "statement": "reshapeView shall succeed only when logical row-major traversal can be repartitioned without changing its physical address sequence.",
+      "acceptance": [
+        "Source and target sizes agree using checked Long arithmetic.",
+        "Length-one source axes are ignored for coalescing.",
+        "A non-singleton zero-stride source axis rejects reshapeView.",
+        "Adjacent non-singleton source axes coalesce exactly when outerStride equals innerShape times innerStride.",
+        "Target non-singleton axes can be partitioned in logical order into groups whose products equal source contiguous-block products.",
+        "Derived strides are checked before narrowing to Int.",
+        "An equal-size zero-element target may use a canonical empty layout when all target strides are representable.",
+        "Failure reports NonContiguousLayout and performs no copy."
+      ]
+    },
+    {
+      "id": "RAV-BCAST-001",
+      "category": "broadcasting",
+      "priority": "must",
+      "statement": "Broadcasting shall align trailing axes and use NumPy-compatible dimension rules without implementing the result as max(left, right).",
+      "acceptance": [
+        "Equal dimensions produce that dimension.",
+        "A dimension of 1 expands to the other dimension.",
+        "Dimensions 0 and 1 broadcast to 0.",
+        "All other unequal dimension pairs fail.",
+        "The expanded operand receives stride zero.",
+        "A mismatch reports both original shapes and the first incompatible aligned axis."
+      ]
+    },
+    {
+      "id": "RAV-API-001",
+      "category": "indexing",
+      "priority": "must",
+      "statement": "Public indexing shall provide direct rank-one through rank-four overloads plus an arbitrary-rank fallback.",
+      "acceptance": [
+        "apply overloads validate each index.",
+        "at(IArray[Int]) validates index rank and bounds.",
+        "Physical offset calculations use Long intermediates before checked narrowing.",
+        "Validated internal loop plans may use unchecked buffer access without repeating operand bounds checks per element."
+      ]
+    },
+    {
+      "id": "RAV-API-002",
+      "category": "collections",
+      "priority": "must",
+      "statement": "NDArray shall not extend IndexedSeq, Iterable, or another standard Scala collection abstraction.",
+      "acceptance": [
+        "Traversal is available through explicitly named foreachElement, elementsIterator, and foreachIndex operations.",
+        "No inherited collection builder can silently discard shape."
+      ]
+    },
+    {
+      "id": "RAV-API-003",
+      "category": "elementwise_operations",
+      "priority": "must",
+      "statement": "Ravel 1.0 shall provide the agreed eager pointwise numerical and comparison operations.",
+      "acceptance": [
+        "Arithmetic dtypes support unary plus and minus, same-dtype add, subtract, multiply, divide, scalar arithmetic, and abs.",
+        "Ordered numeric dtypes support minimum, maximum, clip, less-than, and less-than-or-equal operations.",
+        "Floating dtypes support sqrt, exp, log, sin, cos, tan, floor, ceil, isNaN, and isFinite.",
+        "Elementwise equality uses an explicit array operator or method rather than overriding ordinary Scala ==.",
+        "Comparisons allocate Boolean arrays."
+      ]
+    },
+    {
+      "id": "RAV-RED-001",
+      "category": "reductions",
+      "priority": "must",
+      "statement": "Ravel shall provide scalar, single-axis, and keep-dimension forms of primitive reductions.",
+      "acceptance": [
+        "Arithmetic dtypes support sum and product.",
+        "Ordered numeric dtypes support min, max, argMin, and argMax.",
+        "Float and Double support mean.",
+        "Single-axis rank-lowering forms preserve static rank information through CanDropAxis.",
+        "Dynamic multiple-axis reduction returns dynamic rank."
+      ]
+    },
+    {
+      "id": "RAV-RED-002",
+      "category": "reductions",
+      "priority": "must",
+      "statement": "Reduction identities, empty inputs, NaNs, ties, and signed zero shall have deterministic semantics.",
+      "acceptance": [
+        "Empty sum returns zero and empty product returns one.",
+        "Empty floating sum returns positive zero and empty floating product returns positive one.",
+        "min, max, argMin, and argMax fail on an empty reduction domain.",
+        "Mean of an empty floating domain returns NaN.",
+        "argMin and argMax choose the first logical row-major occurrence on ordinary ties.",
+        "A NaN makes min or max return NaN, and argMin or argMax returns the first logical row-major NaN index.",
+        "minimum selects negative zero over positive zero; maximum selects positive zero over negative zero.",
+        "Elementwise equality treats both signed zeros as equal and NaN as unequal to every value."
+      ]
+    },
+    {
+      "id": "RAV-RED-003",
+      "category": "reductions",
+      "priority": "must",
+      "statement": "Floating sums and means shall use a fixed block-pairwise order shared by the JVM and Scala.js.",
+      "acceptance": [
+        "The block size and merge schedule are documented before Phase 4 closes.",
+        "Traversal follows logical row-major order rather than physical buffer order.",
+        "Float.sum accumulates and returns Float.",
+        "Float.sumAs[Double] accumulates and returns Double.",
+        "Float.mean uses a Double accumulator and rounds once to Float.",
+        "Double.sum and Double.mean accumulate in Double.",
+        "Changing from contiguous to an extensionally equal strided view does not change the specified reduction schedule."
+      ]
+    },
+    {
+      "id": "RAV-RED-004",
+      "category": "reductions",
+      "priority": "must",
+      "statement": "The only widening reduction accumulator pairs in 1.0 shall be Int to Long and Float to Double.",
+      "acceptance": [
+        "Int.sumAs[Long] is available.",
+        "Float.sumAs[Double] is available.",
+        "Byte and Short callers cast to Int before summation.",
+        "Long and Double expose no wider built-in sumAs target."
+      ]
+    },
+    {
+      "id": "RAV-EXEC-001",
+      "category": "execution",
+      "priority": "must",
+      "statement": "Ordinary numerical syntax shall execute eagerly and allocate one output per operation.",
+      "acceptance": [
+        "Ravel core contains no lazy expression graph, JIT compiler, automatic-differentiation tape, or backend registry.",
+        "An expression such as x * y + b may allocate an intermediate in 1.0.",
+        "Allocation behavior is documented rather than hidden behind reshape or view operations."
+      ]
+    },
+    {
+      "id": "RAV-EXEC-002",
+      "category": "execution",
+      "priority": "must",
+      "statement": "The loop planner shall classify validated operations into linear contiguous, scalar broadcast, simple inner-strided, or fully general strided plans.",
+      "acceptance": [
+        "Ranks are aligned before broadcast strides are assigned.",
+        "Length-one axes may be removed.",
+        "Other adjacent axes coalesce only when every operand and output is contiguous across the boundary or both relevant operand strides are zero.",
+        "All products and derived offsets use checked Long arithmetic.",
+        "The fully general loop uses counters and physical offsets rather than repeated division of a linear index."
+      ]
+    },
+    {
+      "id": "RAV-EXEC-003",
+      "category": "execution",
+      "priority": "must",
+      "statement": "Built-in numerical kernels shall be pure and monomorphic; callback-based map APIs shall retain observable Scala callback semantics.",
+      "acceptance": [
+        "Pure built-in kernels may use lawful reindexing and fusion transformations.",
+        "map, zipMap, mapInto, and zipMapInto invoke callbacks once per logical output element in logical row-major order.",
+        "Callback-based operations are not fused or reordered.",
+        "Callback-based operations make no no-boxing guarantee.",
+        "An exception from a callback stops evaluation and prevents an incomplete allocated output from being returned."
+      ]
+    },
+    {
+      "id": "RAV-EXEC-004",
+      "category": "execution",
+      "priority": "should",
+      "statement": "Ravel shall expose a narrow expert kernel API for writing into reusable mutable outputs.",
+      "acceptance": [
+        "The API includes specialized addInto and multiplyInto operations.",
+        "The API includes callback-based mapInto and zipMapInto operations with the generic callback performance contract.",
+        "Destination shape, dtype, layout, and aliasing are validated once before execution."
+      ]
+    },
+    {
+      "id": "RAV-INT-001",
+      "category": "interop",
+      "priority": "must",
+      "statement": "Platform-specific interop shall live under ravel.jvm and ravel.js.",
+      "acceptance": [
+        "Shared core APIs do not expose JVM Array or Scala.js typed-array types.",
+        "JvmInterop.copyToArray and JsInterop copy functions always copy logical values.",
+        "Unsafe zero-copy input methods use the name unsafeBorrow and return BorrowedNDArray."
+      ]
+    },
+    {
+      "id": "RAV-INT-002",
+      "category": "interop",
+      "priority": "must",
+      "statement": "JavaScript borrowed-layout descriptors shall be dtype-specific and shall not expose private PlatformBuffer[A].",
+      "acceptance": [
+        "Double descriptors expose Float64Array directly.",
+        "Other fast-path descriptors expose their concrete typed-array classes.",
+        "Descriptor shape and stride arrays are metadata copies.",
+        "A strided descriptor preserves buffer, offset, shape, and strides rather than pretending to be contiguous.",
+        "Long has no zero-copy JavaScript descriptor unless Phase 0 proves a stable native representation."
+      ]
+    },
+    {
+      "id": "RAV-ERR-001",
+      "category": "errors",
+      "priority": "must",
+      "statement": "Deterministic programming errors in ordinary numerical expressions shall throw precise sealed NDArrayException subtypes.",
+      "acceptance": [
+        "The error family includes ShapeMismatch, BroadcastMismatch, InvalidAxis, InvalidShape, InvalidSlice, LayoutOverflow, NonContiguousLayout, and EmptyReduction.",
+        "Boundary parsers and refinements such as Shape.from, Slice.from, requireRank, and external parsing may return Either.",
+        "BroadcastMismatch reports both shapes and the first incompatible aligned axis."
+      ]
+    },
+    {
+      "id": "RAV-EQ-001",
+      "category": "equality_and_display",
+      "priority": "must",
+      "statement": "NDArray.equals shall retain reference semantics; users shall opt into explicit extensional comparisons.",
+      "acceptance": [
+        "sameElements compares logical values.",
+        "sameElementsBits supports bit-sensitive comparison.",
+        "allClose accepts explicit relative and absolute tolerances.",
+        "toString includes dtype, shape, contiguity, and a preview bounded by both axis length and total element count."
+      ]
+    },
+    {
+      "id": "RAV-GALE-001",
+      "category": "gale_boundary",
+      "priority": "must",
+      "statement": "Ravel shall remain neutral dense storage, while Gale owns mathematical vector and matrix semantics.",
+      "acceptance": [
+        "Ravel core does not implement matrix multiplication, adjoints, BLAS selection, decompositions, sparse formats, or solvers.",
+        "Gale may wrap Array1[Double] and Array2[Double] or provide explicit adapters.",
+        "The coordinated adapter is published from the Gale repository as gale-interop-ravel.",
+        "A rank-two NDArray is not described as a matrix by Ravel."
+      ]
+    }
+  ],
+  "verification": {
+    "test_stack": [
+      "MUnit",
+      "ScalaCheck",
+      "Discipline"
+    ],
+    "runtime_dependency_policy": "The runtime library does not depend on Cats solely to provide law testing.",
+    "reference_model": {
+      "description": "A deliberately slow logical row-major implementation serves as the semantic oracle.",
+      "generated_layouts": [
+        "contiguous",
+        "transposed",
+        "sliced",
+        "reversed",
+        "broadcast",
+        "zero-length",
+        "rank-zero",
+        "nonzero-offset",
+        "overlapping read-only",
+        "compositions of the above"
+      ],
+      "edge_values": [
+        "integer minima and maxima",
+        "integer overflow boundaries",
+        "positive and negative zero",
+        "positive and negative infinity",
+        "NaN",
+        "floating representability boundaries",
+        "shape, stride, and offset overflow attempts"
+      ]
+    },
+    "law_bundles": [
+      "ShapeLaws",
+      "LayoutLaws",
+      "ViewLaws",
+      "BroadcastLaws",
+      "DTypeLaws",
+      "CastLaws",
+      "KernelLaws",
+      "MutableLaws",
+      "InteropLaws",
+      "BorrowedInteropLaws"
+    ],
+    "required_laws": [
+      {
+        "id": "LAW-001",
+        "name": "materialization",
+        "statement": "a.contiguous has the same logical elements as a."
+      },
+      {
+        "id": "LAW-002",
+        "name": "view_involution",
+        "statement": "Swapping the same axes twice or reversing the same axis twice preserves logical values."
+      },
+      {
+        "id": "LAW-003",
+        "name": "permutation_composition",
+        "statement": "Sequential axis permutations equal their composed permutation."
+      },
+      {
+        "id": "LAW-004",
+        "name": "pure_map_reindexing",
+        "statement": "For total pure f, mapping commutes extensionally with a legal reindexing view."
+      },
+      {
+        "id": "LAW-005",
+        "name": "pure_map_identity_and_composition",
+        "statement": "For total pure functions, map identity preserves values and sequential maps equal map of function composition."
+      },
+      {
+        "id": "LAW-006",
+        "name": "mutable_locality",
+        "statement": "For every constructible MutableLayout, updating one logical index changes no other logical index."
+      },
+      {
+        "id": "LAW-007",
+        "name": "freeze_isolation",
+        "statement": "Mutation after freezeCopy does not change the frozen NDArray."
+      },
+      {
+        "id": "LAW-008",
+        "name": "kernel_differential",
+        "statement": "Every specialized kernel agrees with the reference implementation under its documented integer or floating comparison policy."
+      },
+      {
+        "id": "LAW-009",
+        "name": "platform_parity",
+        "statement": "JVM and Scala.js agree for all semantics promised to be cross-platform."
+      }
+    ]
+  },
+  "delivery": {
+    "phases": [
+      {
+        "id": "PHASE-0",
+        "name": "Representation proof",
+        "objective": "Prove storage encodings and generated loop shapes before freezing public or internal APIs.",
+        "deliverables": [
+          "Executable JVM and Scala.js prototypes for Double, Float, Int, Boolean, and Long.",
+          "Allocation, scalar access, fill, copy, linear unary, linear binary, and general strided loop probes.",
+          "Boolean Uint8Array encoding evidence.",
+          "Documented Scala.js Long fallback decision.",
+          "JVM bytecode and optimized JavaScript inspection notes.",
+          "Allocation measurements and raw-loop benchmarks on the JVM and Node."
+        ],
+        "exit_criteria": [
+          "Built-in probes dispatch once and enter functions with concrete raw-buffer parameters.",
+          "No per-element boxing, iterator allocation, DType access, or virtual numeric dispatch is present.",
+          "Byte and Short pass the same representation checks before they enter the 1.0 storage family.",
+          "The Data and kernel ABI is revised if the proposed encoding fails structural inspection."
+        ],
+        "blocks": [
+          "PHASE-1",
+          "Public API freeze"
+        ]
+      },
+      {
+        "id": "PHASE-1",
+        "name": "Representation",
+        "objective": "Implement the proven storage, dtype, shape, layout, rank, construction, indexing, and reference-model foundations.",
+        "deliverables": [
+          "DType capability hierarchy and complete cast contract.",
+          "Dtype-specific Data variants and platform buffers.",
+          "Shape and checked Layout.",
+          "CanDropAxis and requireRank.",
+          "Immutable constructors and indexing overloads.",
+          "Slow reference iterator."
+        ],
+        "exit_criteria": [
+          "Cross-platform cast edge tests pass.",
+          "Layout overflow tests include zero-sized stride overflow.",
+          "Negative-stride offset tests pass.",
+          "Rank-zero operations cannot produce negative rank."
+        ],
+        "depends_on": [
+          "PHASE-0"
+        ]
+      },
+      {
+        "id": "PHASE-2",
+        "name": "View algebra",
+        "objective": "Implement and fuzz the complete 1.0 structural view contract.",
+        "deliverables": [
+          "select, Slice, Range conversion, narrow, reverse, swapAxes, permuteAxes, newAxis, squeeze, reshapeView, contiguous, and copy.",
+          "Negative-axis normalization.",
+          "Documented reshape block-coalescing algorithm."
+        ],
+        "exit_criteria": [
+          "Random view compositions agree with the reference model.",
+          "Fuzzing covers zero-length, negative-stride, singleton zero-stride, and rejected-overflow layouts.",
+          "Every operation's view or copy behavior matches the public table."
+        ],
+        "depends_on": [
+          "PHASE-1"
+        ]
+      },
+      {
+        "id": "PHASE-3",
+        "name": "Loop planner and kernels",
+        "objective": "Implement broadcasting, loop planning, primitive elementwise kernels, comparisons, and generic callback maps.",
+        "deliverables": [
+          "Axis coalescing and plan classification.",
+          "Contiguous, scalar-broadcast, inner-strided, and general strided loops.",
+          "Fill, copy, unary arithmetic, binary arithmetic, and comparison kernels.",
+          "map and zipMap with explicit callback evaluation semantics."
+        ],
+        "exit_criteria": [
+          "Built-in primitive loops satisfy the Phase 0 structural performance contract.",
+          "Broadcasting handles 0 with 1 as dimension 0.",
+          "Specialized kernels agree with the reference implementation over generated layouts.",
+          "Callback order and exception tests pass."
+        ],
+        "depends_on": [
+          "PHASE-2"
+        ]
+      },
+      {
+        "id": "PHASE-4",
+        "name": "Reductions and mutation",
+        "objective": "Implement deterministic reductions, by-construction mutable layouts, and reusable-output kernels.",
+        "deliverables": [
+          "Scalar and single-axis reductions.",
+          "Fixed block-pairwise floating summation and mean.",
+          "MutableNDArray and MutableLayout.",
+          "freezeCopy.",
+          "Specialized Into kernels and callback Into forms."
+        ],
+        "exit_criteria": [
+          "The floating block size and merge schedule are documented.",
+          "Empty, NaN, signed-zero, tie, and overflow semantics pass on both platforms.",
+          "Mutable-layout generators cannot produce overlap.",
+          "freezeCopy isolation laws pass."
+        ],
+        "depends_on": [
+          "PHASE-3"
+        ]
+      },
+      {
+        "id": "PHASE-5",
+        "name": "Integration and release preparation",
+        "objective": "Complete platform interop, Gale integration, cross-platform suites, documentation, and release gates.",
+        "deliverables": [
+          "JvmInterop copy and unsafeBorrow APIs.",
+          "Scala.js typed-array copy and unsafeBorrow APIs.",
+          "BorrowedNDArray and dtype-specific descriptors.",
+          "Coordinated gale-interop-ravel adapter in the sibling Gale repository.",
+          "Scala.js browser and Node test suites.",
+          "NumPy-to-Ravel migration documentation."
+        ],
+        "exit_criteria": [
+          "Owned arrays never leak a mutable backing buffer.",
+          "Borrowed aliasing remains visible through structural views.",
+          "All reusable law bundles pass on the JVM and Scala.js.",
+          "Published artifacts contain only the intended public API and dependencies.",
+          "The 1.0 documentation states every copy, view, mutation, casting, and reduction guarantee."
+        ],
+        "depends_on": [
+          "PHASE-4"
+        ]
+      }
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "GATE-001",
+      "name": "Representation gate",
+      "required_for": "Beginning Phase 1",
+      "criteria": [
+        "PHASE-0 exit criteria pass.",
+        "The selected raw-buffer ABI is recorded in notes.txt and implementation documentation."
+      ]
+    },
+    {
+      "id": "GATE-002",
+      "name": "Semantic gate",
+      "required_for": "Beginning release preparation",
+      "criteria": [
+        "Reference differential tests pass over adversarial layouts.",
+        "Cast, reduction, broadcasting, and ownership contracts pass on the JVM and Scala.js."
+      ]
+    },
+    {
+      "id": "GATE-003",
+      "name": "Kernel structure gate",
+      "required_for": "Release 1.0",
+      "criteria": [
+        "Built-in primitive loops contain no prohibited per-element abstraction costs.",
+        "Allocation measurements and benchmarks have checked-in baselines for the JVM and Node."
+      ]
+    },
+    {
+      "id": "GATE-004",
+      "name": "Scope gate",
+      "required_for": "Release 1.0",
+      "criteria": [
+        "Ravel core contains none of the declared non-goals.",
+        "Gale integration remains an adapter rather than a dependency that imports matrix semantics into Ravel."
+      ]
+    }
+  ],
+  "success_criteria": [
+    {
+      "id": "SUCCESS-001",
+      "criterion": "A user can import ravel.*, construct a rank-refined array, index it, create views, broadcast, transform, and reduce it without using type-level dimension values."
+    },
+    {
+      "id": "SUCCESS-002",
+      "criterion": "Every supported JVM and Scala.js dtype has verified storage, copying, and kernel behavior consistent with its documented performance class."
+    },
+    {
+      "id": "SUCCESS-003",
+      "criterion": "No ordinary immutable NDArray can change because a caller retained a mutable external buffer reference."
+    },
+    {
+      "id": "SUCCESS-004",
+      "criterion": "Every specialized kernel agrees with the reference implementation across contiguous and adversarial layouts."
+    },
+    {
+      "id": "SUCCESS-005",
+      "criterion": "Built-in primitive loops satisfy structural no-boxing and no-per-element-dispatch checks on the JVM and Scala.js."
+    },
+    {
+      "id": "SUCCESS-006",
+      "criterion": "Gale can consume Ravel arrays through gale-interop-ravel without Ravel acquiring linear-algebra responsibilities."
+    }
+  ],
+  "risks": [
+    {
+      "id": "RISK-001",
+      "risk": "Scala match types do not reduce a generic PlatformBuffer[A] enough to produce monomorphic loops.",
+      "impact": "Built-in numerical loops box values or perform virtual dispatch.",
+      "mitigation": "Use sealed dtype-specific Data variants and make Phase 0 compiler-output inspection a blocking gate."
+    },
+    {
+      "id": "RISK-002",
+      "risk": "Scala.js Boolean or Long storage does not meet the intended physical or performance contract.",
+      "impact": "The cross-platform API implies performance or interop properties that the implementation does not provide.",
+      "mitigation": "Prove Boolean encoding, document Long as a fallback, and omit unsupported zero-copy Long descriptors."
+    },
+    {
+      "id": "RISK-003",
+      "risk": "Unchecked Int arithmetic corrupts layouts, including nominally empty layouts.",
+      "impact": "Views may address the wrong element or escape their buffer.",
+      "mitigation": "Use Long for every product and offset transformation and fuzz overflow cases."
+    },
+    {
+      "id": "RISK-004",
+      "risk": "A mutable view aliases multiple logical indices.",
+      "impact": "Writing one index changes another and invalidates mutable-array laws.",
+      "mitigation": "Construct MutableLayout only from canonical layouts and transformations proven to preserve injectivity."
+    },
+    {
+      "id": "RISK-005",
+      "risk": "Generic callback laws are mistaken for permission to fuse or reorder effectful functions.",
+      "impact": "User-visible side effects, exceptions, or callback counts change.",
+      "mitigation": "Restrict fusion laws to total pure functions and specify logical row-major callback evaluation."
+    },
+    {
+      "id": "RISK-006",
+      "risk": "Zero-copy interop erases ownership and aliasing information.",
+      "impact": "An apparently immutable value changes after external mutation.",
+      "mitigation": "Return BorrowedNDArray, preserve the marker through views, and copy before producing NDArray."
+    },
+    {
+      "id": "RISK-007",
+      "risk": "Ravel expands into linear algebra, storage, or execution orchestration.",
+      "impact": "The core accumulates backend abstractions and domain semantics that weaken portability and predictability.",
+      "mitigation": "Enforce the non-goal list and keep Gale and adapter boundaries explicit at the release scope gate."
+    }
+  ],
+  "open_decisions": [
+    {
+      "id": "OPEN-001",
+      "decision": "Select the exact Scala.js Long fallback representation.",
+      "status": "resolved",
+      "resolution": "Use Scala Array[Long] as the semantic fallback and exclude it from the JavaScript fast-path performance contract.",
+      "due_by": "PHASE-0",
+      "constraints": [
+        "It must preserve documented Long value semantics.",
+        "It remains outside the JavaScript fast-path contract unless a primitive native representation is proven.",
+        "The decision must not leak into the shared public API."
+      ]
+    },
+    {
+      "id": "OPEN-002",
+      "decision": "Set the floating block-pairwise reduction block size and merge schedule.",
+      "status": "resolved",
+      "resolution": "Use logical row-major blocks of 128 values, then merge adjacent block totals level by level while carrying an unpaired total unchanged.",
+      "due_by": "PHASE-4",
+      "constraints": [
+        "The schedule is identical on the JVM and Scala.js.",
+        "Traversal is defined by logical row-major order.",
+        "The chosen schedule is documented and covered by reference tests."
+      ]
+    },
+    {
+      "id": "OPEN-003",
+      "decision": "Set quantitative benchmark regression budgets after Phase 0 establishes raw-loop baselines.",
+      "status": "resolved",
+      "resolution": "Use warmed public Double addition baselines for contiguous and representative strided layouts. On the reference host and toolchain, require at least 70 percent of the checked-in throughput baseline: 4,724 and 4,652 operations/s on the JVM, and 110 million elements/s for both Node cases. On other stable runners, reject a candidate more than 30 percent below a same-runner baseline. JVM normalized allocation may not exceed the output buffer plus 2,048 bytes. Structural no-boxing and monomorphic-loop checks remain mandatory regardless of timing.",
+      "due_by": "Before release 1.0",
+      "constraints": [
+        "Structural kernel requirements remain mandatory regardless of timing variance.",
+        "Budgets cover contiguous and representative strided operations on the JVM and Node."
+      ]
+    }
+  ]
+}

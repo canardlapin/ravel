@@ -1,0 +1,1486 @@
+Ravel architecture and implementation plan
+
+Ravel is a dense, in-memory multidimensional array library for Scala. Its
+public array type is:
+
+\mathrm{NDArray}[A,R]
+
+where:
+
+* A is the element type.
+* R optionally refines the rank, not the complete shape.
+* Dimension sizes remain runtime values.
+* Fast-path dtypes use one flat, platform-native primitive buffer. Any
+  Scala.js Long fallback is explicit and outside that performance contract.
+* Shape, strides, and offset define a view over that buffer.
+* Ordinary arrays are immutable; mutation is explicit.
+* Numerical operations are eager and dispatch to monomorphic primitive kernels.
+* Linear algebra, sparse arrays, chunked storage, named axes, automatic differentiation, and I/O remain outside the core.
+
+The deepest object is not “a nested collection.” It is:
+
+(\text{buffer},\text{shape},\text{strides},\text{offset})
+
+Everything important follows from that.
+
+The architecture is approved for implementation subject to the representation
+gate in Phase 0. That gate must prove the JVM and Scala.js storage encodings and
+the shape of their generated loops before the public API is allowed to harden.
+
+⸻
+
+1. What to take from the earlier libraries
+
+Project	What is valuable	What not to inherit
+NDScala	The conviction that dimensional structure deserves types; shape-changing operations should express what they do.	Exact dimension sizes, tensor labels, and axis labels threaded through nearly every signature.
+ndarray.scala	A small array abstraction, explicit row-major flattening, and separation between the array module and Zarr/HDF5/cloud modules.	scala.Vector as the numerical storage engine, generic Traverse machinery in hot paths, and index calculation through collection combinators.
+NArr	Direct selection of JVM arrays versus JavaScript typed arrays, with native bulk-copy and zero-conversion interop.	The whole ArrayOps compatibility surface. An NDArray only needs a tiny buffer kernel, not a second collections library.
+
+NDScala places exact dimensions and axis denotations in tensor types—for example, a 10000 × 10000 shape and singleton-string axis labels—and its operation signatures carry witnesses that calculate output shapes. That is useful evidence that Scala 3 can express the mathematics, but it also shows how quickly the public type becomes the dominant object rather than the array itself.
+
+ndarray.scala has a clean ArrayLike type class exposing shape and random access, while its concrete Vector stores elements flattened in row-major order and calculates strides from the runtime shape. That is a good reference model and law oracle, but scala.Vector, Traverse, zipping, and folding are not the right substrate for primitive numerical kernels.
+
+NArr’s essential move is the right one: on Scala.js, Byte, Short, Int, Float, and Double arrays resolve to the corresponding typed arrays, while JVM arrays remain ordinary primitive arrays.   Scala.js itself has long used typed-array storage underneath most numeric Scala arrays, but direct typed arrays still provide a cleaner zero-copy JavaScript boundary and native operations such as set and subarray.
+
+The new library should therefore take:
+
+NDScala’s dimensional discipline, ndarray.scala’s small conceptual object, and NArr’s native physical representation.
+
+But it should reproduce none of their accidental complexity.
+
+⸻
+
+2. The mathematical object
+
+For a shape
+
+s=(s_0,\ldots,s_{r-1}),
+
+define the logical domain
+
+D(s)=\prod_{k=0}^{r-1}\{0,\ldots,s_k-1\}.
+
+A layout assigns every logical index i\in D(s) a physical buffer position:
+
+\ell(i)
+=
+o+\sum_{k=0}^{r-1} i_k t_k,
+
+where:
+
+* o is the offset;
+* t_k is the stride of axis k.
+
+The array value is therefore:
+
+a(i)=b_{\ell(i)}.
+
+This gives the library a very small algebra.
+
+Reindexing
+
+A view precomposes the array with an index transformation:
+
+g^\*a = a\circ g.
+
+Transpose, slicing, axis selection, reversal, insertion of a length-one axis, and broadcasting are all forms of reindexing. They change the layout, not the elements.
+
+Pointwise lifting
+
+A scalar function acts by postcomposition:
+
+f_\*a = f\circ a.
+
+This is map, unary arithmetic, comparisons, and mathematical functions.
+
+Reduction
+
+Reduction folds the fibers of an axis projection:
+
+(\operatorname{reduce}_k a)(j)
+=
+\bigoplus_{i_k=0}^{s_k-1}
+a(j_0,\ldots,i_k,\ldots,j_{r-2}).
+
+This is sum, product, min, max, and related operations.
+
+For a total, pure scalar function, these three pieces give an important law:
+
+f_\*(g^\*a)=g^\*(f_\*a).
+
+In code:
+
+a.slice(axis, slice).map(f)
+
+must be extensionally equal to:
+
+a.map(f).slice(axis, slice)
+
+This law identifies legal loop-fusion and reindexing transformations for
+built-in numerical kernels and for other functions known to be total and pure.
+It does not authorize fusion of an arbitrary Scala A => B. Such a callback may
+mutate state, throw, or observe how many elements were visited. Generic map and
+zipMap therefore retain their documented evaluation behavior and are not
+rewritten using this law.
+
+Matrix multiplication is a contraction built on richer algebraic structure. It should live in Gale, not in this array core.
+
+⸻
+
+3. Runtime shapes, statically refined ranks
+
+Full static shapes are too rigid for arrays read from NIfTI files, Arrow buffers, browser uploads, Zarr chunks, or user-generated data. Even when two runtime dimensions contain the same number, singleton-dependent types often cannot prove that they have the same identity.
+
+Rank, however, is often stable and genuinely useful:
+
+* a vector-like result has rank 1;
+* a matrix-like result has rank 2;
+* selecting one axis lowers rank by one;
+* inserting an axis raises rank by one;
+* reducing one axis lowers rank by one;
+* transposition preserves rank.
+
+A good encoding is:
+
+package ravel
+sealed trait AnyRank
+sealed trait Rank[N <: Int] extends AnyRank
+type Array0[A] = NDArray[A, Rank[0]]
+type Array1[A] = NDArray[A, Rank[1]]
+type Array2[A] = NDArray[A, Rank[2]]
+type Array3[A] = NDArray[A, Rank[3]]
+type Array4[A] = NDArray[A, Rank[4]]
+type AnyNDArray[A] = NDArray[A, AnyRank]
+final class NDArray[
+  A,
+  +R <: AnyRank
+] private[ravel] (
+  private[ravel] val data: Storage[A],
+  private[ravel] val layout: Layout
+)
+
+R is covariant. Consequently:
+
+Array2[Double] <: AnyNDArray[Double]
+
+Scala 3 does not support default type parameters. The dynamic-rank alias keeps
+the beginner-facing type short:
+
+val x: AnyNDArray[Double] = ...
+
+while a library can retain:
+
+val x: Array2[Double] = ...
+
+Constructors with known arity infer rank:
+
+val x = NDArray.zeros[Double](100, 20)
+// x: Array2[Double]
+
+Data entering through a dynamic boundary can be refined:
+
+val loaded: AnyNDArray[Double] = readArray()
+val volume: Either[RankMismatch, Array3[Double]] =
+  loaded.requireRank[3]
+
+Rank arithmetic can be expressed with match types:
+
+import scala.compiletime.ops.int.*
+type DropAxis[R <: AnyRank] <: AnyRank = R match
+  case Rank[0] => Nothing
+  case Rank[n] => Rank[n - 1]
+  case _       => AnyRank
+type AddAxis[R <: AnyRank] <: AnyRank = R match
+  case Rank[n] => Rank[n + 1]
+  case _       => AnyRank
+type BroadcastRank[
+  X <: AnyRank,
+  Y <: AnyRank
+] <: AnyRank = (X, Y) match
+  case (Rank[x], Rank[y]) => Rank[Max[x, y]]
+  case _                  => AnyRank
+
+sealed trait CanDropAxis[R <: AnyRank]
+object CanDropAxis:
+  given CanDropAxis[AnyRank] with {}
+  inline given known[N <: Int](
+    using (N > 0) =:= true
+  ): CanDropAxis[Rank[N]] with {}
+
+Scala 3’s compile-time integer operations reduce expressions such as n + 1,
+n - 1, and Max[x, y] when their inputs are singleton integers:
+https://docs.scala-lang.org/scala3/reference/metaprogramming/compiletime-ops.html
+
+Every public operation that lowers rank requires CanDropAxis[R]. A statically
+known Rank[0] therefore has no select, squeeze, or single-axis reduction that
+could produce Rank[-1]. An NDArray[A, AnyRank] retains the operation, but checks
+at runtime that the rank is positive before validating the axis.
+
+This is the useful middle ground:
+
+Statically track structural facts that survive ordinary runtime use; validate actual dimension sizes when values meet.
+
+Exact shape typing can later be an optional zero-runtime-cost refinement:
+
+opaque type Sized[A, Dims <: Tuple] =
+  NDArray[A, Rank[Tuple.Size[Dims]]]
+
+That belongs in a separate refinement layer for generated models or fixed-shape kernels, not in the fundamental array API.
+
+⸻
+
+4. Shape and layout
+
+Shape should be a first-class immutable value:
+
+final class Shape[+R <: AnyRank] private (
+  private val dimensions: IArray[Int]
+):
+  def rank: Int
+  def apply(axis: Int): Int
+  def size: Int
+  def toIArray: IArray[Int]
+
+Factories preserve rank:
+
+Shape.scalar              // Shape[Rank[0]]
+Shape(10)                 // Shape[Rank[1]]
+Shape(10, 20)             // Shape[Rank[2]]
+Shape(10, 20, 30)         // Shape[Rank[3]]
+Shape.from(dims)           // Either[ShapeError, Shape[AnyRank]]
+
+The shape product must be calculated using Long and rejected when it exceeds
+the portable buffer limit. Public array sizes and indices remain Int, because
+JVM arrays, JavaScript typed arrays, and tight-loop machinery are naturally
+Int-indexed.
+
+Long arithmetic is required for more than the final shape product. Canonical
+stride construction, view offset changes, axis coalescing, and minimum and
+maximum reachable addresses all use Long intermediates. Each result is checked
+before it is narrowed to Int. This rule also applies to empty arrays. For
+example, constructing C-order strides for (0, Int.MaxValue, Int.MaxValue) must
+report a layout overflow rather than wrap an unused suffix stride.
+
+The internal layout should be approximately:
+
+private[ravel] final class Layout private (
+  val shape: IArray[Int],
+  val strides: IArray[Int],
+  val offset: Int,
+  val size: Int,
+  val flags: Byte
+)
+
+Useful flags are:
+
+private val CContiguous = 1
+private val HasNegativeStride = 2
+private val HasBroadcastStride = 4
+
+Every layout must satisfy:
+
+s_k \ge 0
+
+and, for nonempty arrays,
+
+0
+\le
+o+\sum_k\min(0,(s_k-1)t_k)
+
+and
+
+o+\sum_k\max(0,(s_k-1)t_k)
+<
+\operatorname{bufferLength}.
+
+The two reachable-address expressions are evaluated in Long. For a nonempty
+array, both must fit Int and lie in the buffer. Layout.offset always denotes the
+physical position of logical index (0, ..., 0). A view operation adjusts that
+offset when it introduces a negative stride; a later loop planner must not
+normalize it a second time.
+
+This supports:
+
+* positive strides;
+* negative strides for reversed views;
+* zero strides for broadcast views;
+* nonzero offsets for slices;
+* zero-length dimensions;
+* rank-zero scalar arrays.
+
+The empty shape has product one. Thus a rank-zero array contains one scalar
+value, while an array with any zero-length axis contains zero values.
+
+HasBroadcastStride is set only when an axis of logical length greater than one
+has stride zero. A length-one axis may have stride zero without repeating a
+physical cell, so that fact alone neither marks the layout as broadcast nor
+makes a mutable view unsafe.
+
+⸻
+
+5. One flat platform buffer
+
+Never represent a multidimensional array as:
+
+Array[Array[Double]]
+
+or:
+
+NArray[NArray[Double]]
+
+That representation permits raggedness, adds object indirection and allocation, and destroys the simple affine layout algebra.
+
+Use one flat buffer. Phase 0 proved these physical representations:
+
+Element type	JVM	Scala.js
+Boolean	Array[Boolean]	Uint8Array, encoded as 0/1
+Byte	Array[Byte]	Int8Array
+Short	Array[Short]	Int16Array
+Int	Array[Int]	Int32Array
+Float	Array[Float]	Float32Array
+Double	Array[Double]	Float64Array
+Long	Array[Long]	Scala Array[Long] fallback, outside the JS fast-path contract
+
+A platform-specific match type can describe the association:
+
+// JVM source
+private[ravel] type PlatformBuffer[A] = Array[A]
+// Scala.js source
+private[ravel] type PlatformBuffer[A] = A match
+  case Boolean => Uint8Array
+  case Byte    => Int8Array
+  case Short   => Int16Array
+  case Int     => Int32Array
+  case Float   => Float32Array
+  case Double  => Float64Array
+  case Long    => Array[Long]
+
+A match type does not, by itself, make a generic PlatformBuffer[A] concrete
+while A remains abstract. It is therefore a representation description, not
+the kernel ABI. Shared code refers to a sealed, platform-specific `Storage`
+family with dtype-specific wrappers:
+
+private[ravel] sealed trait Storage[A]:
+  def length: Int
+
+private[ravel] final class DoubleStorage(
+  val buffer: PlatformF64Buffer
+) extends Storage[Double]
+
+private[ravel] final class FloatStorage(
+  val buffer: PlatformF32Buffer
+) extends Storage[Float]
+
+// Corresponding BooleanStorage, ByteStorage, ShortStorage, IntStorage,
+// and LongStorage.
+
+PlatformF64Buffer is Array[Double] on the JVM and Float64Array on
+Scala.js; the other aliases follow the table. Allocation, scalar access, fill,
+and copy may dispatch through a small private Storage API. Built-in kernels may
+not call a generic PlatformBuffer.get or DType method for every element.
+Instead, an operation dispatches on the concrete Storage variant once, casts once
+if the platform boundary requires it, and calls a function whose parameters
+are concrete raw buffers.
+
+On the JVM, contiguous copying becomes System.arraycopy. On JavaScript, it becomes typed-array set or subarray where possible.
+
+My preference would be to internalize this narrow pattern rather than expose NArr as part of the public model. Depending on NArr initially is defensible, but NDArray needs only allocation, access, fill, and copy. It does not need to become an ArrayOps polyfill.
+
+Keeping the buffer type private also permits the Scala.js and WebAssembly
+representations to diverge later without changing the public API.
+
+Phase 0 covered Double, Float, Int, Boolean, and Long on both the JVM and
+Scala.js, verified the Boolean 0/1 encoding, selected `Array[Long]` as the
+Scala.js fallback, inspected compiler output and allocations, and proved that
+built-in loops receive concrete raw-buffer arguments. Byte and Short passed
+the same storage checks and remain 1.0 storage and comparison dtypes.
+
+⸻
+
+6. A closed, honest DType
+
+Do not use scala.math.Numeric[A] inside element loops. That introduces generic dispatch and often boxing.
+
+Use a small dtype hierarchy:
+
+sealed trait DType[A]:
+  def name: String
+  def zero: A
+sealed trait OrderedDType[A] extends DType[A]
+sealed trait NumericDType[A] extends OrderedDType[A]
+sealed trait IntegerDType[A] extends NumericDType[A]
+sealed trait ArithmeticDType[A] extends NumericDType[A]:
+  def one: A
+sealed trait IntegralArithmeticDType[A]
+  extends IntegerDType[A] with ArithmeticDType[A]
+sealed trait FloatingDType[A] extends ArithmeticDType[A]
+
+With built-ins:
+
+object DType:
+  given DType[Boolean]
+  given IntegerDType[Byte]
+  given IntegerDType[Short]
+  given IntegralArithmeticDType[Int]
+  given IntegralArithmeticDType[Long]
+  given FloatingDType[Float]
+  given FloatingDType[Double]
+
+For 1.0, this should be a deliberately closed primitive family. That guarantees that every supported dtype has:
+
+* a known physical representation;
+* tested copy semantics;
+* specialized kernels;
+* consistent JVM/JS behavior;
+* a clear performance contract.
+
+Arbitrary object arrays, complex numbers, dual numbers, half-precision values, and custom structs can be added later through explicit representations. For complex arithmetic, two primitive buffers or an interleaved primitive buffer will generally be more useful than Array[Complex] objects anyway.
+
+No giant NumPy promotion table
+
+In 1.0, Byte and Short are storage, casting, ordering, comparison, min/max, and
+arg-min/arg-max dtypes. They do not have pointwise arithmetic, sum, or product.
+Users cast them to Int before arithmetic. This avoids inventing a narrowing rule
+for an expression such as Byte + Byte, which ordinary Scala evaluates as Int.
+
+Binary arithmetic requires ArithmeticDType[A] and the same dtype on both sides:
+
+Array1[Int] + Array1[Int]       // yes
+Array1[Double] + Array1[Double] // yes
+Array1[Int] + Array1[Double]    // compile error
+Array1[Byte] + Array1[Byte]     // compile error
+
+The correction is explicit:
+
+ints.cast[Double] + doubles
+
+This avoids a large and surprising promotion algebra. A small Promote[A, B] layer can be added later without changing the core representation.
+
+Int and Long arithmetic, including reductions, uses ordinary fixed-width
+two's-complement Scala semantics. Overflow wraps. Integral division by zero
+fails, and other edge cases such as abs(Int.MinValue) follow the corresponding
+Scala primitive operation. Float and Double operations follow IEEE 754.
+
+Numeric casts have a library-wide contract and parity tests on both platforms:
+
+* Identity casts preserve the value.
+* Byte to Short, Byte or Short to Int, and all integral widening to Long are
+  exact.
+* Integral narrowing retains the low-order bits using signed two's-complement
+  interpretation.
+* Integral conversion to Float or Double uses IEEE round-to-nearest conversion;
+  large Int and Long values may therefore lose precision.
+* Float to Double is exact. Double to Float uses IEEE rounding, preserves
+  signed zero, maps overflow to infinity, and preserves NaN classification
+  without promising a NaN payload.
+* Float or Double conversion to Int or Long truncates toward zero. NaN becomes
+  zero, and infinities or finite out-of-range values clamp to the target
+  minimum or maximum.
+* Float or Double conversion to Byte or Short first applies the Int rule and
+  then the integral-narrowing rule.
+* Boolean has no numeric cast in either direction.
+
+Checked or saturating casts may be added later under distinct method names.
+They must not silently change cast semantics.
+
+Reduction accumulation is explicit:
+
+ints.sum             // Int semantics, including ordinary overflow
+ints.sumAs[Long]
+floats.sumAs[Double]
+
+The legal 1.0 accumulator pairs are Int to Long and Float to Double. Int.sum,
+Long.sum, Float.sum, and Double.sum return their source dtype. Float.sum uses
+block-pairwise Float arithmetic. Float.mean returns Float but uses a
+block-pairwise Double accumulator and rounds once at the end. Double.mean uses
+a block-pairwise Double accumulator. Byte and Short callers cast to Int first;
+Long and Double have no wider built-in sumAs target.
+
+⸻
+
+7. Immutable values, explicit mutation
+
+The default NDArray should have no update method.
+
+val x: AnyNDArray[Double] = ...
+x(2, 3) = 10.0 // does not compile
+
+Views may freely share buffers because the data are immutable through the public API.
+
+Mutation lives in a separate type:
+
+final class MutableNDArray[
+  A,
+  R <: AnyRank
+] private[ravel] (
+  private[ravel] val data: MutableData[A],
+  private[ravel] val layout: MutableLayout
+):
+  def apply(indices: Int*): A
+  def update(indices: Int*, value: A): Unit
+  def fill(value: A): Unit
+  def assign(source: NDArray[A, ?]): Unit
+  def freezeCopy(): NDArray[A, R]
+
+Usage is straightforward:
+
+val m = x.mutableCopy
+m(0, 0) = 42.0
+m.addInPlace(1.0)
+val result = m.freezeCopy()
+
+MutableLayout is not an arbitrary Layout plus a Boolean flag. It is a private
+capability constructed only from a canonical owned layout or from a
+transformation known to preserve injectivity. The library does not attempt a
+general runtime injectivity test: shape (2, 2) with strides (1, 1), for example,
+overlaps even though neither stride is zero.
+
+Internally, builders may use an unsafeFreeze operation after proving ownership. That operation should not be in the ordinary namespace.
+
+Mutable views may support one-to-one transformations:
+
+* slicing;
+* axis selection;
+* reversal;
+* transpose;
+* axis permutation;
+* insertion or removal of a length-one axis;
+* reshape when legal.
+
+Each operation constructs another MutableLayout only because its index
+transformation is injective. Mutable broadcasting does not exist. A zero-stride
+axis of length greater than one maps multiple logical positions to the same
+physical cell, making assignment ambiguous. A singleton zero-stride axis is
+safe only when it came from a trusted injectivity-preserving transformation.
+
+Normal constructors copy their input and own their storage. Zero-copy wrapping
+of external storage returns a visibly different type:
+
+JvmInterop.unsafeBorrow(...): BorrowedNDArray[A, R]
+JsInterop.unsafeBorrow(...): BorrowedNDArray[A, R]
+
+BorrowedNDArray is not a subtype of NDArray. Its views remain borrowed, and
+external mutation may change values observed through it. Calling copy produces
+an owned NDArray. This prevents an unsafe method name at construction from
+disappearing behind an apparently immutable result type.
+
+BorrowedNDArray mirrors indexing and structural views. A structural view
+returns another BorrowedNDArray, while map, arithmetic, reduction-to-array, and
+copy allocate an owned NDArray result. APIs that accept borrowed input do so
+explicitly; there is no implicit widening that erases the aliasing marker.
+
+⸻
+
+8. The ordinary API
+
+A Python programmer should be able to use the library before learning any of its type machinery.
+
+import ravel.*
+val x: Array2[Double] =
+  NDArray.tabulate(3, 4) { (row, col) =>
+    row * 10.0 + col
+  }
+val everyOtherColumn =
+  x.slice(axis = 1, Slice(0, 4, 2))
+val secondRow =
+  x.select(axis = 0, index = 1)
+val columnMeans =
+  x.mean(axis = 0)
+val centered =
+  x - columnMeans.newAxis(0)
+val positive =
+  centered.maximum(0.0)
+
+The mapping from NumPy should be unsurprising:
+
+NumPy	Scala
+np.zeros((3, 4))	NDArray.zeros[Double](3, 4)
+x.shape	x.shape
+x[1, 2]	x(1, 2)
+x[:, ::2]	x.slice(1, Slice(0, x.shape(1), 2))
+x.mean(axis=0)	x.mean(axis = 0)
+x.T	x.transpose
+x.reshape(2, 6)	x.reshapeView(2, 6)
+x.copy()	x.copy
+x.astype(np.float64)	x.cast[Double]
+
+The Scala API should improve on NumPy in two places:
+
+1. Copying versus viewing is explicit.
+2. Mutation is visible in the type.
+
+⸻
+
+9. Structural operations
+
+Do not begin with NumPy’s entire heterogeneous indexing grammar. Start with an axis-local algebra that composes.
+
+final class Slice private (
+  val start: Int,
+  val stopExclusive: Int,
+  val step: Int
+)
+object Slice:
+  def apply(
+    start: Int,
+    stopExclusive: Int,
+    step: Int = 1
+  ): Slice
+  def from(
+    start: Int,
+    stopExclusive: Int,
+    step: Int = 1
+  ): Either[InvalidSlice, Slice]
+
+def select(
+  axis: Int,
+  index: Int
+)(using CanDropAxis[R]): NDArray[A, DropAxis[R]]
+def slice(
+  axis: Int,
+  slice: Slice
+): NDArray[A, R]
+def slice(
+  axis: Int,
+  range: Range
+): NDArray[A, R] // convenience sugar
+def narrow(
+  axis: Int,
+  from: Int,
+  length: Int
+): NDArray[A, R]
+def reverse(
+  axis: Int
+): NDArray[A, R]
+def swapAxes(
+  first: Int,
+  second: Int
+): NDArray[A, R]
+def permuteAxes(
+  order: Int*
+): NDArray[A, R]
+def newAxis(
+  axis: Int
+): NDArray[A, AddAxis[R]]
+def squeeze(
+  axis: Int
+)(using CanDropAxis[R]): NDArray[A, DropAxis[R]]
+def broadcastTo[S <: AnyRank](
+  shape: Shape[S]
+): NDArray[A, S]
+def reshapeView[S <: AnyRank](
+  shape: Shape[S]
+): NDArray[A, S]
+
+Slice is the canonical slicing value. Its step must be nonzero. It denotes the
+arithmetic progression start + n * step while values remain strictly before
+stopExclusive for a positive step or strictly after it for a negative step.
+Ravel does not reinterpret negative Slice endpoints as indices from the end.
+For an axis of length n, positive slices use boundaries in [0, n]; negative
+slices use a start in [0, n) and a stopExclusive in [-1, n). Thus
+Slice(n - 1, -1, -1) is a full reversal. Empty slices are valid. Scala Range is
+converted to the same progression as convenience sugar; inclusive endpoints
+are adjusted with checked Long arithmetic rather than inherited as an internal
+layout convention.
+
+All axis-taking methods accept negative axes. An existing axis must lie in
+[-rank, rank), then is normalized once by adding rank when negative. newAxis
+accepts insertion positions in [-(rank + 1), rank]. Axis permutation entries
+use the existing-axis rule and must normalize to a true permutation. Element
+indices themselves remain nonnegative in 1.0.
+
+A dynamic multi-selector DSL can be added later:
+
+x.view(All, At(3), Span(0, 20, 2))
+
+It should return NDArray[A], because its output rank depends on runtime selector values. The typed axis-local operations remain the canonical core.
+
+reshapeView succeeds exactly when logical row-major traversal can be
+repartitioned without changing its physical address sequence:
+
+1. Source and target sizes must agree. All products use checked Long
+   arithmetic.
+2. Length-one source axes are ignored for coalescing. Any other zero-stride
+   source axis rejects the reshape.
+3. Two adjacent non-singleton source axes k and k + 1 belong to the same
+   contiguous block exactly when
+
+   t_k = s_{k+1} t_{k+1}.
+
+   The comparison uses Long, and works for either positive or negative
+   strides.
+4. After target singleton axes are ignored, target axes must be partitionable
+   in logical order into groups whose products equal the source block
+   products. New strides are derived from each block's innermost physical
+   stride and checked before narrowing to Int.
+5. For size-zero arrays, any equal-size target shape may use a canonical empty
+   layout if all target strides are representable.
+
+If this criterion fails, reshapeView reports NonContiguousLayout. It never
+copies.
+
+Copy semantics must be obvious
+
+Operation	Storage behavior
+select	view
+slice	view
+narrow	view
+reverse	view with negative stride
+swapAxes	view
+permuteAxes	view
+newAxis	view
+broadcastTo	read-only view with zero stride
+reshapeView	view or NonContiguousLayout error
+contiguous	returns self or creates a contiguous copy
+copy	always copies
+flattenCopy	always copies in logical row-major order
+map	allocates output
+zipMap	allocates output
+reduction	allocates output unless reducing to a scalar
+
+Avoid a reshape that silently copies. Hidden allocations make performance reasoning nearly impossible.
+
+⸻
+
+10. Indexing without sacrificing kernels
+
+For common ranks, provide direct overloads:
+
+inline def apply(i: Int): A
+inline def apply(i: Int, j: Int): A
+inline def apply(i: Int, j: Int, k: Int): A
+inline def apply(i: Int, j: Int, k: Int, l: Int): A
+
+Each calculates the physical offset directly:
+
+offset + i * stride0 + j * stride1
+
+The public calculation uses Long intermediates and narrows only after the
+validated result is known to be in the buffer. A specialized kernel may use
+Int offsets only after its loop plan has proved the same bound once.
+
+A generic fallback handles arbitrary rank:
+
+def at(index: IArray[Int]): A
+
+Public indexing performs bounds checks. Internal kernels operate over validated loop plans and use unchecked buffer access. Bounds should never be tested separately for every operand at every element.
+
+The type should not extend IndexedSeq, Iterable, or another standard collection abstraction. An NDArray has a multidimensional domain; pretending it is fundamentally a one-dimensional collection invites boxing, collection builders, ambiguous equality, and accidental loss of shape.
+
+Provide explicit traversal:
+
+x.foreachElement(f)
+x.elementsIterator
+x.foreachIndex(f)
+
+but do not inherit a collections contract.
+
+⸻
+
+11. Broadcasting
+
+Use NumPy-style trailing-axis broadcasting because it is useful, familiar, and expressible by zero strides.
+
+For example:
+
+(10,20,30)
+\quad\text{and}\quad
+(30)
+
+broadcast to:
+
+(10,20,30).
+
+The layout planner aligns shapes on the right. Each compatible pair of dimensions must satisfy:
+
+m=n,\qquad m=1,\qquad\text{or}\qquad n=1.
+
+The result dimension is chosen by ordered rules, not by max(m, n):
+
+* if m = n, use m;
+* otherwise, if m = 1, use n;
+* otherwise, if n = 1, use m;
+* otherwise, fail.
+
+Consequently, broadcasting dimensions 0 and 1 produces dimension 0. The
+operand expanded from dimension 1 receives stride zero. A zero stride marks
+semantic broadcasting only when the result dimension is greater than one.
+
+Elementwise operations then have signatures resembling:
+
+extension [
+  A: ArithmeticDType,
+  RX <: AnyRank
+](x: NDArray[A, RX])
+  def +[RY <: AnyRank](
+    y: NDArray[A, RY]
+  ): NDArray[A, BroadcastRank[RX, RY]]
+
+Also provide exact-shape operations for algorithms that want stricter semantics:
+
+x.zipMapExact(y)(f)
+
+Broadcast failures report the first incompatible aligned axis and both original
+shapes:
+
+Cannot broadcast shapes (12, 2, 64) and (10, 64):
+aligned axis -2 has dimensions 2 and 10
+
+⸻
+
+12. Elementwise and reduction surface
+
+The 1.0 numerical surface can remain small.
+
+Pointwise operations
+
+For arithmetic dtypes:
+
++x
+-x
+x + y
+x - y
+x * y
+x / y
+x + scalar
+x - scalar
+x * scalar
+x / scalar
+x.abs
+
+For ordered numeric dtypes, including Byte and Short:
+
+x.minimum(y)
+x.maximum(y)
+x.clip(lower, upper)
+
+For floating dtypes:
+
+x.sqrt
+x.exp
+x.log
+x.sin
+x.cos
+x.tan
+x.floor
+x.ceil
+x.isNaN
+x.isFinite
+
+Ordered comparisons return Boolean arrays for every numeric dtype. Elementwise
+equality and inequality are available for every dtype:
+
+x < y
+x <= y
+x === y
+x =!= y
+
+I would avoid overloading ordinary Scala ==, because users reasonably expect scalar Boolean equality from ==. Elementwise equality should have an explicit array operator or method.
+
+Reductions
+
+x.sum                  // arithmetic dtypes
+x.sum(axis)            // requires CanDropAxis[R]
+x.sumKeep(axis)
+x.product              // arithmetic dtypes
+x.min                  // ordered numeric dtypes
+x.max
+x.argMin
+x.argMax
+x.mean                 // Float and Double only
+x.mean(axis)
+x.meanKeep(axis)
+
+A single-axis method retains useful rank information. Arbitrary multiple-axis reductions can have a dynamic-rank form:
+
+x.sumAxes(0, 2, 3): AnyNDArray[Double]
+
+Reduction semantics should be fixed:
+
+* sum of an empty domain is zero;
+* product of an empty domain is one;
+* min, max, argMin, and argMax on an empty domain fail;
+* mean of an empty floating domain is NaN; reducing an empty axis with mean
+  fills the result with NaN;
+* ties in argMin and argMax choose the first occurrence in logical row-major
+  order;
+* a NaN makes min or max return NaN, and argMin or argMax returns the logical
+  row-major index of the first NaN;
+* elementwise and reduction minimum choose -0.0 over +0.0, while maximum
+  chooses +0.0 over -0.0; the corresponding arg reduction points to the first
+  occurrence of the chosen bit pattern;
+* elementwise equality treats -0.0 and +0.0 as equal and treats NaN as unequal
+  to every value, including itself;
+* an empty floating sum returns +0.0 and an empty product returns +1.0;
+* nanSum and similar policies belong in a statistical extension;
+* floating summation uses one documented block size and merge schedule in
+  logical row-major order on both platforms rather than an unspecified
+  backend-dependent order.
+
+That last point gives better accuracy and avoids changing answers merely because a view has different physical strides.
+
+⸻
+
+13. The execution engine
+
+The user-facing type may be generic. The hot implementation must be monomorphic.
+
+The fundamental rule is:
+
+One dtype/layout dispatch per operation, not one dispatch per element.
+
+A binary operation should roughly do this:
+
+(leftData, rightData, outData, loopPlan.kind) match
+  case (left: F64Data, right: F64Data, out: F64Data, Linear) =>
+    addF64Linear(left.buffer, right.buffer, out.buffer, ...)
+  case (left: F64Data, right: F64Data, out: F64Data, Strided) =>
+    addF64Strided(left.buffer, right.buffer, out.buffer, ...)
+  case (left: F32Data, right: F32Data, out: F32Data, Linear) =>
+    addF32Linear(left.buffer, right.buffer, out.buffer, ...)
+  // ...
+
+Once inside addF64Linear, the loop sees raw Array[Double] or Float64Array values:
+
+var i = 0
+while i < size do
+  out(i) = left(i) + right(i)
+  i += 1
+
+No Numeric[Double]. No iterator. No tuple allocation. No Option. No shape lookup.
+
+The loop planner
+
+For each operation:
+
+1. Align ranks for broadcasting.
+2. Replace broadcasted axes with zero strides.
+3. Take each validated layout offset as the physical address of logical index
+   zero. Do not adjust negative-stride offsets again.
+4. Coalesce adjacent axes when every operand has compatible contiguous or zero-stride layout.
+5. Classify the result as:
+    * linear contiguous;
+    * scalar broadcast;
+    * simple inner-strided;
+    * fully general strided.
+6. Run the appropriate dtype-specific loop.
+
+Length-one axes may be removed. Other adjacent axes k and k+1 can be collapsed
+for an operand exactly when:
+
+t_k=s_{k+1}t_{k+1},
+
+or when both relevant strides are zero for a broadcast operand. Every stride
+product and derived offset uses checked Long arithmetic. Coalescing is allowed
+only when this condition holds for every operand and the output.
+
+The fully general loop should use an odometer of counters and physical offsets. It should not repeatedly divide a linear index by dimension sizes.
+
+Eager, not graph-based
+
+Do not put a lazy expression graph, JIT compiler, automatic differentiation tape, or backend registry in the array core.
+
+Ordinary syntax allocates one output per operation:
+
+val z = x * y + b
+
+creates an intermediate. That is acceptable for a small, predictable 1.0.
+
+For algorithms that need allocation control, expose a narrow expert-level kernel API:
+
+kernel.addInto(x, y, out)
+kernel.multiplyInto(x, y, out)
+kernel.mapInto(x, out)(f)
+kernel.zipMapInto(x, y, out)(f)
+
+Built-in numerical kernels are pure and monomorphic. Built-in addInto and
+multiplyInto are fully specialized. Generic map, zipMap, mapInto, and
+zipMapInto are convenience operations: they invoke the callback once per
+logical output element in logical row-major order, do not fuse or reorder it,
+and make no no-boxing guarantee. The Into forms avoid an output allocation but
+do not turn an arbitrary Scala callback into a primitive kernel.
+
+This gives Gale and other downstream libraries reusable buffers without forcing every beginner into an expression-template DSL.
+
+⸻
+
+14. Interoperability
+
+Platform-specific interop should be outside the shared namespace.
+
+JVM
+
+import ravel.jvm.*
+JvmInterop.copyToArray(x)
+JvmInterop.unsafeBorrow(
+  values: Array[Double],
+  shape: Shape[Rank[2]]
+): BorrowedNDArray[Double, Rank[2]]
+
+JvmInterop.copyToArray always copies values in logical row-major order. An
+owned immutable NDArray never exposes its mutable backing array zero-copy.
+unsafeBorrow preserves the external array and therefore returns
+BorrowedNDArray. A borrowed transposed or sliced view remains borrowed and
+retains its shape, strides, and offset.
+
+Scala.js
+
+import ravel.js.*
+JsInterop.copyToFloat64Array(x)
+JsInterop.unsafeBorrow(
+  values: Float64Array,
+  shape: Shape[Rank[2]]
+): BorrowedNDArray[Double, Rank[2]]
+
+JsInterop.copyToFloat64Array also always copies. A zero-copy descriptor is
+available only from BorrowedNDArray, where aliasing is already visible in the
+type. Public descriptors are dtype-specific and expose actual JavaScript types:
+
+sealed trait JsArrayDescriptor[A]
+
+final case class JsFloat64Descriptor(
+  buffer: Float64Array,
+  offset: Int,
+  shape: Int32Array,
+  strides: Int32Array
+) extends JsArrayDescriptor[Double]
+
+// Corresponding descriptors for Uint8Array, Int8Array, Int16Array,
+// Int32Array, and Float32Array.
+
+The descriptor never mentions the private PlatformBuffer[A] match type. Long
+has no zero-copy JavaScript descriptor in 1.0 unless Phase 0 proves a stable
+native representation. Descriptor shape and stride arrays are metadata copies,
+so callers cannot mutate Ravel's Layout. A generally strided view cannot
+honestly become a contiguous typed array without copying.
+
+This design also allows an Arrow adapter or JVM foreign-memory adapter later. The internal buffer algebra should be sealed rather than an arbitrary public storage type class: numerical kernels must know which physical storage forms they support. Chunked Zarr data is not merely another Buffer[A]; it is a different execution object.
+
+⸻
+
+15. Relationship to Gale
+
+The boundary should be sharp.
+
+NDArray owns
+
+* dense rectangular rank-n storage;
+* shape and strides;
+* indexing and views;
+* broadcasting;
+* pointwise operations;
+* primitive reductions;
+* mutable construction;
+* native-buffer interop.
+
+Gale owns
+
+* vectors and matrices as mathematical objects;
+* matrix multiplication;
+* BLAS-style kernels;
+* decompositions;
+* factorizations;
+* linear solves;
+* linear operators;
+* sparse formats;
+* numerical backend selection.
+
+Gale could define zero-cost wrappers:
+
+opaque type DVec = Array1[Double]
+opaque type DMat = Array2[Double]
+
+or retain its existing DVec/DMat representations and provide adapters.
+
+A rank-two NDArray is not automatically a matrix. It has no declared field, module, orientation convention, adjoint, or multiplication. The array library should not impersonate linear algebra.
+
+Similarly, a four-dimensional NDArray is not an fMRI dataset. Timing, affine coordinates, masks, axis meanings, provenance, and run structure belong in neuroimaging types layered above it.
+
+⸻
+
+16. What should not be in the core
+
+Outside the core	Proper home
+Matrix multiplication and decompositions	Gale
+Sparse arrays	dedicated sparse or Gale module
+FFTs and convolutions	signal-processing module
+Probability distributions and RNG policy	random/statistics module
+Variance, covariance, quantiles	statistics module
+Named axes and coordinates	labeled-array/domain layer
+Missing-data policy	domain/statistics layer
+Zarr, HDF5, NIfTI, Arrow	I/O and storage adapters
+Chunked or out-of-core execution	array-source/chunked-array abstraction
+GPU execution	explicit accelerator library
+Automatic differentiation	separate transformation layer
+Lazy expression graphs	separate optimizer
+Parallel scheduling	platform-specific execution layer
+Exact type-level dimension sizes	optional Sized refinement
+Standard collection inheritance	nowhere
+
+This is how it remains a foundation rather than becoming a smaller, less complete NumPy.
+
+⸻
+
+17. Laws
+
+“Typelevel quality” should appear primarily in the laws and boundaries, not in intimidating signatures.
+
+Shape laws
+
+shape.rank == shape.dimensions.length
+shape.size.toLong ==
+  shape.dimensions.foldLeft(1L)(_ * _)
+shape dimensions are nonnegative
+
+Shape products, canonical strides, transformed offsets, and reachable-address
+bounds are computed in Long. Overflow is detected before any value is narrowed
+to Int, including for zero-sized arrays.
+
+Layout laws
+
+Every logical index maps inside the physical buffer.
+
+layout.offset maps logical index zero and is not adjusted by a loop planner.
+
+A canonical contiguous layout has:
+
+t_{r-1}=1
+
+and
+
+t_k=s_{k+1}t_{k+1}.
+
+Materialization preserves logical values:
+
+a.contiguous.sameElements(a)
+
+View laws
+
+a.permuteAxes(identity) ≡ a
+a.swapAxes(i, j).swapAxes(i, j) ≡ a
+a.reverse(axis).reverse(axis) ≡ a
+a.permuteAxes(p).permuteAxes(q) ≡
+  a.permuteAxes(compose(p, q))
+
+When both calls satisfy the documented block-coalescing criterion:
+
+a.reshapeView(s).reshapeView(a.shape) ≡ a
+
+For total, pure f, map commutes extensionally with reindexing:
+
+a.slice(axis, s).map(f) ≡
+  a.map(f).slice(axis, s)
+
+Pointwise laws
+
+For total, pure functions:
+
+a.map(identity) ≡ a
+a.map(f).map(g) ≡
+  a.map(g compose f)
+
+These are mathematical laws, not permission to fuse arbitrary callback-based
+map calls. Effectful and partial callbacks are tested against the documented
+once-per-element logical row-major evaluation order instead.
+
+For compatible shapes:
+
+a + zero ≡ a
+a * one  ≡ a
+
+Floating laws use an explicit approximate equality rather than pretending IEEE arithmetic forms an exact field.
+
+DType and cast laws
+
+Every source-target numeric cast is tested against the conversion contract,
+including extrema, values around representability boundaries, infinities,
+NaNs, and both signed zeros. JVM and Scala.js results must agree at the value
+or bit level promised by that contract.
+
+Reduction laws
+
+For a singleton axis:
+
+a.sum(axis) ≡ a.select(axis, 0)
+
+subject to the appropriate shape interpretation.
+
+For integer arrays:
+
+concat(xs, axis).sum ==
+  xs.map(_.sum).sum
+
+For floating arrays, the corresponding property is approximate because grouping changes rounding.
+
+Mutability laws
+
+For every MutableLayout constructible through the public API, updating one
+logical index changes only that logical index.
+
+val before = m.freezeCopy()
+m(index) = value
+for each j != index:
+  m(j) == before(j)
+
+freezeCopy isolates subsequent mutation.
+
+Generators must confirm that trusted mutable transformations preserve
+injectivity and that overlapping layouts such as shape (2, 2), strides (1, 1)
+cannot be constructed as MutableLayout.
+
+Kernel laws
+
+Every specialized kernel is compared against a deliberately slow reference implementation over arbitrary generated layouts:
+
+* contiguous;
+* transposed;
+* sliced;
+* reversed;
+* broadcast;
+* zero-length;
+* scalar;
+* combinations of the above.
+
+The generator also covers stride and offset overflow attempts, non-singleton
+overlapping read layouts, NaNs, infinities, signed zeros, integer overflow, and
+all supported dtype conversions.
+
+The law bundles should be reusable:
+
+ShapeLaws
+LayoutLaws
+ViewLaws
+BroadcastLaws
+DTypeLaws
+CastLaws
+KernelLaws
+MutableLaws
+InteropLaws
+BorrowedInteropLaws
+
+MUnit, ScalaCheck, and Discipline are suitable for the testkit. The runtime library itself does not need a Cats dependency merely to qualify as lawful.
+
+⸻
+
+18. Error and equality semantics
+
+Shape failures are deterministic programming errors. Elementwise operators should therefore throw precise sealed exceptions rather than return Either from every arithmetic expression:
+
+sealed abstract class NDArrayException(message: String)
+  extends IllegalArgumentException(message)
+final case class ShapeMismatch(...)
+final case class BroadcastMismatch(...)
+final case class InvalidAxis(...)
+final case class InvalidShape(...)
+final case class InvalidSlice(...)
+final case class LayoutOverflow(...)
+final case class NonContiguousLayout(...)
+final case class EmptyReduction(...)
+
+Boundary operations such as Shape.from, Slice.from, requireRank, and external
+parsing can return Either. Direct constructors and numerical expressions throw
+the corresponding precise exception.
+
+Do not implement expensive extensional equality through equals. Two arrays should retain ordinary reference equality unless users explicitly ask for:
+
+x.sameElements(y)
+x.sameElementsBits(y)
+x.allClose(y, relativeTolerance, absoluteTolerance)
+
+toString should show a bounded preview:
+
+NDArray[Double](shape = (3, 4), contiguous = true)
+[[ 0.0,  1.0,  2.0,  3.0],
+ [10.0, 11.0, 12.0, 13.0],
+ [20.0, 21.0, 22.0, 23.0]]
+
+For large arrays, truncate by both axis and total element count.
+
+⸻
+
+19. Repository structure
+
+A compact repository is enough:
+
+ravel/
+  core/
+    shared/
+      NDArray.scala
+      BorrowedNDArray.scala
+      MutableNDArray.scala
+      Shape.scala
+      Layout.scala
+      MutableLayout.scala
+      DType.scala
+      Cast.scala
+      Slice.scala
+      syntax/
+      internal/
+        Data.scala
+        LoopPlan.scala
+        StridedLoop.scala
+        Kernels.scala
+    jvm/
+      PlatformBuffer.scala
+      JvmInterop.scala
+      JvmKernels.scala
+    js/
+      PlatformBuffer.scala
+      JsInterop.scala
+      JsKernels.scala
+  laws/
+    shared/
+      ShapeLaws.scala
+      LayoutLaws.scala
+      ViewLaws.scala
+      BroadcastLaws.scala
+      DTypeLaws.scala
+      CastLaws.scala
+      KernelLaws.scala
+      MutableLaws.scala
+      InteropLaws.scala
+      BorrowedInteropLaws.scala
+  benchmarks/
+    jvm/
+    js/
+
+Published artifacts need only be:
+
+ravel-core
+ravel-laws
+
+The JVM and Scala.js variants of ravel-core are cross-published forms of the
+same API. The Gale repository may publish gale-interop-ravel; that adapter is
+not part of Ravel's core artifact.
+
+A possible optional Cats integration can remain separate and tiny. Avoid making ordinary users import a hierarchy of syntax modules; one import should suffice:
+
+import ravel.*
+
+⸻
+
+20. Implementation sequence
+
+Phase 0: representation proof
+
+Build throwaway but executable JVM and Scala.js prototypes for Double, Float,
+Int, Boolean, and Long. Exercise allocation, scalar access, fill, copy, a
+linear unary loop, a linear binary loop, and a general strided loop.
+
+The gate requires:
+
+* Boolean uses Array[Boolean] on the JVM and an explicit Uint8Array 0/1
+  encoding on Scala.js;
+* the Scala.js Long fallback and its performance exclusion are explicit;
+* an operation performs one dtype/layout dispatch before entering its loop;
+* each built-in loop receives concrete Array[Double], Float64Array, and
+  corresponding raw-buffer arguments rather than PlatformBuffer[A];
+* emitted JVM bytecode and optimized JavaScript are inspected for boxing,
+  iterator allocation, generic DType calls, and virtual dispatch inside the
+  loop;
+* allocation measurements accompany raw-loop benchmarks on the JVM and Node.
+
+Do not freeze the Data or kernel API until this gate passes. If a proposed
+encoding does not compile to the required loop, change the representation
+instead of compensating at the public API layer.
+
+Phase 1: representation
+
+Implement:
+
+* the proven Data and platform-buffer encodings;
+* DType capabilities and the complete cast table;
+* Shape;
+* Layout with checked Long construction and reachable-address validation;
+* CanDropAxis and dynamic rank validation;
+* immutable construction;
+* scalar and rank-one through rank-four indexing;
+* a slow reference iterator.
+
+Acceptance requires cross-platform tests for all cast edge cases, zero-sized
+stride overflow, negative-stride offsets, and rank-zero rejection for
+rank-lowering operations.
+
+Phase 2: view algebra
+
+Implement:
+
+* select;
+* canonical Slice and Range conversion;
+* narrow;
+* reverse;
+* swapAxes;
+* permuteAxes;
+* newAxis;
+* squeeze;
+* reshapeView;
+* contiguous.
+
+Implement the documented reshape block-coalescing algorithm and negative-axis
+normalization. Fuzz random compositions against the reference implementation,
+including zero-length, negative-stride, singleton zero-stride, and rejected
+overflow cases.
+
+Phase 3: loop planner and kernels
+
+Implement:
+
+* axis coalescing;
+* contiguous fast paths;
+* broadcast planning;
+* general strided loops;
+* fill and copy;
+* unary and binary arithmetic;
+* comparisons.
+
+Add generic map and zipMap with once-per-element logical row-major callback
+semantics. The acceptance criterion for built-in kernels is structural: no
+boxing, iterator allocation, generic dtype access, or virtual dispatch inside
+primitive loops. Generic callbacks do not receive that guarantee.
+
+Phase 4: reductions and mutation
+
+Implement:
+
+* scalar and single-axis reductions;
+* block-pairwise floating summation;
+* the specified empty, NaN, signed-zero, and arg-reduction behavior;
+* MutableNDArray;
+* by-construction MutableLayout transformations;
+* freezeCopy;
+* mapInto and built-in *Into kernels.
+
+Phase 5: integration
+
+Add:
+
+* JVM array interop;
+* JavaScript typed-array interop;
+* BorrowedNDArray and dtype-specific borrowed descriptors;
+* coordinated gale-interop-ravel adapters in the sibling Gale repository;
+* Scala.js browser and Node test suites;
+* user documentation with a NumPy-to-Scala migration page.
+
+⸻
+
+The resulting character
+
+The library should have three simultaneous personalities:
+
+At the surface, it feels familiar:
+
+val centered = x - x.mean(0).newAxis(0)
+
+At the conceptual level, it is a tiny affine index calculus:
+
+a(i)=b_{o+t\cdot i}.
+
+At runtime, it reduces to hand-written primitive loops over:
+
+Array[Double]
+
+or:
+
+Float64Array
+
+That is the right foundation beneath Gale and the rest of the scientific stack: not a tensor framework, not a collections experiment, and not a NumPy reimplementation—just a small, lawful, fast algebra of dense multidimensional memory.

@@ -1,0 +1,134 @@
+import org.scalajs.linker.interface.ModuleKind
+import org.scalajs.sbtplugin.ScalaJSPlugin
+import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.*
+import sbtcrossproject.CrossPlugin.autoImport.*
+import scalajscrossproject.ScalaJSCrossPlugin.autoImport.*
+
+ThisBuild / organization := "io.github.canardlapin"
+ThisBuild / scalaVersion := "3.7.4"
+ThisBuild / homepage := Some(url("https://github.com/canardlapin/ravel"))
+ThisBuild / licenses := List("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0"))
+ThisBuild / scmInfo := Some(
+  ScmInfo(
+    url("https://github.com/canardlapin/ravel"),
+    "scm:git:https://github.com/canardlapin/ravel.git",
+    Some("scm:git:git@github.com:canardlapin/ravel.git")
+  )
+)
+ThisBuild / developers := List(
+  Developer(
+    id = "canardlapin",
+    name = "canardlapin",
+    email = "307091466+canardlapin@users.noreply.github.com",
+    url = url("https://github.com/canardlapin")
+  )
+)
+ThisBuild / scalacOptions ++= Seq(
+  "-deprecation",
+  "-feature",
+  "-unchecked",
+  "-Wunused:all",
+  "-Wvalue-discard",
+  "-Werror"
+)
+ThisBuild / Test / parallelExecution := false
+
+lazy val commonSettings = Seq(
+  libraryDependencies ++= Seq(
+    "org.scalameta" %%% "munit" % "1.3.0" % Test,
+    "org.scalacheck" %%% "scalacheck" % "1.19.0" % Test,
+    "org.scalameta" %%% "munit-scalacheck" % "1.3.0" % Test
+  )
+)
+
+lazy val core = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Full)
+  .in(file("modules/core"))
+  .settings(commonSettings)
+  .settings(
+    name := "ravel-core",
+    description := "Dense immutable multidimensional arrays for Scala 3 on the JVM and Scala.js."
+  )
+  .jsSettings(
+    scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule))
+  )
+
+lazy val laws = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Full)
+  .in(file("modules/laws"))
+  .dependsOn(core)
+  .settings(
+    name := "ravel-laws",
+    description := "Reusable MUnit, ScalaCheck, and Discipline law bundles for Ravel.",
+    libraryDependencies ++= Seq(
+      "org.scalameta" %%% "munit" % "1.3.0",
+      "org.scalameta" %%% "munit-scalacheck" % "1.3.0",
+      "org.typelevel" %%% "discipline-core" % "1.7.0"
+    )
+  )
+  .jsSettings(
+    scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule))
+  )
+
+lazy val representationProbeJVM = project
+  .in(file("modules/benchmarks/jvm"))
+  .enablePlugins(JmhPlugin)
+  .dependsOn(core.jvm)
+  .settings(
+    name := "ravel-representation-probe-jvm",
+    publish / skip := true
+  )
+
+lazy val representationProbeJS = project
+  .in(file("modules/benchmarks/js"))
+  .enablePlugins(ScalaJSPlugin)
+  .dependsOn(core.js)
+  .settings(
+    name := "ravel-representation-probe-js",
+    publish / skip := true,
+    scalaJSUseMainModuleInitializer := true,
+    scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule))
+  )
+
+lazy val browserTests = project
+  .in(file("modules/browser-tests"))
+  .enablePlugins(ScalaJSPlugin)
+  .dependsOn(core.js)
+  .settings(commonSettings)
+  .settings(
+    name := "ravel-browser-tests",
+    publish / skip := true,
+    Test / jsEnv := new jsenv.playwright.PWEnv(
+      browserName = "chrome",
+      headless = true,
+      showLogs = true
+    ),
+    scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.ESModule))
+  )
+
+lazy val root = project
+  .in(file("."))
+  .aggregate(
+    core.jvm,
+    core.js,
+    laws.jvm,
+    laws.js,
+    browserTests,
+    representationProbeJVM,
+    representationProbeJS
+  )
+  .settings(
+    name := "ravel",
+    publish / skip := true
+  )
+
+addCommandAlias("compileAll", ";coreJVM/compile;coreJS/compile;lawsJVM/compile;lawsJS/compile")
+addCommandAlias("testAll", ";coreJVM/test;coreJS/test;lawsJVM/test;lawsJS/test")
+addCommandAlias(
+  "testAllFull",
+  ";testAll;browserTests/test;coreJS/Test/fullLinkJS;lawsJS/Test/fullLinkJS"
+)
+addCommandAlias(
+  "representationProof",
+  ";coreJVM/test;coreJS/test;representationProbeJS/fullLinkJS"
+)

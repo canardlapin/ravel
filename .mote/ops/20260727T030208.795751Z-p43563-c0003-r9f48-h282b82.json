@@ -1,0 +1,1 @@
+{"actor":"codex-ravel","entity":"ravel-p2","kind":"note","note_kind":"progress","op":"20260727T030208.795751Z-p43563-c0003-r9f48-h282b82","text":"Implementing canonical Slice semantics, negative-axis structural views, no-copy reshape block coalescing, and view laws","ts":"2026-07-27T03:02:08.795751Z","v":1}

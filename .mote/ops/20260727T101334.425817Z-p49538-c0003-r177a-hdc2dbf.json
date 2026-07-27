@@ -1,0 +1,1 @@
+{"actor":"codex-ravel","entity":"ravel-p4","kind":"note","note_kind":"progress","op":"20260727T101334.425817Z-p49538-c0003-r177a-hdc2dbf","text":"Implementing fixed-schedule reductions, injective-by-construction MutableLayout/MutableNDArray, freeze isolation, and reusable-output kernel API","ts":"2026-07-27T10:13:34.425817Z","v":1}
