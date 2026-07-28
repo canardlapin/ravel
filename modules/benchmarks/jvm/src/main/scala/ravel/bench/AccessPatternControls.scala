@@ -106,6 +106,16 @@ class AccessPatternControls:
     )
 
   @Benchmark
+  def raw_exact_sum_ilp_reuse(): Double =
+    AccessPatternControlLoops.pairwiseSumIlp(
+      fixture.left,
+      offset = 0,
+      stride = 1,
+      length = fixture.fullSize,
+      fixture.fullSumScratch
+    )
+
+  @Benchmark
   def raw_exact_sum_allocate(): Double =
     val scratch =
       new Array[Double](AccessPatternControlLoops.blockCount(fixture.fullSize))
@@ -134,6 +144,19 @@ class AccessPatternControls:
       side,
       fixture.axisOutput,
       fixture.axisScratch
+    )
+    fixture.axisOutput(side - 1)
+
+  @Benchmark
+  def raw_axis1_sum_ilp_reuse(): Double =
+    AccessPatternControlLoops.axis1SumIlp(
+      fixture.left,
+      side,
+      fixture.axisOutput,
+      fixture.axisScratch,
+      fixture.axisScratch1,
+      fixture.axisScratch2,
+      fixture.axisScratch3
     )
     fixture.axisOutput(side - 1)
 
@@ -175,6 +198,12 @@ private final class AccessPatternControlFixture(val side: Int):
   val fullSumScratch =
     new Array[Double](AccessPatternControlLoops.blockCount(fullSize))
   val axisScratch =
+    new Array[Double](AccessPatternControlLoops.blockCount(side))
+  val axisScratch1 =
+    new Array[Double](AccessPatternControlLoops.blockCount(side))
+  val axisScratch2 =
+    new Array[Double](AccessPatternControlLoops.blockCount(side))
+  val axisScratch3 =
     new Array[Double](AccessPatternControlLoops.blockCount(side))
   val mutableOutput: MutableNDArray[Double, Rank[2]] =
     MutableNDArray.zeros[Double, Rank[2]](Shape(side, side))
@@ -225,11 +254,34 @@ private final class AccessPatternControlFixture(val side: Int):
         java.lang.Double.doubleToRawLongBits(ravel.left.sum),
       "raw exact-schedule sum differs from Ravel"
     )
+    val rawIlpSum =
+      AccessPatternControlLoops.pairwiseSumIlp(
+        left,
+        offset = 0,
+        stride = 1,
+        length = fullSize,
+        fullSumScratch
+      )
+    require(
+      java.lang.Double.doubleToRawLongBits(rawIlpSum) ==
+        java.lang.Double.doubleToRawLongBits(rawSum),
+      "raw exact ILP sum differs from the serial exact schedule"
+    )
 
     AccessPatternControlLoops.axis0Sum(left, side, axisOutput, axisScratch)
     requireSameElements(ravel.left.sum(axis = 0), axisOutput, "raw axis-0 sum")
     AccessPatternControlLoops.axis1Sum(left, side, axisOutput, axisScratch)
     requireSameElements(ravel.left.sum(axis = 1), axisOutput, "raw axis-1 sum")
+    AccessPatternControlLoops.axis1SumIlp(
+      left,
+      side,
+      axisOutput,
+      axisScratch,
+      axisScratch1,
+      axisScratch2,
+      axisScratch3
+    )
+    requireSameElements(ravel.left.sum(axis = 1), axisOutput, "raw axis-1 exact ILP sum")
 
   private def requireSameElements(
       expected: NDArray[Double, ?],
@@ -378,6 +430,54 @@ private object AccessPatternControlLoops:
       block += 1
     merge(scratch, block)
 
+  def pairwiseSumIlp(
+      source: Array[Double],
+      offset: Int,
+      stride: Int,
+      length: Int,
+      scratch: Array[Double]
+  ): Double =
+    var block = 0
+    val completeBlocks = length / PairwiseBlockSize
+    while block + 3 < completeBlocks do
+      val base = offset + block * PairwiseBlockSize * stride
+      var sum0 = 0.0
+      var sum1 = 0.0
+      var sum2 = 0.0
+      var sum3 = 0.0
+      var index = 0
+      var physical0 = base
+      var physical1 = base + PairwiseBlockSize * stride
+      var physical2 = base + 2 * PairwiseBlockSize * stride
+      var physical3 = base + 3 * PairwiseBlockSize * stride
+      while index < PairwiseBlockSize do
+        sum0 += source(physical0)
+        sum1 += source(physical1)
+        sum2 += source(physical2)
+        sum3 += source(physical3)
+        physical0 += stride
+        physical1 += stride
+        physical2 += stride
+        physical3 += stride
+        index += 1
+      scratch(block) = sum0
+      scratch(block + 1) = sum1
+      scratch(block + 2) = sum2
+      scratch(block + 3) = sum3
+      block += 4
+    var consumed = block * PairwiseBlockSize
+    var physical = offset + consumed * stride
+    while consumed < length do
+      var sum = 0.0
+      val until = math.min(consumed + PairwiseBlockSize, length)
+      while consumed < until do
+        sum += source(physical)
+        physical += stride
+        consumed += 1
+      scratch(block) = sum
+      block += 1
+    merge(scratch, block)
+
   def axis0Sum(
       source: Array[Double],
       side: Int,
@@ -399,6 +499,73 @@ private object AccessPatternControlLoops:
     while row < side do
       output(row) = pairwiseSum(source, row * side, 1, side, scratch)
       row += 1
+
+  def axis1SumIlp(
+      source: Array[Double],
+      side: Int,
+      output: Array[Double],
+      scratch0: Array[Double],
+      scratch1: Array[Double],
+      scratch2: Array[Double],
+      scratch3: Array[Double]
+  ): Unit =
+    val blockCount = AccessPatternControlLoops.blockCount(side)
+    var row = 0
+    while row + 3 < side do
+      fillFourRows(
+        source,
+        row * side,
+        side,
+        scratch0,
+        scratch1,
+        scratch2,
+        scratch3
+      )
+      output(row) = merge(scratch0, blockCount)
+      output(row + 1) = merge(scratch1, blockCount)
+      output(row + 2) = merge(scratch2, blockCount)
+      output(row + 3) = merge(scratch3, blockCount)
+      row += 4
+    while row < side do
+      output(row) = pairwiseSum(source, row * side, 1, side, scratch0)
+      row += 1
+
+  private def fillFourRows(
+      source: Array[Double],
+      offset: Int,
+      rowStride: Int,
+      scratch0: Array[Double],
+      scratch1: Array[Double],
+      scratch2: Array[Double],
+      scratch3: Array[Double]
+  ): Unit =
+    var block = 0
+    var index = 0
+    var physical0 = offset
+    var physical1 = offset + rowStride
+    var physical2 = offset + 2 * rowStride
+    var physical3 = offset + 3 * rowStride
+    while index < rowStride do
+      var sum0 = 0.0
+      var sum1 = 0.0
+      var sum2 = 0.0
+      var sum3 = 0.0
+      val until = math.min(index + PairwiseBlockSize, rowStride)
+      while index < until do
+        sum0 += source(physical0)
+        sum1 += source(physical1)
+        sum2 += source(physical2)
+        sum3 += source(physical3)
+        physical0 += 1
+        physical1 += 1
+        physical2 += 1
+        physical3 += 1
+        index += 1
+      scratch0(block) = sum0
+      scratch1(block) = sum1
+      scratch2(block) = sum2
+      scratch3(block) = sum3
+      block += 1
 
   private def merge(scratch: Array[Double], initialCount: Int): Double =
     var count = initialCount

@@ -1,0 +1,24 @@
+{
+  "schema": "ravel.vector-api-spike.v1",
+  "metadata": {
+    "java_version": "21.0.11",
+    "java_vendor": "Eclipse Adoptium",
+    "vm_name": "OpenJDK 64-Bit Server VM",
+    "os_name": "Mac OS X",
+    "os_arch": "aarch64",
+    "preferred_vector_bits": 128,
+    "double_lanes": 2
+  },
+  "results": [
+    {"side": 256, "case": "axis0_exact", "comparison": "raw-bits", "scalar_hash": "e2d76493ed3385dd", "vector_hash": "e2d76493ed3385dd", "matched": true},
+    {"side": 256, "case": "contiguous_add", "comparison": "raw-bits", "scalar_hash": "338b6f9306f111a3", "vector_hash": "338b6f9306f111a3", "matched": true},
+    {"side": 256, "case": "less_than", "comparison": "raw-bits", "scalar_hash": "547e96009e39b282", "vector_hash": "547e96009e39b282", "matched": true},
+    {"side": 256, "case": "is_finite", "comparison": "raw-bits", "scalar_hash": "7ea0bb6c13bc3c2a", "vector_hash": "7ea0bb6c13bc3c2a", "matched": true},
+    {"side": 256, "case": "sin", "comparison": "absolute-tolerance", "max_absolute_error": 0.0, "tolerance": 2.0e-13, "matched": true},
+    {"side": 1024, "case": "axis0_exact", "comparison": "raw-bits", "scalar_hash": "6d7af2615fc1a5", "vector_hash": "6d7af2615fc1a5", "matched": true},
+    {"side": 1024, "case": "contiguous_add", "comparison": "raw-bits", "scalar_hash": "a113f6849a0e9892", "vector_hash": "a113f6849a0e9892", "matched": true},
+    {"side": 1024, "case": "less_than", "comparison": "raw-bits", "scalar_hash": "3ad205c625f8c578", "vector_hash": "3ad205c625f8c578", "matched": true},
+    {"side": 1024, "case": "is_finite", "comparison": "raw-bits", "scalar_hash": "ff497eba2ebb9e4f", "vector_hash": "ff497eba2ebb9e4f", "matched": true},
+    {"side": 1024, "case": "sin", "comparison": "absolute-tolerance", "max_absolute_error": 0.0, "tolerance": 2.0e-13, "matched": true}
+  ]
+}

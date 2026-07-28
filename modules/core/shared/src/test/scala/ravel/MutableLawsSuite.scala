@@ -8,6 +8,12 @@ final class MutableLawsSuite extends FunSuite:
   private def values[A](array: NDArray[A, ?]): List[A] =
     array.elementsIterator.toList
 
+  private def assertStridedAssign[A](data: Seq[A])(using DType[A]): Unit =
+    val source = NDArray.fromSeq(Shape(2, 3), data).transpose.reverse(0)
+    val destination = NDArray.zeros[A](2, 3).mutableCopy.transpose.reverse(0)
+    destination.assign(source)
+    assertEquals(values(destination.freezeCopy()), values(source))
+
   test("mutableCopy owns independent storage and updates only one logical position") {
     val source = NDArray.tabulate[Int](3, 4)((i, j) => i * 10 + j)
     val mutable = source.mutableCopy
@@ -87,6 +93,45 @@ final class MutableLawsSuite extends FunSuite:
     assertEquals(values(mutable.freezeCopy()), List(22, 26, 30, 24, 28, 32))
     mutable.subtractInPlace(2)
     assertEquals(values(mutable.freezeCopy()), List(20, 24, 28, 22, 26, 30))
+  }
+
+  test("strided assign dispatches every primitive storage without changing logical order") {
+    assertStridedAssign[Boolean](Seq(true, false, true, false, false, true))
+    assertStridedAssign[Byte](Seq[Byte](1, -2, 3, 4, 5, 6))
+    assertStridedAssign[Short](Seq[Short](1, -2, 3, 4, 5, 6))
+    assertStridedAssign[Int](Seq(1, -2, 3, 4, 5, 6))
+    assertStridedAssign[Long](Seq(1L, -2L, 3L, 4L, 5L, 6L))
+    assertStridedAssign[Float](Seq(0.1f, -2.25f, 3.5f, 4.0f, 5.0f, 6.0f))
+    assertStridedAssign[Double](Seq(0.1, -2.25, 3.5, 4.0, 5.0, 6.0))
+  }
+
+  test("primitive in-place loops preserve negative-stride locality, rounding, and overflow") {
+    val mutable =
+      NDArray.tabulate[Double](3, 6)((row, column) => row * 10.0 + column).mutableCopy
+    val reversedStride =
+      mutable.reverse(1).slice(1, Slice(0, 6, 2))
+    reversedStride.addInPlace(0.5)
+    val expected =
+      NDArray.tabulate[Double](3, 6)((row, column) =>
+        val initial = row * 10.0 + column
+        if column % 2 == 1 then initial + 0.5 else initial
+      )
+    assertEquals(values(mutable.freezeCopy()), values(expected))
+
+    val floats = NDArray.fromSeq(Shape(3), Seq(0.1f, -2.25f, Float.MaxValue)).mutableCopy
+    floats.multiplyInPlace(3.0f)
+    assertEquals(
+      values(floats.freezeCopy()).map(java.lang.Float.floatToRawIntBits),
+      Seq(0.3f, -6.75f, Float.PositiveInfinity).map(java.lang.Float.floatToRawIntBits).toList
+    )
+
+    val ints = NDArray.fromSeq(Shape(3), Seq(Int.MaxValue, -2, 3)).mutableCopy
+    ints.addInPlace(1)
+    assertEquals(values(ints.freezeCopy()), List(Int.MinValue, -1, 4))
+
+    val longs = NDArray.fromSeq(Shape(2), Seq(Long.MaxValue, Long.MinValue)).mutableCopy
+    longs.addInPlace(1L)
+    assertEquals(values(longs.freezeCopy()), List(Long.MinValue, Long.MinValue + 1L))
   }
 
   test("ordinary immutable arrays expose no update method") {

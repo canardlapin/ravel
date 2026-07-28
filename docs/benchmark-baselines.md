@@ -82,3 +82,118 @@ Local OpenJDK 25 full-suite compute geomean after monomorphic kernel work:
 [`modules/benchmarks/results/2026-07-28-local-jdk25-closeout/`](../modules/benchmarks/results/2026-07-28-local-jdk25-closeout/).
 Reduction family remains ~0.39×; stretch target (0.70× / floor 0.50×) not met.
 JDK 21 quiet-runner ratification is still required for a release gate.
+
+## Post-closeout operation matrix
+
+The closeout suite measured `float64` addition, four sums, two copies, scalar
+access, and view creation. It cannot support performance claims about the rest
+of the public API. `OperationMatrixBenchmarks` and its matched NumPy harness now
+add 79 cases per size across:
+
+- binary/scalar/unary/comparison/predicate/cast/in-place kernel families;
+- full and axis product, min, max, arg-min, arg-max, mean, fixed-width sums,
+  and the two supported widening sums;
+- `float64`, `float32`, `int32`, and `int64`; and
+- contiguous, inner/outer-strided, reversed, transposed, and broadcast inputs.
+
+The required gate is semantic parity for every row. Same-host diagnostic
+receipts now exist for
+[JDK 21](../modules/benchmarks/results/2026-07-28-local-jdk21-operation-matrix/)
+and
+[JDK 25](../modules/benchmarks/results/2026-07-28-local-jdk25-operation-matrix/).
+Family/dtype/layout geometric means locate candidate work; they are not a new
+aggregate release score and do not replace the original closeout series.
+
+Both JDKs identify in-place mutation as the dominant measured gap: its family
+geometric mean is 0.026x on JDK 21 and 0.027x on JDK 25. The JDK 25 allocation
+receipt records about 3.15 MiB/op for a 65,536-element in-place Double add,
+roughly 48 bytes per element, while a full mean allocates about 25 B/op. This
+is structural evidence for per-element boxing or equivalent generic-dispatch
+allocation in the mutable loop. The next optimization must dispatch once into
+a monomorphic primitive loop and prove zero size-dependent allocation.
+
+Structural acceptance remains dispatch-before-loop, no per-element boxing, and
+allocation limited to the documented result policy. Use selected matrix cases
+with JMH GC profiling and JIT inlining/assembly evidence before attributing a
+ratio to dispatch, auto-vectorization, or memory bandwidth.
+
+## Stage 2 exact-ILP and mutable-kernel snapshot
+
+The dispatch-before-loop rewrite and exact-schedule ILP controls have same-host
+receipts for
+[JDK 21](../modules/benchmarks/results/2026-07-28-local-jdk21-stage2/)
+and
+[JDK 25](../modules/benchmarks/results/2026-07-28-local-jdk25-stage2/).
+Raw-bit JVM and Scala.js laws retain the fixed 128-value block order and merge
+tree.
+
+At side 1024, the exact raw full-sum control improved by 1.52x on JDK 21 and
+1.59x on JDK 25; the exact raw axis-1 control improved by 1.79x and 1.83x.
+The JDK 25 public full and axis-1 sums improved by 1.71x and 1.88x against the
+earlier same-host receipt.
+
+The in-place family moved from 0.026x to 0.967x NumPy on JDK 21 and from
+0.027x to 0.990x on JDK 25 across the targeted 18 rows. At side 1024,
+contiguous `Double` add improved 32-35x, reversed add improved 41-46x, and
+inner-stride multiply improved 40-41x. The post-change GC receipt shows
+approximately constant per-operation allocation instead of the former
+approximately 48 bytes per element.
+
+These are optimization receipts, not a new release score. Reversed mutable
+traversal remains 0.43-0.52x NumPy and is a measured residual gap. The next
+stage is therefore a benchmark-only targeted Vector API experiment, not a
+dependency change in `ravel-core`.
+
+## Stage 3 Vector API decision
+
+The standalone, nonpublished Vector API probe has same-host AArch64 receipts
+for
+[JDK 21](../modules/benchmarks/results/2026-07-28-local-jdk21-vector-spike/)
+and
+[JDK 25](../modules/benchmarks/results/2026-07-28-local-jdk25-vector-spike/).
+At side 1024, explicit vectors improved exact axis-0 sum by 1.40x and 1.71x,
+is-finite by 1.40x and 1.39x, and less-than by 1.34x and 1.27x on JDK 21 and
+25 respectively. The exact sum vectors across independent columns, not across
+terms in a fiber, so it retains the fixed reduction schedule.
+
+The controls also show why there is no broad Vector API promotion. Explicit
+contiguous addition was 0.84x the scalar control on JDK 21 and flat on JDK 25.
+Vector sine was 0.56x on JDK 21 and allocated 48.0 MiB per side-1024 operation,
+approximately 48 bytes per element, although it reached 1.35x with constant
+allocation on JDK 25. The API remains incubating, the build requires module
+flags and a benchmark-specific bytecode-generator workaround, and no x86-64
+runner was available for this receipt.
+
+The promotion threshold for an optional JVM artifact is:
+
+- exact output under the operation's existing numerical contract;
+- at least 1.20x at side 1024 on both JDK 21 and JDK 25;
+- no regression greater than 10 percent for an included kernel;
+- no size-proportional allocation; and
+- successful AArch64 and x86-64 receipts while the incubator dependency stays
+  outside `ravel-core`.
+
+Axis-0 sum, less-than, and is-finite are candidate kernels under the local
+speed and allocation parts of that threshold. The artifact decision is
+**no-go for now** because cross-architecture proof and an integration-specific
+fallback design are missing. Contiguous add and sine are excluded by measured
+losses on the supported JDK 21 baseline.
+
+## Stage 4 reassociated-sum demand gate
+
+No `sumFast` or reassociated reduction API is warranted. A repository,
+tracker/discussion-board, and GitHub-issue audit found no concrete consumer
+request to exchange the fixed schedule for different NaN, signed-zero,
+overflow, determinism, or cross-platform behavior.
+
+The remaining measured exact-schedule cost does not justify manufacturing that
+demand. In the focused Stage 2 receipts, contiguous side-1024 `Float.sum` is
+0.854x NumPy on JDK 21 and 0.819x on JDK 25. Exact ILP already improves the
+raw serial control by 1.52-1.59x, and the Stage 3 experiment shows that
+independent-lane axis-0 work may have a future exact optimization path.
+
+Decision: do not add `sumFast`, an `Associative` policy, or any other public
+reassociation switch. The existing fixed 128-value block-pairwise schedule
+remains the only floating-sum contract. Reopen this gate only for a named
+consumer and workload that accepts a fully specified alternative contract and
+shows a material parity-gated benefit over the exact implementation.

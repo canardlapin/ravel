@@ -1,0 +1,1 @@
+{"actor":"codex-ravel","entity":"bd-01KYN20PPYSRTGZ2NGFFTSQEZW","kind":"note","note_kind":"progress","op":"20260728T212640.451670Z-p18293-c0003-r4791-h81cc13","text":"Implementing the full operation/dtype/layout parity and benchmark matrix, integrating it into the required NumPy gate, and documenting reproducible structural evidence.","ts":"2026-07-28T21:26:40.451670Z","v":1}

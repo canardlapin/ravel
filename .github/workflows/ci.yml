@@ -62,6 +62,7 @@ jobs:
         run: |
           python -m pip install -r modules/benchmarks/python/requirements.txt
           python modules/benchmarks/python/test_compare_access_patterns.py
+          python modules/benchmarks/python/test_operation_matrix.py
       - name: Ravel vs NumPy semantic parity gate
         run: bash scripts/numpy-parity-gate.sh
         env:

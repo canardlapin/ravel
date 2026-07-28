@@ -101,6 +101,26 @@ lazy val representationProbeJVM = project
     publish / skip := true
   )
 
+// Deliberately standalone: the incubating Vector API is a benchmark experiment,
+// not part of the root aggregate, the core dependency graph, or any published artifact.
+lazy val vectorApiProbeJVM = project
+  .in(file("modules/benchmarks/vector-jvm"))
+  .enablePlugins(JmhPlugin)
+  .settings(
+    name := "ravel-vector-api-probe-jvm",
+    publish / skip := true,
+    Compile / javacOptions ++=
+      Seq("-source", "16", "-target", "16", "--add-modules", "jdk.incubator.vector"),
+    Jmh / javacOptions ++=
+      Seq("-source", "16", "-target", "16", "--add-modules", "jdk.incubator.vector"),
+    // The reflection generator runs in a plugin-owned fork that cannot receive
+    // module options. ASM inspects bytecode without loading Vector API classes.
+    Jmh / generatorType := "asm",
+    Compile / run / fork := true,
+    Compile / run / javaOptions += "--add-modules=jdk.incubator.vector",
+    Jmh / javaOptions += "--add-modules=jdk.incubator.vector"
+  )
+
 lazy val representationProbeJS = project
   .in(file("modules/benchmarks/js"))
   .enablePlugins(ScalaJSPlugin)
@@ -207,7 +227,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "numpyParitySignatures",
-  """;representationProbeJVM/runMain ravel.bench.AccessPatternParity --out target/access-patterns/parity/ravel-signatures.json --side 32,64"""
+  """;representationProbeJVM/runMain ravel.bench.AccessPatternParity --out target/access-patterns/parity/ravel-signatures.json --side 32,64;representationProbeJVM/runMain ravel.bench.OperationMatrixParity --out target/operation-matrix/parity/ravel-signatures.json --side 32,64"""
 )
 // Compile both platform API surfaces, execute every mdoc example, render Laika,
 // validate guide links, and place the JVM API reference in the deployable site.

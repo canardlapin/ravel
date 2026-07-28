@@ -55,6 +55,51 @@ mathematical vocabulary, keep the dependency direction `Gale -> Ravel`, and
 replace copy conversions with explicit zero-copy views only where ownership and
 layout constraints make them honest.
 
+## Panama and native linear algebra
+
+Foreign Function and Memory API work remains wholly Gale-owned. The committed
+Gale tree at `d55fe2f97196a76ab7879e1a12f1e92403aeba06` already contains the
+appropriate optional boundary:
+
+- `gale-backend-jvm-native` provides JDK 22+ `NativeDMat` storage with explicit
+  `Arena` lifetime, row/column-major layout, leading dimension, and checked
+  heap/native conversion;
+- `gale-backend-jvm-blas-ffm` owns runtime library discovery, CBLAS/LAPACK ABI
+  descriptors and downcalls, thread-count policy, typed Gale errors, and
+  provider-specific routing thresholds; and
+- `benchmarks/jvm-ffm` measures the public Gale facades including heap-to-native
+  copy-in, native work, native-to-heap copy-out, and result allocation, with a
+  separate long-lived `NativeDMat` control.
+
+Neither Gale core nor Ravel core imports `java.lang.foreign`. Native access is
+an application opt-in (`--enable-native-access=ALL-UNNAMED`), and the minimum
+runtime for these optional artifacts is JDK 22, where the FFM API was
+[finalized by JEP 454](https://openjdk.org/jeps/454). The bindings do not use
+`Linker.Option.critical(true)` or pass heap segments to long-running BLAS/LAPACK
+calls; they copy to arena-owned native segments before ordinary downcalls.
+There are no upcall stubs or native-to-Java callbacks in this boundary.
+
+The checked-in Apple AArch64 / Accelerate receipts produce deliberately narrow
+defaults:
+
+| Route | Copy-inclusive decision |
+|---|---|
+| square GEMM | enable from `n = 512`; `n = 256` was a measured 0.25x loss |
+| GEMV | disabled; no crossover through `n = 2048` |
+| LU and solve | enable from `n = 128` |
+| symmetric eigen | enable from `n = 128` |
+| Cholesky and QR/least-squares | disabled; results were non-monotone or losing |
+| OpenBLAS, MKL, unknown BLAS | automatic routing disabled pending provider-specific sweeps |
+
+This is the Stage 5 decision: use the existing Gale optional backend for
+coarse, typed BLAS/LAPACK calls and keep explicit copy costs in its dispatch
+policy. Do not add FFM storage or downcalls to Ravel, do not route elementwise
+or reduction microkernels through native code, and do not infer one vendor's
+thresholds for another. A clean JDK 25 audit of the committed Gale snapshot
+passed all three native-storage tests, all 21 BLAS/LAPACK tests, and FFM JMH
+compilation; the authoritative crossover timings remain the checked-in JDK 22
+two-fork receipts.
+
 ## CI verification today
 
 Until Central publication, verify the copy-only boundary from a Ravel snapshot:

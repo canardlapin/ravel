@@ -10,11 +10,31 @@ private[ravel] object PlatformReduction:
   ): Double =
     val raw = storage.raw
     var block = 0
-    var index = 0
-    var physical = offset
+    val blockSize = ReductionKernels.PairwiseBlockSize
+    val completeBlocks = size / blockSize
+    while block + 3 < completeBlocks do
+      val base = offset + block * blockSize
+      var sum0 = 0.0
+      var sum1 = 0.0
+      var sum2 = 0.0
+      var sum3 = 0.0
+      var index = 0
+      while index < blockSize do
+        sum0 += raw(base + index)
+        sum1 += raw(base + blockSize + index)
+        sum2 += raw(base + 2 * blockSize + index)
+        sum3 += raw(base + 3 * blockSize + index)
+        index += 1
+      scratch(block) = sum0
+      scratch(block + 1) = sum1
+      scratch(block + 2) = sum2
+      scratch(block + 3) = sum3
+      block += 4
+    var index = block * blockSize
+    var physical = offset + index
     while index < size do
       var sum = 0.0
-      val until = math.min(index + ReductionKernels.PairwiseBlockSize, size)
+      val until = math.min(index + blockSize, size)
       while index < until do
         sum += raw(physical)
         physical += 1
@@ -31,11 +51,31 @@ private[ravel] object PlatformReduction:
   ): Float =
     val raw = storage.raw
     var block = 0
-    var index = 0
-    var physical = offset
+    val blockSize = ReductionKernels.PairwiseBlockSize
+    val completeBlocks = size / blockSize
+    while block + 3 < completeBlocks do
+      val base = offset + block * blockSize
+      var sum0 = 0.0f
+      var sum1 = 0.0f
+      var sum2 = 0.0f
+      var sum3 = 0.0f
+      var index = 0
+      while index < blockSize do
+        sum0 = (sum0 + raw(base + index)).toFloat
+        sum1 = (sum1 + raw(base + blockSize + index)).toFloat
+        sum2 = (sum2 + raw(base + 2 * blockSize + index)).toFloat
+        sum3 = (sum3 + raw(base + 3 * blockSize + index)).toFloat
+        index += 1
+      scratch(block) = sum0
+      scratch(block + 1) = sum1
+      scratch(block + 2) = sum2
+      scratch(block + 3) = sum3
+      block += 4
+    var index = block * blockSize
+    var physical = offset + index
     while index < size do
       var sum = 0.0f
-      val until = math.min(index + ReductionKernels.PairwiseBlockSize, size)
+      val until = math.min(index + blockSize, size)
       while index < until do
         sum = (sum + raw(physical)).toFloat
         physical += 1
@@ -115,13 +155,40 @@ private[ravel] object PlatformReduction:
     val out = output.raw
     val blockCount =
       (cols + ReductionKernels.PairwiseBlockSize - 1) / ReductionKernels.PairwiseBlockSize
-    val blocks = new Array[Double](math.max(blockCount, 1))
+    val scratchSize = math.max(blockCount, 1)
+    val blocks0 = new Array[Double](scratchSize)
+    val blocks1 = new Array[Double](scratchSize)
+    val blocks2 = new Array[Double](scratchSize)
+    val blocks3 = new Array[Double](scratchSize)
     var row = 0
+    while row + 3 < rows do
+      if cols == 0 then
+        out(row) = 0.0
+        out(row + 1) = 0.0
+        out(row + 2) = 0.0
+        out(row + 3) = 0.0
+      else
+        fillFourRowsDouble(
+          raw,
+          offset + row * rowStride,
+          rowStride,
+          colStride,
+          cols,
+          blocks0,
+          blocks1,
+          blocks2,
+          blocks3
+        )
+        out(row) = mergeDouble(blocks0, blockCount)
+        out(row + 1) = mergeDouble(blocks1, blockCount)
+        out(row + 2) = mergeDouble(blocks2, blockCount)
+        out(row + 3) = mergeDouble(blocks3, blockCount)
+      row += 4
     while row < rows do
       if cols == 0 then out(row) = 0.0
       else
-        fillStridedDouble(raw, offset + row * rowStride, colStride, cols, blocks)
-        out(row) = mergeDouble(blocks, blockCount)
+        fillStridedDouble(raw, offset + row * rowStride, colStride, cols, blocks0)
+        out(row) = mergeDouble(blocks0, blockCount)
       row += 1
 
   def axis0PairwiseFloat(
@@ -195,14 +262,119 @@ private[ravel] object PlatformReduction:
     val out = output.raw
     val blockCount =
       (cols + ReductionKernels.PairwiseBlockSize - 1) / ReductionKernels.PairwiseBlockSize
-    val blocks = new Array[Float](math.max(blockCount, 1))
+    val scratchSize = math.max(blockCount, 1)
+    val blocks0 = new Array[Float](scratchSize)
+    val blocks1 = new Array[Float](scratchSize)
+    val blocks2 = new Array[Float](scratchSize)
+    val blocks3 = new Array[Float](scratchSize)
     var row = 0
+    while row + 3 < rows do
+      if cols == 0 then
+        out(row) = 0.0f
+        out(row + 1) = 0.0f
+        out(row + 2) = 0.0f
+        out(row + 3) = 0.0f
+      else
+        fillFourRowsFloat(
+          raw,
+          offset + row * rowStride,
+          rowStride,
+          colStride,
+          cols,
+          blocks0,
+          blocks1,
+          blocks2,
+          blocks3
+        )
+        out(row) = mergeFloat(blocks0, blockCount)
+        out(row + 1) = mergeFloat(blocks1, blockCount)
+        out(row + 2) = mergeFloat(blocks2, blockCount)
+        out(row + 3) = mergeFloat(blocks3, blockCount)
+      row += 4
     while row < rows do
       if cols == 0 then out(row) = 0.0f
       else
-        fillStridedFloat(raw, offset + row * rowStride, colStride, cols, blocks)
-        out(row) = mergeFloat(blocks, blockCount)
+        fillStridedFloat(raw, offset + row * rowStride, colStride, cols, blocks0)
+        out(row) = mergeFloat(blocks0, blockCount)
       row += 1
+
+  private def fillFourRowsDouble(
+      raw: Array[Double],
+      offset: Int,
+      rowStride: Int,
+      colStride: Int,
+      length: Int,
+      blocks0: Array[Double],
+      blocks1: Array[Double],
+      blocks2: Array[Double],
+      blocks3: Array[Double]
+  ): Unit =
+    var block = 0
+    var index = 0
+    var physical0 = offset
+    var physical1 = offset + rowStride
+    var physical2 = offset + 2 * rowStride
+    var physical3 = offset + 3 * rowStride
+    while index < length do
+      var sum0 = 0.0
+      var sum1 = 0.0
+      var sum2 = 0.0
+      var sum3 = 0.0
+      val until = math.min(index + ReductionKernels.PairwiseBlockSize, length)
+      while index < until do
+        sum0 += raw(physical0)
+        sum1 += raw(physical1)
+        sum2 += raw(physical2)
+        sum3 += raw(physical3)
+        physical0 += colStride
+        physical1 += colStride
+        physical2 += colStride
+        physical3 += colStride
+        index += 1
+      blocks0(block) = sum0
+      blocks1(block) = sum1
+      blocks2(block) = sum2
+      blocks3(block) = sum3
+      block += 1
+
+  private def fillFourRowsFloat(
+      raw: Array[Float],
+      offset: Int,
+      rowStride: Int,
+      colStride: Int,
+      length: Int,
+      blocks0: Array[Float],
+      blocks1: Array[Float],
+      blocks2: Array[Float],
+      blocks3: Array[Float]
+  ): Unit =
+    var block = 0
+    var index = 0
+    var physical0 = offset
+    var physical1 = offset + rowStride
+    var physical2 = offset + 2 * rowStride
+    var physical3 = offset + 3 * rowStride
+    while index < length do
+      var sum0 = 0.0f
+      var sum1 = 0.0f
+      var sum2 = 0.0f
+      var sum3 = 0.0f
+      val until = math.min(index + ReductionKernels.PairwiseBlockSize, length)
+      while index < until do
+        sum0 = (sum0 + raw(physical0)).toFloat
+        sum1 = (sum1 + raw(physical1)).toFloat
+        sum2 = (sum2 + raw(physical2)).toFloat
+        sum3 = (sum3 + raw(physical3)).toFloat
+        physical0 += colStride
+        physical1 += colStride
+        physical2 += colStride
+        physical3 += colStride
+        index += 1
+      blocks0(block) = sum0
+      blocks1(block) = sum1
+      blocks2(block) = sum2
+      blocks3(block) = sum3
+      block += 1
 
   private def fillStridedDouble(
       raw: Array[Double],

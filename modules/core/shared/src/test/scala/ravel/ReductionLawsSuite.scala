@@ -190,6 +190,48 @@ final class ReductionLawsSuite extends FunSuite:
     assertEquals(values(emptyRows.sum(1)), Nil)
   }
 
+  test("exact reduction scheduling survives four-lane block, row, and tail shapes") {
+    val doubles =
+      NDArray.tabulate[Double](9, 513)((row, column) =>
+        math.sin(row * 0.37 + column * 0.013) *
+          (if column % 11 == 0 then 1.0e12 else 1.0)
+      )
+    assertEquals(
+      java.lang.Double.doubleToRawLongBits(doubles.sum),
+      java.lang.Double.doubleToRawLongBits(referenceDoublePairwise(values(doubles)))
+    )
+    val doubleRows = doubles.sum(1)
+    var row = 0
+    while row < 9 do
+      val fiber = Vector.tabulate(513)(column => doubles(row, column))
+      assertEquals(
+        java.lang.Double.doubleToRawLongBits(doubleRows(row)),
+        java.lang.Double.doubleToRawLongBits(referenceDoublePairwise(fiber))
+      )
+      row += 1
+
+    val floats =
+      NDArray.tabulate[Float](7, 259)((row, column) =>
+        (
+          math.cos(row * 0.19 + column * 0.021) *
+            (if column % 7 == 0 then 1.0e6 else 1.0)
+        ).toFloat
+      )
+    assertEquals(
+      java.lang.Float.floatToRawIntBits(floats.sum),
+      java.lang.Float.floatToRawIntBits(referenceFloatPairwise(values(floats)))
+    )
+    val floatRows = floats.sum(1)
+    row = 0
+    while row < 7 do
+      val fiber = Vector.tabulate(259)(column => floats(row, column))
+      assertEquals(
+        java.lang.Float.floatToRawIntBits(floatRows(row)),
+        java.lang.Float.floatToRawIntBits(referenceFloatPairwise(fiber))
+      )
+      row += 1
+  }
+
   test("only Int-to-Long and Float-to-Double widening sums compile") {
     assertEquals(
       NDArray.fromSeq(Shape(2), Seq(Int.MaxValue, Int.MaxValue)).sumAs[Long],
