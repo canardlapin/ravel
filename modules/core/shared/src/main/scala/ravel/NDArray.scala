@@ -1,6 +1,8 @@
 package ravel
 
 import ravel.internal.*
+import scala.annotation.publicInBinary
+import scala.compiletime.erasedValue
 
 final class NDArray[A, +R <: AnyRank] private[ravel] (
     private[ravel] val storage: Storage[A],
@@ -14,20 +16,69 @@ final class NDArray[A, +R <: AnyRank] private[ravel] (
   def size: Int = layout.size
   def isContiguous: Boolean = layout.isCContiguous
 
-  def apply(i: Int): A =
-    ProbeApi.get(storage, layout.physicalIndex1(i))
+  inline def apply(i: Int): A =
+    readPrimitive(physicalIndex1(i))
 
-  def apply(i: Int, j: Int): A =
-    ProbeApi.get(storage, layout.physicalIndex2(i, j))
+  inline def apply(i: Int, j: Int): A =
+    readPrimitive(physicalIndex2(i, j))
 
-  def apply(i: Int, j: Int, k: Int): A =
-    ProbeApi.get(storage, layout.physicalIndex3(i, j, k))
+  inline def apply(i: Int, j: Int, k: Int): A =
+    readPrimitive(physicalIndex3(i, j, k))
 
-  def apply(i: Int, j: Int, k: Int, l: Int): A =
-    ProbeApi.get(storage, layout.physicalIndex4(i, j, k, l))
+  inline def apply(i: Int, j: Int, k: Int, l: Int): A =
+    readPrimitive(physicalIndex4(i, j, k, l))
 
   def at(indices: IArray[Int]): A =
     ProbeApi.get(storage, layout.physicalIndex(indices))
+
+  private inline def readPrimitive(index: Int): A =
+    // This match is reduced at the Scala call site. Each cast is guarded by its exact primitive
+    // branch and routes to a primitive JVM/Scala.js method; abstract A uses the boxed fallback.
+    inline erasedValue[A] match
+      case _: Boolean => readBoolean(index).asInstanceOf[A]
+      case _: Byte => readByte(index).asInstanceOf[A]
+      case _: Short => readShort(index).asInstanceOf[A]
+      case _: Int => readInt(index).asInstanceOf[A]
+      case _: Long => readLong(index).asInstanceOf[A]
+      case _: Float => readFloat(index).asInstanceOf[A]
+      case _: Double => readDouble(index).asInstanceOf[A]
+      case _ => readGeneric(index)
+
+  @publicInBinary private[ravel] def physicalIndex1(i: Int): Int =
+    layout.physicalIndex1(i)
+
+  @publicInBinary private[ravel] def physicalIndex2(i: Int, j: Int): Int =
+    layout.physicalIndex2(i, j)
+
+  @publicInBinary private[ravel] def physicalIndex3(i: Int, j: Int, k: Int): Int =
+    layout.physicalIndex3(i, j, k)
+
+  @publicInBinary private[ravel] def physicalIndex4(i: Int, j: Int, k: Int, l: Int): Int =
+    layout.physicalIndex4(i, j, k, l)
+
+  @publicInBinary private[ravel] def readGeneric(index: Int): A =
+    ProbeApi.get(storage, index)
+
+  @publicInBinary private[ravel] def readBoolean(index: Int): Boolean =
+    ProbeApi.getBoolean(storage.asInstanceOf[Storage[Boolean]], index)
+
+  @publicInBinary private[ravel] def readByte(index: Int): Byte =
+    ProbeApi.getByte(storage.asInstanceOf[Storage[Byte]], index)
+
+  @publicInBinary private[ravel] def readShort(index: Int): Short =
+    ProbeApi.getShort(storage.asInstanceOf[Storage[Short]], index)
+
+  @publicInBinary private[ravel] def readInt(index: Int): Int =
+    ProbeApi.getInt(storage.asInstanceOf[Storage[Int]], index)
+
+  @publicInBinary private[ravel] def readLong(index: Int): Long =
+    ProbeApi.getLong(storage.asInstanceOf[Storage[Long]], index)
+
+  @publicInBinary private[ravel] def readFloat(index: Int): Float =
+    ProbeApi.getFloat(storage.asInstanceOf[Storage[Float]], index)
+
+  @publicInBinary private[ravel] def readDouble(index: Int): Double =
+    ProbeApi.getDouble(storage.asInstanceOf[Storage[Double]], index)
 
   def requireRank[N <: Int](using expected: ValueOf[N]): Either[RankMismatch, NDArray[A, Rank[N]]] =
     if rank == expected.value then Right(this.asInstanceOf[NDArray[A, Rank[N]]])
@@ -146,7 +197,11 @@ final class NDArray[A, +R <: AnyRank] private[ravel] (
   /** Always copies in logical row-major order. */
   def copy: NDArray[A, R] =
     val output = ProbeApi.allocate[A](size)(using dtype)
-    CopyKernels.logical(storage, layout, output)
+    var write = 0
+    layout.foreachPhysicalIndex { index =>
+      ProbeApi.set(output, write, ProbeApi.get(storage, index))
+      write += 1
+    }
     new NDArray(output, Layout.contiguous(shape, size), dtype)
 
   def cast[B](using source: NumericDType[A], target: NumericDType[B]): NDArray[B, R] =
@@ -223,6 +278,26 @@ object NDArray:
     if iterator.hasNext || index != shape.size then
       throw ShapeMismatch(shape.toString, s"values(count differs from ${shape.size})")
     new NDArray(storage, Layout.contiguous(shape, shape.size), dtype)
+
+  /** Allocate one contiguous destination and fill it through a consuming [[ArrayBuilder]].
+    *
+    * The returned immutable array owns the builder's destination directly; construction performs no
+    * output-sized copy. The builder is sealed after `body` returns or throws and rejects every
+    * later write. If `body` throws, no array is returned.
+    */
+  def build[A, R <: AnyRank](shape: Shape[R])(body: ArrayBuilder[A] => Unit)(using
+      dtype: DType[A]
+  ): NDArray[A, R] =
+    val storage = ProbeApi.allocate[A](shape.size)
+    val builder = new ArrayBuilder[A](storage, shape.size)
+    try
+      body(builder)
+      builder.seal()
+      new NDArray(storage, Layout.contiguous(shape, shape.size), dtype)
+    catch
+      case error: Throwable =>
+        builder.abandon()
+        throw error
 
   def tabulate[A](d0: Int)(f: Int => A)(using dtype: DType[A]): Array1[A] =
     val result = zeros[A](d0)

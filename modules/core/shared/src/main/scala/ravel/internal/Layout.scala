@@ -20,14 +20,11 @@ private[ravel] final class Layout private (
 
   def physicalIndex(indices: IArray[Int]): Int =
     if indices.length != rank then
-      throw InvalidIndex(s"expected $rank indices but received ${indices.length}")
+      throw InvalidIndex.ArityMismatch(rank, indices.length)
     var address = offset.toLong
     var axis = 0
     while axis < rank do
-      val index = indices(axis)
-      val dimension = shape(axis)
-      if index < 0 || index >= dimension then
-        throw InvalidIndex(s"axis $axis index $index is outside [0, $dimension)")
+      val index = Layout.normalizeElementIndex(indices(axis), shape(axis), axis)
       address = Layout.checkedAdd(
         address,
         Layout.checkedMultiply(index.toLong, strides(axis).toLong, s"index axis $axis"),
@@ -36,67 +33,54 @@ private[ravel] final class Layout private (
       axis += 1
     Layout.checkedInt(address, "physical index")
 
-  private[ravel] inline def physicalIndex1(i: Int): Int =
+  private[ravel] def physicalIndex1(i: Int): Int =
     if rank != 1 then invalidArity(1)
-    val dimension0 = shape(0)
-    if i < 0 || i >= dimension0 then invalidIndex(0, i, dimension0)
-    (offset.toLong + i.toLong * strides(0).toLong).toInt
+    val index0 = Layout.normalizeElementIndex(i, shape(0), 0)
+    (offset.toLong + index0.toLong * strides(0).toLong).toInt
 
-  private[ravel] inline def physicalIndex2(i: Int, j: Int): Int =
+  private[ravel] def physicalIndex2(i: Int, j: Int): Int =
     if rank != 2 then invalidArity(2)
-    val dimension0 = shape(0)
-    if i < 0 || i >= dimension0 then invalidIndex(0, i, dimension0)
-    val dimension1 = shape(1)
-    if j < 0 || j >= dimension1 then invalidIndex(1, j, dimension1)
+    val index0 = Layout.normalizeElementIndex(i, shape(0), 0)
+    val index1 = Layout.normalizeElementIndex(j, shape(1), 1)
     (
       offset.toLong +
-        i.toLong * strides(0).toLong +
-        j.toLong * strides(1).toLong
+        index0.toLong * strides(0).toLong +
+        index1.toLong * strides(1).toLong
     ).toInt
 
-  private[ravel] inline def physicalIndex3(i: Int, j: Int, k: Int): Int =
+  private[ravel] def physicalIndex3(i: Int, j: Int, k: Int): Int =
     if rank != 3 then invalidArity(3)
-    val dimension0 = shape(0)
-    if i < 0 || i >= dimension0 then invalidIndex(0, i, dimension0)
-    val dimension1 = shape(1)
-    if j < 0 || j >= dimension1 then invalidIndex(1, j, dimension1)
-    val dimension2 = shape(2)
-    if k < 0 || k >= dimension2 then invalidIndex(2, k, dimension2)
+    val index0 = Layout.normalizeElementIndex(i, shape(0), 0)
+    val index1 = Layout.normalizeElementIndex(j, shape(1), 1)
+    val index2 = Layout.normalizeElementIndex(k, shape(2), 2)
     (
       offset.toLong +
-        i.toLong * strides(0).toLong +
-        j.toLong * strides(1).toLong +
-        k.toLong * strides(2).toLong
+        index0.toLong * strides(0).toLong +
+        index1.toLong * strides(1).toLong +
+        index2.toLong * strides(2).toLong
     ).toInt
 
-  private[ravel] inline def physicalIndex4(
+  private[ravel] def physicalIndex4(
       i: Int,
       j: Int,
       k: Int,
       l: Int
   ): Int =
     if rank != 4 then invalidArity(4)
-    val dimension0 = shape(0)
-    if i < 0 || i >= dimension0 then invalidIndex(0, i, dimension0)
-    val dimension1 = shape(1)
-    if j < 0 || j >= dimension1 then invalidIndex(1, j, dimension1)
-    val dimension2 = shape(2)
-    if k < 0 || k >= dimension2 then invalidIndex(2, k, dimension2)
-    val dimension3 = shape(3)
-    if l < 0 || l >= dimension3 then invalidIndex(3, l, dimension3)
+    val index0 = Layout.normalizeElementIndex(i, shape(0), 0)
+    val index1 = Layout.normalizeElementIndex(j, shape(1), 1)
+    val index2 = Layout.normalizeElementIndex(k, shape(2), 2)
+    val index3 = Layout.normalizeElementIndex(l, shape(3), 3)
     (
       offset.toLong +
-        i.toLong * strides(0).toLong +
-        j.toLong * strides(1).toLong +
-        k.toLong * strides(2).toLong +
-        l.toLong * strides(3).toLong
+        index0.toLong * strides(0).toLong +
+        index1.toLong * strides(1).toLong +
+        index2.toLong * strides(2).toLong +
+        index3.toLong * strides(3).toLong
     ).toInt
 
   private def invalidArity(received: Int): Nothing =
-    throw InvalidIndex(s"expected $rank indices but received $received")
-
-  private def invalidIndex(axis: Int, index: Int, dimension: Int): Nothing =
-    throw InvalidIndex(s"axis $axis index $index is outside [0, $dimension)")
+    throw InvalidIndex.ArityMismatch(rank, received)
 
   def foreachPhysicalIndex(f: Int => Unit): Unit =
     if size == 0 then return
@@ -143,6 +127,12 @@ private[ravel] object Layout:
         same = left(axis) == right(axis)
         axis += 1
       same
+
+  private[ravel] def normalizeElementIndex(index: Int, dimension: Int, axis: Int): Int =
+    val normalized = if index < 0 then index + dimension else index
+    if normalized < 0 || normalized >= dimension then
+      throw InvalidIndex.OutOfBounds(axis, index, dimension)
+    normalized
 
   def contiguous[R <: AnyRank](shape: Shape[R], bufferLength: Int): Layout =
     val dimensions = shape.unsafeDimensions

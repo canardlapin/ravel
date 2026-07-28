@@ -1,7 +1,9 @@
 package ravel
 
 import ravel.internal.*
+import scala.annotation.publicInBinary
 import scala.annotation.unused
+import scala.compiletime.erasedValue
 
 final class MutableNDArray[A, R <: AnyRank] private[ravel] (
     private[ravel] val storage: Storage[A],
@@ -16,35 +18,119 @@ final class MutableNDArray[A, R <: AnyRank] private[ravel] (
   def rank: Int = layout.rank
   def size: Int = layout.size
 
-  def apply(i: Int): A =
-    ProbeApi.get(storage, layout.physicalIndex1(i))
+  inline def apply(i: Int): A =
+    readPrimitive(physicalIndex1(i))
 
-  def apply(i: Int, j: Int): A =
-    ProbeApi.get(storage, layout.physicalIndex2(i, j))
+  inline def apply(i: Int, j: Int): A =
+    readPrimitive(physicalIndex2(i, j))
 
-  def apply(i: Int, j: Int, k: Int): A =
-    ProbeApi.get(storage, layout.physicalIndex3(i, j, k))
+  inline def apply(i: Int, j: Int, k: Int): A =
+    readPrimitive(physicalIndex3(i, j, k))
 
-  def apply(i: Int, j: Int, k: Int, l: Int): A =
-    ProbeApi.get(storage, layout.physicalIndex4(i, j, k, l))
+  inline def apply(i: Int, j: Int, k: Int, l: Int): A =
+    readPrimitive(physicalIndex4(i, j, k, l))
 
   def at(indices: IArray[Int]): A =
     ProbeApi.get(storage, layout.physicalIndex(indices))
 
-  def update(i: Int, value: A): Unit =
-    ProbeApi.set(storage, layout.physicalIndex1(i), value)
+  inline def update(i: Int, value: A): Unit =
+    writePrimitive(physicalIndex1(i), value)
 
-  def update(i: Int, j: Int, value: A): Unit =
-    ProbeApi.set(storage, layout.physicalIndex2(i, j), value)
+  inline def update(i: Int, j: Int, value: A): Unit =
+    writePrimitive(physicalIndex2(i, j), value)
 
-  def update(i: Int, j: Int, k: Int, value: A): Unit =
-    ProbeApi.set(storage, layout.physicalIndex3(i, j, k), value)
+  inline def update(i: Int, j: Int, k: Int, value: A): Unit =
+    writePrimitive(physicalIndex3(i, j, k), value)
 
-  def update(i: Int, j: Int, k: Int, l: Int, value: A): Unit =
-    ProbeApi.set(storage, layout.physicalIndex4(i, j, k, l), value)
+  inline def update(i: Int, j: Int, k: Int, l: Int, value: A): Unit =
+    writePrimitive(physicalIndex4(i, j, k, l), value)
 
   def updateAt(indices: IArray[Int], value: A): Unit =
     ProbeApi.set(storage, layout.physicalIndex(indices), value)
+
+  private inline def readPrimitive(index: Int): A =
+    // This match is reduced at the Scala call site. Each cast is guarded by its exact primitive
+    // branch and routes to a primitive JVM/Scala.js method; abstract A uses the boxed fallback.
+    inline erasedValue[A] match
+      case _: Boolean => readBoolean(index).asInstanceOf[A]
+      case _: Byte => readByte(index).asInstanceOf[A]
+      case _: Short => readShort(index).asInstanceOf[A]
+      case _: Int => readInt(index).asInstanceOf[A]
+      case _: Long => readLong(index).asInstanceOf[A]
+      case _: Float => readFloat(index).asInstanceOf[A]
+      case _: Double => readDouble(index).asInstanceOf[A]
+      case _ => readGeneric(index)
+
+  private inline def writePrimitive(index: Int, value: A): Unit =
+    inline erasedValue[A] match
+      case _: Boolean => writeBoolean(index, value.asInstanceOf[Boolean])
+      case _: Byte => writeByte(index, value.asInstanceOf[Byte])
+      case _: Short => writeShort(index, value.asInstanceOf[Short])
+      case _: Int => writeInt(index, value.asInstanceOf[Int])
+      case _: Long => writeLong(index, value.asInstanceOf[Long])
+      case _: Float => writeFloat(index, value.asInstanceOf[Float])
+      case _: Double => writeDouble(index, value.asInstanceOf[Double])
+      case _ => writeGeneric(index, value)
+
+  @publicInBinary private[ravel] def physicalIndex1(i: Int): Int =
+    layout.physicalIndex1(i)
+
+  @publicInBinary private[ravel] def physicalIndex2(i: Int, j: Int): Int =
+    layout.physicalIndex2(i, j)
+
+  @publicInBinary private[ravel] def physicalIndex3(i: Int, j: Int, k: Int): Int =
+    layout.physicalIndex3(i, j, k)
+
+  @publicInBinary private[ravel] def physicalIndex4(i: Int, j: Int, k: Int, l: Int): Int =
+    layout.physicalIndex4(i, j, k, l)
+
+  @publicInBinary private[ravel] def readGeneric(index: Int): A =
+    ProbeApi.get(storage, index)
+
+  @publicInBinary private[ravel] def readBoolean(index: Int): Boolean =
+    ProbeApi.getBoolean(storage.asInstanceOf[Storage[Boolean]], index)
+
+  @publicInBinary private[ravel] def readByte(index: Int): Byte =
+    ProbeApi.getByte(storage.asInstanceOf[Storage[Byte]], index)
+
+  @publicInBinary private[ravel] def readShort(index: Int): Short =
+    ProbeApi.getShort(storage.asInstanceOf[Storage[Short]], index)
+
+  @publicInBinary private[ravel] def readInt(index: Int): Int =
+    ProbeApi.getInt(storage.asInstanceOf[Storage[Int]], index)
+
+  @publicInBinary private[ravel] def readLong(index: Int): Long =
+    ProbeApi.getLong(storage.asInstanceOf[Storage[Long]], index)
+
+  @publicInBinary private[ravel] def readFloat(index: Int): Float =
+    ProbeApi.getFloat(storage.asInstanceOf[Storage[Float]], index)
+
+  @publicInBinary private[ravel] def readDouble(index: Int): Double =
+    ProbeApi.getDouble(storage.asInstanceOf[Storage[Double]], index)
+
+  @publicInBinary private[ravel] def writeGeneric(index: Int, value: A): Unit =
+    ProbeApi.set(storage, index, value)
+
+  @publicInBinary private[ravel] def writeBoolean(index: Int, value: Boolean): Unit =
+    ProbeApi.setBoolean(storage.asInstanceOf[Storage[Boolean]], index, value)
+
+  @publicInBinary private[ravel] def writeByte(index: Int, value: Byte): Unit =
+    ProbeApi.setByte(storage.asInstanceOf[Storage[Byte]], index, value)
+
+  @publicInBinary private[ravel] def writeShort(index: Int, value: Short): Unit =
+    ProbeApi.setShort(storage.asInstanceOf[Storage[Short]], index, value)
+
+  @publicInBinary private[ravel] def writeInt(index: Int, value: Int): Unit =
+    ProbeApi.setInt(storage.asInstanceOf[Storage[Int]], index, value)
+
+  @publicInBinary private[ravel] def writeLong(index: Int, value: Long): Unit =
+    ProbeApi.setLong(storage.asInstanceOf[Storage[Long]], index, value)
+
+  @publicInBinary private[ravel] def writeFloat(index: Int, value: Float): Unit =
+    ProbeApi.setFloat(storage.asInstanceOf[Storage[Float]], index, value)
+
+  @publicInBinary private[ravel] def writeDouble(index: Int, value: Double): Unit =
+    ProbeApi.setDouble(storage.asInstanceOf[Storage[Double]], index, value)
 
   def fill(value: A): Unit =
     if layout.isCContiguous && layout.offset == 0 && layout.size == storage.length then
@@ -147,7 +233,11 @@ final class MutableNDArray[A, R <: AnyRank] private[ravel] (
 
   def freezeCopy(): NDArray[A, R] =
     val output = ProbeApi.allocate[A](size)(using dtype)
-    CopyKernels.logical(storage, layout, output)
+    var write = 0
+    layout.foreachPhysicalIndex { index =>
+      ProbeApi.set(output, write, ProbeApi.get(storage, index))
+      write += 1
+    }
     new NDArray(output, Layout.contiguous(shape, size), dtype)
 
 object MutableNDArray:

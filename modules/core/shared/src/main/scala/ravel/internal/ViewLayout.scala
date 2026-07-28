@@ -6,10 +6,7 @@ private[ravel] object ViewLayout:
   def select(layout: Layout, axis: Int, index: Int, bufferLength: Int): Layout =
     val selectedAxis = layout.normalizedAxis(axis)
     val dimension = layout.shape(selectedAxis)
-    if index < 0 || index >= dimension then
-      throw InvalidIndex(
-        s"axis $selectedAxis index $index is outside [0, $dimension)"
-      )
+    val normalizedIndex = Layout.normalizeElementIndex(index, dimension, selectedAxis)
     val shape = new Array[Int](layout.rank - 1)
     val strides = new Array[Int](layout.rank - 1)
     var source = 0
@@ -24,7 +21,7 @@ private[ravel] object ViewLayout:
       Layout.checkedAdd(
         layout.offset.toLong,
         Layout.checkedMultiply(
-          index.toLong,
+          normalizedIndex.toLong,
           layout.strides(selectedAxis).toLong,
           s"select axis $selectedAxis"
         ),

@@ -49,6 +49,10 @@ The loop planner aligns broadcast axes, assigns zero strides, removes
 length-one axes, and coalesces adjacent compatible axes. General loops use
 counters and offsets rather than division of a linear index.
 
+The supported external-kernel contract, including fixed Rank1-4 indexing,
+builder ownership, failure semantics, and allocation evidence, is documented
+in [allocation-free kernel APIs](allocation-free-kernels.md).
+
 These details may change without changing the public array semantics or
 interop types.
 

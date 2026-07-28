@@ -24,6 +24,48 @@ private[ravel] object ProbeKernels:
       case x: FloatStorage   => x.raw(index) = value.asInstanceOf[Float]
       case x: DoubleStorage  => x.raw(index) = value.asInstanceOf[Double]
 
+  def getBoolean(storage: Storage[Boolean], index: Int): Boolean =
+    storage.asInstanceOf[BooleanStorage].raw(index) != 0
+
+  def getByte(storage: Storage[Byte], index: Int): Byte =
+    storage.asInstanceOf[ByteStorage].raw(index).toByte
+
+  def getShort(storage: Storage[Short], index: Int): Short =
+    storage.asInstanceOf[ShortStorage].raw(index).toShort
+
+  def getInt(storage: Storage[Int], index: Int): Int =
+    storage.asInstanceOf[IntStorage].raw(index)
+
+  def getLong(storage: Storage[Long], index: Int): Long =
+    storage.asInstanceOf[LongStorage].raw(index)
+
+  def getFloat(storage: Storage[Float], index: Int): Float =
+    storage.asInstanceOf[FloatStorage].raw(index).toFloat
+
+  def getDouble(storage: Storage[Double], index: Int): Double =
+    storage.asInstanceOf[DoubleStorage].raw(index)
+
+  def setBoolean(storage: Storage[Boolean], index: Int, value: Boolean): Unit =
+    storage.asInstanceOf[BooleanStorage].raw(index) = (if value then 1 else 0)
+
+  def setByte(storage: Storage[Byte], index: Int, value: Byte): Unit =
+    storage.asInstanceOf[ByteStorage].raw(index) = value
+
+  def setShort(storage: Storage[Short], index: Int, value: Short): Unit =
+    storage.asInstanceOf[ShortStorage].raw(index) = value
+
+  def setInt(storage: Storage[Int], index: Int, value: Int): Unit =
+    storage.asInstanceOf[IntStorage].raw(index) = value
+
+  def setLong(storage: Storage[Long], index: Int, value: Long): Unit =
+    storage.asInstanceOf[LongStorage].raw(index) = value
+
+  def setFloat(storage: Storage[Float], index: Int, value: Float): Unit =
+    storage.asInstanceOf[FloatStorage].raw(index) = value
+
+  def setDouble(storage: Storage[Double], index: Int, value: Double): Unit =
+    storage.asInstanceOf[DoubleStorage].raw(index) = value
+
   def fill[A](storage: Storage[A], value: A): Unit =
     var i = 0
     while i < storage.length do
