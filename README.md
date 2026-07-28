@@ -1,5 +1,9 @@
 # Ravel
 
+[User guide](https://canardlapin.github.io/ravel/) ·
+[API reference](https://canardlapin.github.io/ravel/api/) ·
+[Source](https://github.com/canardlapin/ravel)
+
 > [!WARNING]
 > **Ravel is an early 0.1-level GitHub project, not a 1.0 release candidate.**
 > No Maven Central artifacts are published. The API and numerical contract may
@@ -70,10 +74,11 @@ type because later external mutation remains observable.
 | array-valued reductions | owned allocation |
 | `BorrowedNDArray.contiguous` | owned copy |
 
-See [ownership and interop](docs/ownership-and-interop.md) for the aliasing
-contract and [NumPy migration](docs/numpy-migration.md) for operation mappings.
-The proposed 1.0 guarantees are in the
-[release contract](docs/release-contract.md).
+Start with the [user guide](https://canardlapin.github.io/ravel/), then use its
+[copy/view table](https://canardlapin.github.io/ravel/reference/copy-view-table.html)
+and [NumPy mapping](https://canardlapin.github.io/ravel/reference/numpy-map.html)
+for quick lookups. The proposed 1.0 guarantees remain an engineering contract
+in [docs/release-contract.md](docs/release-contract.md).
 
 ## Availability
 
@@ -91,6 +96,7 @@ sbt browserTests/test
 sbt testAllFull
 sbt representationProof
 bash scripts/numpy-parity-gate.sh   # critical: Ravel vs NumPy correctness
+sbt docsCheck                       # Scaladoc + executable mdoc/Laika guide
 sbt fmtCheck
 sbt mimaCheck
 sbt verifyPublishArtifacts
@@ -106,3 +112,7 @@ Scala 3.7.4. Continuous integration runs on Temurin JDK 21 and Node 22; other
 compiler and runtime combinations are not yet part of any compatibility
 contract. Formatting, MiMa scaffolding, and publishable-coordinate checks are
 documented in [release engineering](docs/release-engineering.md).
+
+The public guide source is isolated under `docs/user/`; benchmark receipts,
+audits, and release evidence elsewhere in `docs/` are intentionally excluded
+from the published site.
