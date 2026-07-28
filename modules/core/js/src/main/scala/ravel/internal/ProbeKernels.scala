@@ -66,6 +66,25 @@ private[ravel] object ProbeKernels:
         addDouble(x.raw, y.raw, z.raw, size)
       case _ => throw new UnsupportedOperationException("arithmetic requires matching Int, Long, Float, or Double storage")
 
+  def addLinear[A](
+      left: Storage[A],
+      leftOffset: Int,
+      right: Storage[A],
+      rightOffset: Int,
+      out: Storage[A],
+      size: Int
+  ): Unit =
+    (left, right, out) match
+      case (x: IntStorage, y: IntStorage, z: IntStorage) =>
+        addIntLinear(x.raw, leftOffset, y.raw, rightOffset, z.raw, size)
+      case (x: LongStorage, y: LongStorage, z: LongStorage) =>
+        addLongLinear(x.raw, leftOffset, y.raw, rightOffset, z.raw, size)
+      case (x: FloatStorage, y: FloatStorage, z: FloatStorage) =>
+        addFloatLinear(x.raw, leftOffset, y.raw, rightOffset, z.raw, size)
+      case (x: DoubleStorage, y: DoubleStorage, z: DoubleStorage) =>
+        addDoubleLinear(x.raw, leftOffset, y.raw, rightOffset, z.raw, size)
+      case _ => throw new UnsupportedOperationException("arithmetic requires matching Int, Long, Float, or Double storage")
+
   def negate[A](source: Storage[A], out: Storage[A], size: Int): Unit =
     (source, out) match
       case (x: IntStorage, z: IntStorage)       => negateInt(x.raw, z.raw, size)
@@ -117,6 +136,58 @@ private[ravel] object ProbeKernels:
     var i = 0
     while i < size do
       out(i) = x(i) + y(i)
+      i += 1
+
+  private def addIntLinear(
+      x: Int32Array,
+      xo: Int,
+      y: Int32Array,
+      yo: Int,
+      out: Int32Array,
+      size: Int
+  ): Unit =
+    var i = 0
+    while i < size do
+      out(i) = x(xo + i) + y(yo + i)
+      i += 1
+
+  private def addLongLinear(
+      x: Array[Long],
+      xo: Int,
+      y: Array[Long],
+      yo: Int,
+      out: Array[Long],
+      size: Int
+  ): Unit =
+    var i = 0
+    while i < size do
+      out(i) = x(xo + i) + y(yo + i)
+      i += 1
+
+  private def addFloatLinear(
+      x: Float32Array,
+      xo: Int,
+      y: Float32Array,
+      yo: Int,
+      out: Float32Array,
+      size: Int
+  ): Unit =
+    var i = 0
+    while i < size do
+      out(i) = (x(xo + i) + y(yo + i)).toFloat
+      i += 1
+
+  private def addDoubleLinear(
+      x: Float64Array,
+      xo: Int,
+      y: Float64Array,
+      yo: Int,
+      out: Float64Array,
+      size: Int
+  ): Unit =
+    var i = 0
+    while i < size do
+      out(i) = x(xo + i) + y(yo + i)
       i += 1
 
   private def negateInt(x: Int32Array, out: Int32Array, size: Int): Unit =

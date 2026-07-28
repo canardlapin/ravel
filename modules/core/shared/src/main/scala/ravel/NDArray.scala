@@ -14,17 +14,17 @@ final class NDArray[A, +R <: AnyRank] private[ravel] (
   def size: Int = layout.size
   def isContiguous: Boolean = layout.isCContiguous
 
-  inline def apply(i: Int): A =
-    at(IArray(i))
+  def apply(i: Int): A =
+    ProbeApi.get(storage, layout.physicalIndex1(i))
 
-  inline def apply(i: Int, j: Int): A =
-    at(IArray(i, j))
+  def apply(i: Int, j: Int): A =
+    ProbeApi.get(storage, layout.physicalIndex2(i, j))
 
-  inline def apply(i: Int, j: Int, k: Int): A =
-    at(IArray(i, j, k))
+  def apply(i: Int, j: Int, k: Int): A =
+    ProbeApi.get(storage, layout.physicalIndex3(i, j, k))
 
-  inline def apply(i: Int, j: Int, k: Int, l: Int): A =
-    at(IArray(i, j, k, l))
+  def apply(i: Int, j: Int, k: Int, l: Int): A =
+    ProbeApi.get(storage, layout.physicalIndex4(i, j, k, l))
 
   def at(indices: IArray[Int]): A =
     ProbeApi.get(storage, layout.physicalIndex(indices))
@@ -146,11 +146,7 @@ final class NDArray[A, +R <: AnyRank] private[ravel] (
   /** Always copies in logical row-major order. */
   def copy: NDArray[A, R] =
     val output = ProbeApi.allocate[A](size)(using dtype)
-    var write = 0
-    layout.foreachPhysicalIndex { index =>
-      ProbeApi.set(output, write, ProbeApi.get(storage, index))
-      write += 1
-    }
+    CopyKernels.logical(storage, layout, output)
     new NDArray(output, Layout.contiguous(shape, size), dtype)
 
   def cast[B](using source: NumericDType[A], target: NumericDType[B]): NDArray[B, R] =

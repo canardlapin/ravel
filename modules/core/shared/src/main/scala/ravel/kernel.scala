@@ -61,13 +61,45 @@ object kernel:
       right: NDArray[A, RY],
       output: MutableNDArray[A, RO]
   ): Unit =
-    val plan = LoopPlan.broadcast(left.layout, right.layout)
-    requireResultShape(plan, output)
-    requireWholeOutput(output)
+    if operation == KernelOp.Add &&
+        left.layout.isCContiguous &&
+        right.layout.isCContiguous &&
+        Layout.sameShape(left.layout.shape, right.layout.shape)
+    then
+      MutableNDArray.requireSameShape(left.layout.shape, output.layout.shape)
+      requireWholeOutput(output)
+      requireNoAlias(left, right, output)
+      if left.layout.offset == 0 && right.layout.offset == 0 then
+        ProbeKernels.add(left.storage, right.storage, output.storage, left.size)
+      else
+        ProbeKernels.addLinear(
+          left.storage,
+          left.layout.offset,
+          right.storage,
+          right.layout.offset,
+          output.storage,
+          left.size
+        )
+    else
+      val plan = LoopPlan.broadcast(left.layout, right.layout)
+      requireResultShape(plan, output)
+      requireWholeOutput(output)
+      requireNoAlias(left, right, output)
+      ElementKernels.binary(operation, left.storage, right.storage, output.storage, plan)
+
+  private def requireNoAlias[
+      A,
+      RX <: AnyRank,
+      RY <: AnyRank,
+      RO <: AnyRank
+  ](
+      left: NDArray[A, RX],
+      right: NDArray[A, RY],
+      output: MutableNDArray[A, RO]
+  ): Unit =
     if (output.storage.asInstanceOf[AnyRef] eq left.storage.asInstanceOf[AnyRef]) ||
         (output.storage.asInstanceOf[AnyRef] eq right.storage.asInstanceOf[AnyRef])
     then throw new IllegalArgumentException("output must not alias an input")
-    ElementKernels.binary(operation, left.storage, right.storage, output.storage, plan)
 
   private def requireResultShape[A, R <: AnyRank](
       plan: LoopPlan,

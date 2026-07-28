@@ -16,25 +16,32 @@ final class MutableNDArray[A, R <: AnyRank] private[ravel] (
   def rank: Int = layout.rank
   def size: Int = layout.size
 
-  inline def apply(i: Int): A = at(IArray(i))
-  inline def apply(i: Int, j: Int): A = at(IArray(i, j))
-  inline def apply(i: Int, j: Int, k: Int): A = at(IArray(i, j, k))
-  inline def apply(i: Int, j: Int, k: Int, l: Int): A = at(IArray(i, j, k, l))
+  def apply(i: Int): A =
+    ProbeApi.get(storage, layout.physicalIndex1(i))
+
+  def apply(i: Int, j: Int): A =
+    ProbeApi.get(storage, layout.physicalIndex2(i, j))
+
+  def apply(i: Int, j: Int, k: Int): A =
+    ProbeApi.get(storage, layout.physicalIndex3(i, j, k))
+
+  def apply(i: Int, j: Int, k: Int, l: Int): A =
+    ProbeApi.get(storage, layout.physicalIndex4(i, j, k, l))
 
   def at(indices: IArray[Int]): A =
     ProbeApi.get(storage, layout.physicalIndex(indices))
 
-  inline def update(i: Int, value: A): Unit =
-    updateAt(IArray(i), value)
+  def update(i: Int, value: A): Unit =
+    ProbeApi.set(storage, layout.physicalIndex1(i), value)
 
-  inline def update(i: Int, j: Int, value: A): Unit =
-    updateAt(IArray(i, j), value)
+  def update(i: Int, j: Int, value: A): Unit =
+    ProbeApi.set(storage, layout.physicalIndex2(i, j), value)
 
-  inline def update(i: Int, j: Int, k: Int, value: A): Unit =
-    updateAt(IArray(i, j, k), value)
+  def update(i: Int, j: Int, k: Int, value: A): Unit =
+    ProbeApi.set(storage, layout.physicalIndex3(i, j, k), value)
 
-  inline def update(i: Int, j: Int, k: Int, l: Int, value: A): Unit =
-    updateAt(IArray(i, j, k, l), value)
+  def update(i: Int, j: Int, k: Int, l: Int, value: A): Unit =
+    ProbeApi.set(storage, layout.physicalIndex4(i, j, k, l), value)
 
   def updateAt(indices: IArray[Int], value: A): Unit =
     ProbeApi.set(storage, layout.physicalIndex(indices), value)
@@ -140,11 +147,7 @@ final class MutableNDArray[A, R <: AnyRank] private[ravel] (
 
   def freezeCopy(): NDArray[A, R] =
     val output = ProbeApi.allocate[A](size)(using dtype)
-    var write = 0
-    layout.foreachPhysicalIndex { index =>
-      ProbeApi.set(output, write, ProbeApi.get(storage, index))
-      write += 1
-    }
+    CopyKernels.logical(storage, layout, output)
     new NDArray(output, Layout.contiguous(shape, size), dtype)
 
 object MutableNDArray:
