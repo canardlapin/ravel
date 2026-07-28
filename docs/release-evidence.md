@@ -43,6 +43,18 @@ four JVM and four Node tests. The publishable `gale-interop-ravel` cross-project
 depends on `gale-core` and `ravel-core`; neither core depends on the other.
 Conversions copy logical values and remove borrowed external aliases.
 
+Re-verify after Ravel changes with:
+
+```sh
+# in ravel
+sbt publishLocalSnapshot
+# in gale
+sbt interopRavelTest
+```
+
+Gale pins `ravelVersion = "1.0.0-SNAPSHOT"` until the Central `1.0.0` release;
+`publishLocalSnapshot` forces that version on the Ravel side.
+
 ## Artifact scope
 
 The publishable artifacts are `ravel-core` and `ravel-laws` for JVM and

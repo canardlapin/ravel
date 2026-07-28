@@ -4,11 +4,13 @@ Every structural operation in Ravel preserves the same storage object and
 changes only shape, strides, and offset. The exceptions are deliberately named:
 `copy`, `flattenCopy`, and `contiguous` when materialization is required.
 
-`Slice(start, stopExclusive, step)` is canonical. Positive-step endpoints are
-validated in `[0, axisLength]`; negative-step starts are validated in
-`[0, axisLength)` and stops in `[-1, axisLength)`. Negative endpoints are not
-translated from the end. Scala `Range` is convenience syntax converted through
-checked exclusive-end arithmetic.
+`Slice(start, stopExclusive, step)` is the resolved form. Open helpers
+(`Slice.all`, `Slice.from`, `Slice.until`, `Slice.between`, `Slice.every`,
+`Slice.reverse`) normalize endpoints against the axis length when applied.
+Negative element indices are accepted on indexing and `select`. Fully specified
+negative-step slices still treat stop `-1` as “before the first element”.
+`narrow` remains the strict exact-bounds operation. Scala `Range` is convenience
+syntax converted through checked exclusive-end arithmetic.
 
 All existing-axis APIs accept axes in `[-rank, rank)`. `newAxis` accepts
 insertion positions from `-(rank + 1)` through `rank`.

@@ -1,0 +1,67 @@
+[
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "ravel.bench.AccessPatternBenchmarks.transpose_add",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "/Users/bbuchsbaum/Library/Java/JavaVirtualMachines/openjdk-22/Contents/Home/bin/java",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "22",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "22+36-2370",
+        "warmupIterations" : 5,
+        "warmupTime" : "500 ms",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 7,
+        "measurementTime" : "500 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "side" : "1024"
+        },
+        "primaryMetric" : {
+            "score" : 3768779.2235328676,
+            "scoreError" : 900497.6703469387,
+            "scoreConfidence" : [
+                2868281.553185929,
+                4669276.893879807
+            ],
+            "scorePercentiles" : {
+                "0.0" : 2576499.785714286,
+                "50.0" : 3757168.8965245723,
+                "90.0" : 4854745.646226415,
+                "95.0" : 4927553.0,
+                "99.0" : 4927553.0,
+                "99.9" : 4927553.0,
+                "99.99" : 4927553.0,
+                "99.999" : 4927553.0,
+                "99.9999" : 4927553.0,
+                "100.0" : 4927553.0
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    2838577.2471910114,
+                    3180825.2625,
+                    3064968.684848485,
+                    2576499.785714286,
+                    3186851.4150943398,
+                    3511028.7379310345,
+                    3054524.242424242
+                ],
+                [
+                    4394421.008695652,
+                    4003309.05511811,
+                    4927553.0,
+                    4781938.29245283,
+                    4622746.218181818,
+                    4544896.018018018,
+                    4074770.1612903224
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    }
+]

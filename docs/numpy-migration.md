@@ -6,7 +6,6 @@ reproduce NumPy's full indexing language or dtype promotion table.
 
 ```scala
 import ravel.*
-import ravel.DType.given
 ```
 
 | NumPy | Ravel |
@@ -14,16 +13,18 @@ import ravel.DType.given
 | `np.zeros((3, 4))` | `NDArray.zeros[Double](3, 4)` |
 | `x.shape` | `x.shape` |
 | `x[1, 2]` | `x(1, 2)` |
-| `x[:, ::2]` | `x.slice(1, Slice(0, x.shape(1), 2))` |
+| `x[:, ::2]` | `x.slice(1, Slice.every(2))` |
 | `x[1, :]` | `x.select(0, 1)` |
+| `x[-1]` | `x(-1)` or `x.select(0, -1)` |
 | `x.T` | `x.transpose` |
-| `x.reshape((2, 6))` | `x.reshapeView(Shape(2, 6))` |
+| `x.reshape((2, 6))` | `x.reshape(Shape(2, 6))` |
 | `x.copy()` | `x.copy` |
 | `x.astype(np.float64)` | `x.cast[Double]` |
 | `x.mean(axis=0)` | `x.mean(axis = 0)` |
 | `np.expand_dims(x, 0)` | `x.newAxis(0)` |
 | `np.broadcast_to(x, shape)` | `x.broadcastTo(shape)` |
 | `np.maximum(x, 0)` | `x.maximum(0)` |
+| `x / 2` (ints) | `x.quot(2)` — `/` is float-only |
 
 ## Index one axis at a time
 
@@ -32,22 +33,19 @@ Use `select` to remove one axis and `Slice` to keep it:
 ```scala
 val x = NDArray.tabulate[Int](3, 4)((row, column) => row * 10 + column)
 val secondRow: Array1[Int] = x.select(axis = 0, index = 1)
-val evenColumns: Array2[Int] = x.slice(axis = 1, Slice(0, 4, 2))
+val evenColumns: Array2[Int] = x.slice(axis = 1, Slice.every(2))
 val reversedRows: Array2[Int] = x.reverse(axis = 0)
 ```
 
-Axes may be negative. `-1` denotes the last axis. `Slice` always uses an
-exclusive stop and a nonzero step. A Scala `Range` is accepted as convenience
-syntax, but `Slice` is the canonical API.
+Axes and element indices may be negative. `-1` denotes the last axis or last
+index. `Slice` helpers (`all`, `from`, `until`, `between`, `every`, `reverse`)
+normalize endpoints against the axis length. `narrow` remains strict.
 
-## Reshape does not hide a copy
+## Reshape may copy unless you ask for a view
 
-`reshapeView` succeeds only when the current strides can express the requested
-shape without moving elements. It throws `NonContiguousLayout` otherwise.
-Call `x.contiguous.reshapeView(shape)` when a copy is acceptable.
-
-`flattenCopy` always produces an owned rank-one array in logical row-major
-order.
+`reshape` returns a view when strides allow it and copies otherwise.
+`reshapeView` never copies and throws `NonContiguousLayout` when a view is
+impossible. `reshapeCopy` always copies.
 
 ## Broadcasting
 

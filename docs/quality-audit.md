@@ -33,11 +33,11 @@ become the required compatibility baseline for later 1.x releases.
 | Failure, convergence, and resource contracts | Strong | Bounds, shape, broadcast, slice, layout overflow, noncontiguous reshape, empty reduction, callback failure, and closed-builder failures are asserted. | Convergence and resource lifecycle are not applicable. |
 | Work and allocation accounting | Strong | JMH separates setup, raw reusable-output loops, public allocating operations, and representative strided work. GC-normalized allocation and output size are recorded. | Node allocation is structurally inspected rather than reported as a stable byte counter. |
 | Compiler discipline | Strong | `-deprecation`, `-feature`, `-unchecked`, `-Wunused:all`, `-Wvalue-discard`, and `-Werror` apply to all projects. | None for the current compiler. |
-| Formatting and semantic rewrites | Missing | No Scalafmt, Scalafix, or equivalent check is configured. | Add a formatting-only gate separately to avoid mixing mechanical churn with 1.0 semantics. |
-| Binary and source compatibility | Not applicable | The release contract declares that 1.0 establishes the first baseline. | Add MiMa or equivalent before the next 1.x release. |
-| Coverage and mutation signal | Missing | No scoverage or mutation report is configured. | Coverage would be diagnostic, not a replacement for generated and law tests. |
-| Benchmark and performance evidence | Strong | JMH and optimized Node probes disclose fixtures, runtime versions, throughput, allocations, regression budgets, and the oversized-dispatcher failure. | CI currently runs structural proof, not timing thresholds on a dedicated stable runner. |
-| Documentation and release evidence | Strong | Copy/view, ownership, casting, reduction, NumPy migration, Gale boundary, artifact POMs, local gates, remote CI, and performance evidence are versioned. | Maven Central publication remains unverified until the signed release succeeds. |
+| Formatting and semantic rewrites | Present | `.scalafmt.conf`, `sbt fmtCheck`, and a CI formatting step. | Keep formatting-only failures separate from semantic failures. |
+| Binary and source compatibility | Scaffolded | MiMa enabled on `ravel-core` / `ravel-laws` with empty previous artifacts until Central `1.0.0`. | Point `mimaPreviousArtifacts` at published `1.0.0` before `1.0.1` / `1.1`. |
+| Coverage and mutation signal | Diagnostic | `sbt coverageReportJvm` with no fail threshold. | Review exclusions before adopting a minimum. |
+| Benchmark and performance evidence | Strong | JMH and optimized Node probes disclose fixtures, runtime versions, throughput, allocations, regression budgets, and the oversized-dispatcher failure. NumPy compute geomean budgets are recorded. | CI currently runs structural proof, not timing thresholds on a dedicated stable runner. |
+| Documentation and release evidence | Strong | Copy/view, ownership, casting, reduction, NumPy migration, Gale boundary, artifact POMs, local gates, remote CI, and performance evidence are versioned. POM verify script and release-engineering page landed. | Maven Central publication remains unverified until the signed release succeeds. |
 
 ## Strongest evidence
 
@@ -50,12 +50,13 @@ large for HotSpot to compile.
 
 ## Prioritized follow-up
 
-1. Add Scalafmt and a CI formatting check in a mechanical-only change.
-2. Add MiMa against the published 1.0 artifact before releasing 1.0.1 or 1.1.
-3. Add diagnostic scoverage reporting, with no threshold until exclusions and
-   generated-code behavior are understood.
-4. Add a Scala Next consumer compilation job if Ravel promises a wider compiler
+1. After Maven Central `1.0.0`, set MiMa previous artifacts and keep the CI
+   `mimaCheck` gate red on accidental binary breaks.
+2. Review scoverage exclusions and decide whether a soft minimum belongs in CI.
+3. Add a Scala Next consumer compilation job if Ravel promises a wider compiler
    consumption range than Scala 3.7.x.
+4. Wire a stable-runner NumPy parity job once the 0.50× compute-geomean target
+   is met locally.
 
 Cats, Cats Effect, `sbt-typelevel`, and a public backend abstraction solve no
 current Ravel problem and are not recommended for 1.0.

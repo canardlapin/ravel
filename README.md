@@ -1,10 +1,16 @@
 # Ravel
 
 > [!WARNING]
-> **Ravel is an early development project. It is not ready for production use.**
-> No release has been published, no Maven Central artifacts are available, and
-> the API and numerical contract may change without source or binary
-> compatibility. Use the current code only for development and experimentation.
+> **Ravel is an early 0.1-level GitHub project, not a 1.0 release candidate.**
+> No Maven Central artifacts are published. The API and numerical contract may
+> change without source or binary compatibility. Use the current code only for
+> development and experimentation.
+>
+> The critical development gate is **semantic and performance parity against
+> NumPy** on the public access-pattern suite
+> ([docs/numpy-benchmarks.md](docs/numpy-benchmarks.md)). Run
+> `bash scripts/numpy-parity-gate.sh` locally; CI runs the same correctness
+> check. Timing reports are diagnostic until same-host baselines stabilize.
 
 Ravel provides dense, rectangular multidimensional arrays for Scala 3 on the
 JVM and Scala.js. Use it when data has a runtime shape and numerical operations
@@ -12,12 +18,11 @@ should run over primitive platform storage.
 
 ```scala
 import ravel.*
-import ravel.DType.given
 
 val x: Array2[Double] =
   NDArray.tabulate(3, 4)((row, column) => row * 10.0 + column)
 
-val everyOtherColumn = x.slice(axis = 1, Slice(0, 4, 2))
+val everyOtherColumn = x.slice(axis = 1, Slice.every(2))
 val columnMeans = x.mean(axis = 0)
 val centered = x - columnMeans.newAxis(0)
 ```
@@ -73,9 +78,9 @@ The proposed 1.0 guarantees are in the
 ## Availability
 
 Ravel is currently available only as source code. There is no released version
-to add to an sbt build. The planned cross-published artifact names are
-`ravel-core` and `ravel-laws`; dependency coordinates will be documented only
-after those artifacts have been published.
+to add to an sbt build. Artifact names `ravel-core` and `ravel-laws` are the
+intended modules when a first tagged release eventually happens; treat that as
+future packaging work, not current project maturity.
 
 ## Developer commands
 
@@ -85,10 +90,19 @@ sbt testAll
 sbt browserTests/test
 sbt testAllFull
 sbt representationProof
+bash scripts/numpy-parity-gate.sh   # critical: Ravel vs NumPy correctness
+sbt fmtCheck
+sbt mimaCheck
+sbt verifyPublishArtifacts
+sbt coverageReportJvm               # diagnostic; no threshold
 ```
 
 `testAll` runs the core and reusable laws suites on the JVM and Node.
 `browserTests/test` runs the browser-specific Scala.js suite in headless
-Chromium. The current build uses Scala 3.7.4. Continuous integration runs on
-Temurin JDK 21 and Node 22; other compiler and runtime combinations are not yet
-part of the compatibility contract.
+Chromium. `scripts/numpy-parity-gate.sh` compares public access-pattern
+signatures to NumPy without JMH timings. Full timed comparisons are documented
+in [NumPy benchmarks](docs/numpy-benchmarks.md). The current build uses
+Scala 3.7.4. Continuous integration runs on Temurin JDK 21 and Node 22; other
+compiler and runtime combinations are not yet part of any compatibility
+contract. Formatting, MiMa scaffolding, and publishable-coordinate checks are
+documented in [release engineering](docs/release-engineering.md).

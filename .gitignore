@@ -10,4 +10,5 @@ modules/**/target/
 .mote/tmp/
 *.class
 *.log
+__pycache__/
 .DS_Store

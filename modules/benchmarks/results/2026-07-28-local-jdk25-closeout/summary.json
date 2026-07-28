@@ -1,0 +1,187 @@
+{
+  "jdk": "OpenJDK 25.0.1",
+  "note": "JDK 21 not installed; local closeout on JDK 25",
+  "compute_geomean": 0.8239247756954664,
+  "min_ratio": 0.2930494117773781,
+  "max_ratio": 2.481786496132125,
+  "target_geomean": 0.5,
+  "geomean_met": true,
+  "floor_met_or_taxed": true,
+  "below_floor": [],
+  "rows": [
+    {
+      "case": "contiguous_add",
+      "side": 256,
+      "ravel_ns": 19923.97690451781,
+      "numpy_ns": 10688.237850292022,
+      "ratio": 0.5364510258927492
+    },
+    {
+      "case": "contiguous_add",
+      "side": 1024,
+      "ravel_ns": 307329.8186825273,
+      "numpy_ns": 762726.9938650307,
+      "ratio": 2.481786496132125
+    },
+    {
+      "case": "inner_stride_add",
+      "side": 256,
+      "ravel_ns": 17100.413246562,
+      "numpy_ns": 10480.15319193616,
+      "ratio": 0.6128596450172438
+    },
+    {
+      "case": "inner_stride_add",
+      "side": 1024,
+      "ravel_ns": 276077.1053343145,
+      "numpy_ns": 439014.41299790354,
+      "ratio": 1.5901876849450471
+    },
+    {
+      "case": "outer_stride_add",
+      "side": 256,
+      "ravel_ns": 20031.199698810255,
+      "numpy_ns": 18476.13216957606,
+      "ratio": 0.9223677287123967
+    },
+    {
+      "case": "outer_stride_add",
+      "side": 1024,
+      "ravel_ns": 331128.01911484083,
+      "numpy_ns": 564560.7638888889,
+      "ratio": 1.704962223970209
+    },
+    {
+      "case": "reverse_add",
+      "side": 256,
+      "ravel_ns": 38763.124530091176,
+      "numpy_ns": 34239.57310618591,
+      "ratio": 0.8833027141454063
+    },
+    {
+      "case": "reverse_add",
+      "side": 1024,
+      "ravel_ns": 653625.1666080919,
+      "numpy_ns": 1233744.375,
+      "ratio": 1.887541113819662
+    },
+    {
+      "case": "transpose_add",
+      "side": 256,
+      "ravel_ns": 76837.38562131686,
+      "numpy_ns": 89133.19672131147,
+      "ratio": 1.1600238087302048
+    },
+    {
+      "case": "transpose_add",
+      "side": 1024,
+      "ravel_ns": 3119249.912974324,
+      "numpy_ns": 3053291.6666666665,
+      "ratio": 0.9788544527858097
+    },
+    {
+      "case": "broadcast_row_add",
+      "side": 256,
+      "ravel_ns": 39013.69860450857,
+      "numpy_ns": 23498.13088218291,
+      "ratio": 0.6023046192156561
+    },
+    {
+      "case": "broadcast_row_add",
+      "side": 1024,
+      "ravel_ns": 621813.7634480544,
+      "numpy_ns": 854125.0,
+      "ratio": 1.3736025964812093
+    },
+    {
+      "case": "full_sum_contiguous",
+      "side": 256,
+      "ravel_ns": 20141.36306388378,
+      "numpy_ns": 9113.366864449657,
+      "ratio": 0.4524702144310765
+    },
+    {
+      "case": "full_sum_contiguous",
+      "side": 1024,
+      "ravel_ns": 325873.24178824364,
+      "numpy_ns": 138095.23786407767,
+      "ratio": 0.42376979805483267
+    },
+    {
+      "case": "full_sum_inner_stride",
+      "side": 256,
+      "ravel_ns": 18341.374646860604,
+      "numpy_ns": 6000.39618488628,
+      "ratio": 0.32715084340275097
+    },
+    {
+      "case": "full_sum_inner_stride",
+      "side": 1024,
+      "ravel_ns": 296209.5499110024,
+      "numpy_ns": 86804.03436426117,
+      "ratio": 0.2930494117773781
+    },
+    {
+      "case": "axis0_sum",
+      "side": 256,
+      "ravel_ns": 19625.184169307962,
+      "numpy_ns": 10687.984098939929,
+      "ratio": 0.5446055439140787
+    },
+    {
+      "case": "axis0_sum",
+      "side": 1024,
+      "ravel_ns": 324593.87870609784,
+      "numpy_ns": 154331.99781500365,
+      "ratio": 0.47546182457354014
+    },
+    {
+      "case": "axis1_sum",
+      "side": 256,
+      "ravel_ns": 28878.666322043195,
+      "numpy_ns": 11153.975221714592,
+      "ratio": 0.3862358149552329
+    },
+    {
+      "case": "axis1_sum",
+      "side": 1024,
+      "ravel_ns": 465456.7515273015,
+      "numpy_ns": 141567.47311827957,
+      "ratio": 0.304147426487541
+    },
+    {
+      "case": "copy_inner_stride",
+      "side": 256,
+      "ravel_ns": 11277.394482641359,
+      "numpy_ns": 9696.817169394471,
+      "ratio": 0.8598455240986933
+    },
+    {
+      "case": "copy_inner_stride",
+      "side": 1024,
+      "ravel_ns": 231781.10569262877,
+      "numpy_ns": 380292.2885572139,
+      "ratio": 1.6407389524732436
+    },
+    {
+      "case": "copy_transpose",
+      "side": 256,
+      "ravel_ns": 26788.97441046966,
+      "numpy_ns": 41461.15604988203,
+      "ratio": 1.5476947872135858
+    },
+    {
+      "case": "copy_transpose",
+      "side": 1024,
+      "ravel_ns": 623331.6580842807,
+      "numpy_ns": 1530174.8881578948,
+      "ratio": 2.454832621305751
+    }
+  ],
+  "family_geomeans": {
+    "elementwise": 1.1446991959703376,
+    "broadcast": 0.9095752793624349,
+    "reduction": 0.3921415957655121,
+    "copy": 1.5215694583552428
+  }
+}

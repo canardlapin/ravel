@@ -23,6 +23,8 @@ This page separates public guarantees from current implementation details.
 - Same-dtype arithmetic supports `Int`, `Long`, `Float`, and `Double`.
   Integer operations use ordinary two's-complement overflow. `Byte` and
   `Short` arithmetic requires an explicit cast to `Int`.
+- `/` is available only for `Float` and `Double`. Integral truncation uses
+  `quot` or `truncDiv`.
 - Numeric casts follow Scala primitive conversion behavior: integral narrowing
   keeps low bits; floating-to-integral conversion truncates toward zero,
   maps NaN to zero, and clamps infinities and out-of-range values before any
@@ -46,12 +48,21 @@ dtypes. Scala.js `Long` uses `Array[Long]` and is outside the JavaScript
 fast-path performance contract.
 
 The loop planner aligns broadcast axes, assigns zero strides, removes
-length-one axes, and coalesces adjacent compatible axes. General loops use
-counters and offsets rather than division of a linear index.
+length-one axes, and coalesces adjacent compatible axes. Same-shape
+C-contiguous binary and unary plans skip that work and run as linear
+contiguous kernels. General loops use counters and offsets rather than
+division of a linear index.
 
+`kernel` exposes reusable-output Into forms for binary arithmetic, min/max,
+unary negate/abs, scalar arithmetic, and callback `mapInto` / `zipMapInto`.
+Destinations must be whole contiguous buffers that do not alias inputs.
+`NDArray.build` fills a fresh contiguous array through a consuming
+`ArrayBuilder` sealed when the body returns.
 The supported external-kernel contract, including fixed Rank1-4 indexing,
 builder ownership, failure semantics, and allocation evidence, is documented
 in [allocation-free kernel APIs](allocation-free-kernels.md).
+
+Numeric `cast` dispatches once on the source and target storage families.
 
 These details may change without changing the public array semantics or
 interop types.
@@ -66,24 +77,34 @@ matrix. Gale owns matrix and vector semantics.
 
 ## Verification
 
-The release gate runs:
+While Ravel is a 0.1-level project, the critical numerical gate is NumPy
+semantic parity. The full local checklist is:
 
 ```sh
+bash scripts/numpy-parity-gate.sh
+sbt fmtCheck
+sbt mimaCheck
 sbt testAll
 sbt browserTests/test
 sbt testAllFull
 sbt representationProof
+sbt verifyPublishArtifacts
+bash scripts/verify-publish-artifacts.sh
 ```
+
+Diagnostic JVM coverage (`sbt coverageReportJvm`) and the Gale sibling
+`interopRavelTest` gate are documented in
+[release engineering](release-engineering.md). NumPy timing aspirations live in
+[benchmark baselines](benchmark-baselines.md).
 
 The Node and browser suites are separate. The browser suite verifies that it is
 running with `window` and `document` in real Chromium before testing typed-array
 borrowing and numerical behavior.
 
-Ravel has no binary-compatibility baseline before the first 1.0 publication.
-The published 1.0 API becomes the baseline for the 1.x series. Subsequent 1.x
-releases must add an automated MiMa or equivalent binary-compatibility gate
-against the latest released 1.x artifact; incompatible public changes require a
-new major version.
+There is no published binary-compatibility baseline yet. If a first tagged
+release is published later, that API becomes the baseline for subsequent
+compatible releases; incompatible public changes would then require a new major
+version.
 
 See [benchmark baselines](benchmark-baselines.md) for the performance
 regression budget and [Gale integration](gale-integration.md) for the adapter

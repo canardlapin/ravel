@@ -46,10 +46,27 @@ The JVM public operations must also allocate no more than the output buffer
 plus 2,048 bytes per operation. Raw `*Into` and representation probes must not
 allocate an output buffer.
 
-Absolute timings are diagnostic on a different host. CI should compare a
-candidate to a baseline collected on the same runner and fail on a drop greater
-than 30 percent. Any timing pass still requires bytecode and optimized
-JavaScript inspection.
+## NumPy parity budget (compute geomean)
+
+The access-pattern suite in [`numpy-benchmarks.md`](numpy-benchmarks.md)
+compares public Ravel JVM operations with matched NumPy work on the same host.
+**Semantic parity is the required gate now** (`scripts/numpy-parity-gate.sh`).
+The speed targets below are aspirational performance goals for the active
+NumPy-gap program while the project is still 0.1-level; they are not a claim
+that Ravel is release-ready.
+
+| Gate | Requirement |
+|---|---|
+| Compute geomean | at least **0.50×** NumPy (`NumPy time / Ravel time`) |
+| Per-case floor | no compute case below **0.25×** unless an exact-schedule receipt documents a numerical-contract tax |
+| Same-host regression | no case regresses more than **10%** versus the previous checked-in same-host report |
+| Stretch | geomean **0.70×**, no case below **0.50×** |
+
+Scalar indexing and zero-copy view creation are reported but excluded from the
+compute geomean. Absolute cross-host timings remain diagnostic; CI should
+compare a candidate to a baseline collected on the same runner and fail on a
+drop greater than 30 percent for the representation-probe budget above. Any
+timing pass still requires bytecode and optimized JavaScript inspection.
 
 The first public JVM measurement was about 86 operations/s because all dtype
 loops had been inlined into one dispatcher method too large for HotSpot to
@@ -57,3 +74,11 @@ compile. Splitting the dispatcher from dtype-specific methods raised the
 measured rate to 6,748 operations/s. This incident is retained as evidence for
 the structural gate: dispatch must call a small monomorphic method before the
 element loop.
+
+## NumPy closeout snapshot (2026-07-28)
+
+Local OpenJDK 25 full-suite compute geomean after monomorphic kernel work:
+**0.824×** NumPy (24 compute rows; min 0.293×). Artifacts:
+[`modules/benchmarks/results/2026-07-28-local-jdk25-closeout/`](../modules/benchmarks/results/2026-07-28-local-jdk25-closeout/).
+Reduction family remains ~0.39×; stretch target (0.70× / floor 0.50×) not met.
+JDK 21 quiet-runner ratification is still required for a release gate.

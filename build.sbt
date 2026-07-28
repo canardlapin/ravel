@@ -3,6 +3,9 @@ import org.scalajs.sbtplugin.ScalaJSPlugin
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.*
 import sbtcrossproject.CrossPlugin.autoImport.*
 import scalajscrossproject.ScalaJSCrossPlugin.autoImport.*
+import com.typesafe.tools.mima.plugin.MimaPlugin
+import com.typesafe.tools.mima.plugin.MimaPlugin.autoImport.*
+import scoverage.ScoverageKeys.*
 
 ThisBuild / organization := "io.github.canardlapin"
 ThisBuild / scalaVersion := "3.7.4"
@@ -33,6 +36,10 @@ ThisBuild / scalacOptions ++= Seq(
 )
 ThisBuild / Test / parallelExecution := false
 
+// MiMa: no previous artifact until 1.0.0 is published to Central.
+// After that release, set previous to "1.0.0" (and later 1.x releases) on core/laws.
+ThisBuild / mimaFailOnNoPrevious := false
+
 lazy val commonSettings = Seq(
   libraryDependencies ++= Seq(
     "org.scalameta" %%% "munit" % "1.3.0" % Test,
@@ -41,13 +48,21 @@ lazy val commonSettings = Seq(
   )
 )
 
+lazy val publishableSettings = Seq(
+  mimaPreviousArtifacts := Set.empty
+)
+
 lazy val core = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Full)
   .in(file("modules/core"))
+  .enablePlugins(MimaPlugin)
   .settings(commonSettings)
+  .settings(publishableSettings)
   .settings(
     name := "ravel-core",
-    description := "Dense immutable multidimensional arrays for Scala 3 on the JVM and Scala.js."
+    description := "Dense immutable multidimensional arrays for Scala 3 on the JVM and Scala.js.",
+    // Diagnostic only; no coverage threshold until exclusions are understood.
+    coverageFailOnMinimum := false
   )
   .jsSettings(
     scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule))
@@ -56,7 +71,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
 lazy val laws = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Full)
   .in(file("modules/laws"))
+  .enablePlugins(MimaPlugin)
   .dependsOn(core)
+  .settings(publishableSettings)
   .settings(
     name := "ravel-laws",
     description := "Reusable MUnit, ScalaCheck, and Discipline law bundles for Ravel.",
@@ -131,4 +148,30 @@ addCommandAlias(
 addCommandAlias(
   "representationProof",
   ";coreJVM/test;coreJS/test;representationProbeJS/fullLinkJS"
+)
+addCommandAlias("fmtCheck", ";scalafmtCheckAll;scalafmtSbtCheck")
+addCommandAlias("fmt", ";scalafmtAll;scalafmtSbt")
+addCommandAlias(
+  "mimaCheck",
+  ";coreJVM/mimaReportBinaryIssues;coreJS/mimaReportBinaryIssues;lawsJVM/mimaReportBinaryIssues;lawsJS/mimaReportBinaryIssues"
+)
+addCommandAlias(
+  "coverageReportJvm",
+  ";coverage;coreJVM/test;lawsJVM/test;coverageAggregate;coverageOff"
+)
+addCommandAlias(
+  "verifyPublishArtifacts",
+  ";coreJVM/makePom;coreJS/makePom;lawsJVM/makePom;lawsJS/makePom;coreJVM/packageBin;lawsJVM/packageBin"
+)
+addCommandAlias(
+  "publishLocalSnapshot",
+  """;set ThisBuild / version := "1.0.0-SNAPSHOT"; coreJVM/publishLocal; coreJS/publishLocal; lawsJVM/publishLocal; lawsJS/publishLocal"""
+)
+addCommandAlias(
+  "releaseEngineeringGate",
+  ";fmtCheck;mimaCheck;verifyPublishArtifacts;testAll"
+)
+addCommandAlias(
+  "numpyParitySignatures",
+  """;representationProbeJVM/runMain ravel.bench.AccessPatternParity --out target/access-patterns/parity/ravel-signatures.json --side 32,64"""
 )

@@ -1,0 +1,331 @@
+{
+  "schema": "ravel.access-pattern.signatures.v1",
+  "metadata": {
+    "library": "ravel",
+    "scala_version": "2.13.16",
+    "java_version": "25.0.1",
+    "dtype": "float64"
+  },
+  "results": [
+    {
+      "case": "contiguous_add",
+      "side": 256,
+      "logical_work_units": 65536,
+      "work_unit": "element",
+      "result_size": 65536,
+      "result_layout": "c_contiguous",
+      "sum": -44.46875,
+      "weighted_sum": -1166562.84375
+    },
+    {
+      "case": "inner_stride_add",
+      "side": 256,
+      "logical_work_units": 32768,
+      "work_unit": "element",
+      "result_size": 32768,
+      "result_layout": "c_contiguous",
+      "sum": -11.125,
+      "weighted_sum": -1186549.125
+    },
+    {
+      "case": "outer_stride_add",
+      "side": 256,
+      "logical_work_units": 32768,
+      "work_unit": "element",
+      "result_size": 32768,
+      "result_layout": "c_contiguous",
+      "sum": -87.03125,
+      "weighted_sum": -1064935.4375
+    },
+    {
+      "case": "reverse_add",
+      "side": 256,
+      "logical_work_units": 65536,
+      "work_unit": "element",
+      "result_size": 65536,
+      "result_layout": "c_contiguous",
+      "sum": -44.46875,
+      "weighted_sum": -1168316.28125
+    },
+    {
+      "case": "transpose_add",
+      "side": 256,
+      "logical_work_units": 65536,
+      "work_unit": "element",
+      "result_size": 65536,
+      "result_layout": "c_contiguous",
+      "sum": -44.46875,
+      "weighted_sum": -1318981.125
+    },
+    {
+      "case": "broadcast_row_add",
+      "side": 256,
+      "logical_work_units": 65536,
+      "work_unit": "element",
+      "result_size": 65536,
+      "result_layout": "c_contiguous",
+      "sum": -3150.5625,
+      "weighted_sum": -1.040162585625E8
+    },
+    {
+      "case": "full_sum_contiguous",
+      "side": 256,
+      "logical_work_units": 65536,
+      "work_unit": "element",
+      "result_size": 1,
+      "result_layout": "scalar",
+      "sum": -46.5625,
+      "weighted_sum": -46.5625
+    },
+    {
+      "case": "full_sum_inner_stride",
+      "side": 256,
+      "logical_work_units": 32768,
+      "work_unit": "element",
+      "result_size": 1,
+      "result_layout": "scalar",
+      "sum": -10.3125,
+      "weighted_sum": -10.3125
+    },
+    {
+      "case": "axis0_sum",
+      "side": 256,
+      "logical_work_units": 65536,
+      "work_unit": "element",
+      "result_size": 256,
+      "result_layout": "c_contiguous",
+      "sum": -46.5625,
+      "weighted_sum": -5106.5625
+    },
+    {
+      "case": "axis1_sum",
+      "side": 256,
+      "logical_work_units": 65536,
+      "work_unit": "element",
+      "result_size": 256,
+      "result_layout": "c_contiguous",
+      "sum": -46.5625,
+      "weighted_sum": -8468.25
+    },
+    {
+      "case": "copy_inner_stride",
+      "side": 256,
+      "logical_work_units": 32768,
+      "work_unit": "element",
+      "result_size": 32768,
+      "result_layout": "c_contiguous",
+      "sum": -10.3125,
+      "weighted_sum": -564485.5
+    },
+    {
+      "case": "copy_transpose",
+      "side": 256,
+      "logical_work_units": 65536,
+      "work_unit": "element",
+      "result_size": 65536,
+      "result_layout": "c_contiguous",
+      "sum": -46.5625,
+      "weighted_sum": -1303828.25
+    },
+    {
+      "case": "scalar_read_row_major",
+      "side": 256,
+      "logical_work_units": 65536,
+      "work_unit": "element access",
+      "result_size": 1,
+      "result_layout": "scalar",
+      "sum": -46.5625,
+      "weighted_sum": -46.5625
+    },
+    {
+      "case": "scalar_read_column_major",
+      "side": 256,
+      "logical_work_units": 65536,
+      "work_unit": "element access",
+      "result_size": 1,
+      "result_layout": "scalar",
+      "sum": -46.5625,
+      "weighted_sum": -46.5625
+    },
+    {
+      "case": "view_inner_stride_create",
+      "side": 256,
+      "logical_work_units": 1,
+      "work_unit": "view",
+      "result_size": 32768,
+      "result_layout": "strided_view",
+      "sum": -10.3125,
+      "weighted_sum": -564485.5
+    },
+    {
+      "case": "view_transpose_create",
+      "side": 256,
+      "logical_work_units": 1,
+      "work_unit": "view",
+      "result_size": 65536,
+      "result_layout": "strided_view",
+      "sum": -46.5625,
+      "weighted_sum": -1303828.25
+    },
+    {
+      "case": "contiguous_add",
+      "side": 1024,
+      "logical_work_units": 1048576,
+      "work_unit": "element",
+      "result_size": 1048576,
+      "result_layout": "c_contiguous",
+      "sum": -21.875,
+      "weighted_sum": 3784975.9375
+    },
+    {
+      "case": "inner_stride_add",
+      "side": 1024,
+      "logical_work_units": 524288,
+      "work_unit": "element",
+      "result_size": 524288,
+      "result_layout": "c_contiguous",
+      "sum": -20.6875,
+      "weighted_sum": 1.09423893125E7
+    },
+    {
+      "case": "outer_stride_add",
+      "side": 1024,
+      "logical_work_units": 524288,
+      "work_unit": "element",
+      "result_size": 524288,
+      "result_layout": "c_contiguous",
+      "sum": -134.0625,
+      "weighted_sum": -4.54014300625E7
+    },
+    {
+      "case": "reverse_add",
+      "side": 1024,
+      "logical_work_units": 1048576,
+      "work_unit": "element",
+      "result_size": 1048576,
+      "result_layout": "c_contiguous",
+      "sum": -21.875,
+      "weighted_sum": 3761921.6875
+    },
+    {
+      "case": "transpose_add",
+      "side": 1024,
+      "logical_work_units": 1048576,
+      "work_unit": "element",
+      "result_size": 1048576,
+      "result_layout": "c_contiguous",
+      "sum": -21.875,
+      "weighted_sum": 1.08558240625E7
+    },
+    {
+      "case": "broadcast_row_add",
+      "side": 1024,
+      "logical_work_units": 1048576,
+      "work_unit": "element",
+      "result_size": 1048576,
+      "result_layout": "c_contiguous",
+      "sum": -9352.875,
+      "weighted_sum": -4.8994323173125E9
+    },
+    {
+      "case": "full_sum_contiguous",
+      "side": 1024,
+      "logical_work_units": 1048576,
+      "work_unit": "element",
+      "result_size": 1,
+      "result_layout": "scalar",
+      "sum": -8.875,
+      "weighted_sum": -8.875
+    },
+    {
+      "case": "full_sum_inner_stride",
+      "side": 1024,
+      "logical_work_units": 524288,
+      "work_unit": "element",
+      "result_size": 1,
+      "result_layout": "scalar",
+      "sum": -16.5625,
+      "weighted_sum": -16.5625
+    },
+    {
+      "case": "axis0_sum",
+      "side": 1024,
+      "logical_work_units": 1048576,
+      "work_unit": "element",
+      "result_size": 1024,
+      "result_layout": "c_contiguous",
+      "sum": -8.875,
+      "weighted_sum": 6978.6875
+    },
+    {
+      "case": "axis1_sum",
+      "side": 1024,
+      "logical_work_units": 1048576,
+      "work_unit": "element",
+      "result_size": 1024,
+      "result_layout": "c_contiguous",
+      "sum": -8.875,
+      "weighted_sum": 180.3125
+    },
+    {
+      "case": "copy_inner_stride",
+      "side": 1024,
+      "logical_work_units": 524288,
+      "work_unit": "element",
+      "result_size": 524288,
+      "result_layout": "c_contiguous",
+      "sum": -16.5625,
+      "weighted_sum": 831297.4375
+    },
+    {
+      "case": "copy_transpose",
+      "side": 1024,
+      "logical_work_units": 1048576,
+      "work_unit": "element",
+      "result_size": 1048576,
+      "result_layout": "c_contiguous",
+      "sum": -8.875,
+      "weighted_sum": 7155444.3125
+    },
+    {
+      "case": "scalar_read_row_major",
+      "side": 1024,
+      "logical_work_units": 1048576,
+      "work_unit": "element access",
+      "result_size": 1,
+      "result_layout": "scalar",
+      "sum": -8.875,
+      "weighted_sum": -8.875
+    },
+    {
+      "case": "scalar_read_column_major",
+      "side": 1024,
+      "logical_work_units": 1048576,
+      "work_unit": "element access",
+      "result_size": 1,
+      "result_layout": "scalar",
+      "sum": -8.875,
+      "weighted_sum": -8.875
+    },
+    {
+      "case": "view_inner_stride_create",
+      "side": 1024,
+      "logical_work_units": 1,
+      "work_unit": "view",
+      "result_size": 524288,
+      "result_layout": "strided_view",
+      "sum": -16.5625,
+      "weighted_sum": 831297.4375
+    },
+    {
+      "case": "view_transpose_create",
+      "side": 1024,
+      "logical_work_units": 1,
+      "work_unit": "view",
+      "result_size": 1048576,
+      "result_layout": "strided_view",
+      "sum": -8.875,
+      "weighted_sum": 7155444.3125
+    }
+  ]
+}

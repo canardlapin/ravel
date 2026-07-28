@@ -36,7 +36,6 @@ optimization in Ravel without moving linear algebra into Ravel.
 
 Do not begin that migration until Ravel provides:
 
-- allocation-free fixed-rank indexing;
 - a stable monomorphic `Double` kernel-view SPI that dispatches once and gives
   trusted Gale kernels buffer, offset, shape, and stride access;
 - consuming ownership-transfer builders so Gale destinations do not acquire a
@@ -47,7 +46,25 @@ Do not begin that migration until Ravel provides:
   vector, matrix, builder, and backend hot paths are performance-neutral or
   faster.
 
+Fixed-rank indexing (`physicalIndex1`–`4`) is already allocation-free in
+`ravel-core`. Consuming `NDArray.build` / `ArrayBuilder` landed for destination
+fills; the monomorphic `Double` kernel-view SPI remains deferred.
+
 If those gates are met, preserve `DVec` and `DMat` as Gale's public
 mathematical vocabulary, keep the dependency direction `Gale -> Ravel`, and
 replace copy conversions with explicit zero-copy views only where ownership and
 layout constraints make them honest.
+
+## CI verification today
+
+Until Central publication, verify the copy-only boundary from a Ravel snapshot:
+
+```sh
+# ravel
+sbt publishLocalSnapshot
+# gale
+sbt interopRavelTest
+```
+
+Ravel CI does not clone Gale; the sibling `interopRavelTest` gate remains the
+authoritative interop check.
