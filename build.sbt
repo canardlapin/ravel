@@ -5,6 +5,8 @@ import sbtcrossproject.CrossPlugin.autoImport.*
 import scalajscrossproject.ScalaJSCrossPlugin.autoImport.*
 import com.typesafe.tools.mima.plugin.MimaPlugin
 import com.typesafe.tools.mima.plugin.MimaPlugin.autoImport.*
+import laika.ast.Path.Root
+import laika.helium.config.{HeliumIcon, IconLink}
 import scoverage.ScoverageKeys.*
 
 ThisBuild / organization := "io.github.canardlapin"
@@ -35,6 +37,9 @@ ThisBuild / scalacOptions ++= Seq(
   "-Werror"
 )
 ThisBuild / Test / parallelExecution := false
+// Pages deployment is owned by .github/workflows/pages.yml. Keep the standalone
+// site plugin focused on mdoc/Laika generation rather than a gh-pages branch.
+ThisBuild / tlSitePublishBranch := None
 
 // MiMa: no previous artifact until 1.0.0 is published to Central.
 // After that release, set previous to "1.0.0" (and later 1.x releases) on core/laws.
@@ -123,6 +128,35 @@ lazy val browserTests = project
     scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.ESModule))
   )
 
+lazy val docsBundle = taskKey[File](
+  "Build the executable guide and bundle JVM Scaladoc under the site /api path."
+)
+
+// Public guide inputs live under docs/user. The other docs/ files are internal
+// design, benchmark, audit, and release records and must not be rendered.
+lazy val docs = project
+  .in(file("site"))
+  .dependsOn(core.jvm)
+  .enablePlugins(TypelevelSitePlugin)
+  .settings(
+    name := "ravel-docs",
+    publish / skip := true,
+    mdocIn := file("docs/user"),
+    tlSiteApiUrl := Some(url("https://canardlapin.github.io/ravel/api/")),
+    tlSiteHelium := tlSiteHelium.value.site.topNavigationBar(
+      homeLink = IconLink.internal(Root / "index.md", HeliumIcon.home)
+    ),
+    docsBundle := {
+      val siteOutput = (laikaSite / target).value
+      tlSite.value
+      val apiOutput = (core.jvm / Compile / doc).value
+      val bundledApi = siteOutput / "api"
+      IO.delete(bundledApi)
+      IO.copyDirectory(apiOutput, bundledApi)
+      siteOutput
+    }
+  )
+
 lazy val root = project
   .in(file("."))
   .aggregate(
@@ -175,3 +209,6 @@ addCommandAlias(
   "numpyParitySignatures",
   """;representationProbeJVM/runMain ravel.bench.AccessPatternParity --out target/access-patterns/parity/ravel-signatures.json --side 32,64"""
 )
+// Compile both platform API surfaces, execute every mdoc example, render Laika,
+// validate guide links, and place the JVM API reference in the deployable site.
+addCommandAlias("docsCheck", ";coreJS/doc;docs/docsBundle")

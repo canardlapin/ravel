@@ -3,7 +3,7 @@ package ravel
 /** Axis slice. Open endpoints ([[Slice.all]], [[Slice.from]], …) are normalized against the axis
   * length when applied. Fully specified slices still accept negative indices; for negative steps,
   * stop `-1` means “before the first element”, matching the historical Ravel/Python exclusive-stop
-  * convention. [[narrow]] remains the strict exact-bounds operation.
+  * convention. `NDArray.narrow` remains the strict exact-bounds operation.
   */
 final class Slice private (
     private[ravel] val startRaw: Int,
