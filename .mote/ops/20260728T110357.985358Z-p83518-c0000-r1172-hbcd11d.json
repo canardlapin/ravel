@@ -1,0 +1,1 @@
+{"actor":"codex-ravel","entity":"bd-01KYM6AFFSZ3Y9R8A662YESP1W","kind":"reserve_open","mode":"exclusive","op":"20260728T110357.985358Z-p83518-c0000-r1172-hbcd11d","paths":["modules/core/shared/src/main/scala/ravel","modules/core/shared/src/test/scala/ravel","docs"],"reservation_id":"rv-01KYM6AJ9151KQ7Y2KKPGNSWTZ","ts":"2026-07-28T11:03:57.985358Z","ttl_s":3600,"v":1}

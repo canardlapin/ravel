@@ -1,0 +1,1 @@
+{"actor":"codex-ravel","entity":"bd-01KYHRQHV3B5PVTYQP5SG02NNA","kind":"note","note_kind":"progress","op":"20260728T120228.113765Z-p4012-c0000-r0d30-h3ab115","text":"Starting reduction optimization: exact-schedule contiguous/rank1/rank2 full sums, then tiled axis0 / direct axis1, with bit-differential tests and NumPy parity kept green.","ts":"2026-07-28T12:02:28.113765Z","v":1}

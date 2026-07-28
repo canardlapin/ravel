@@ -1,0 +1,1 @@
+{"actor":"codex-ravel","entity":"bd-01KYM6AFFSZ3Y9R8A662YESP1W","kind":"create","op":"20260728T110355.129352Z-p83416-c0000-r8888-h9828fd","set":{"priority":1,"status":"open","title":"Pre-1.0 API hardening: Shape eq, iterator, contiguity, readable ops, in-place, slice/reshape"},"ts":"2026-07-28T11:03:55.129352Z","v":1}

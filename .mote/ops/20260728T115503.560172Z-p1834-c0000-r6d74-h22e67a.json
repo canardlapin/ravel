@@ -1,0 +1,1 @@
+{"actor":"codex-ravel","entity":"bd-01KYHQ1FP0S61932J8SBV3HVEV","kind":"note","note_kind":"decision","op":"20260728T115503.560172Z-p1834-c0000-r6d74-h22e67a","text":"Project maturity reframed: early 0.1 GitHub project, not ready for 1.0. NumPy performance+correctness tests are the critical path; Central publication deferred.","ts":"2026-07-28T11:55:03.560172Z","v":1}
