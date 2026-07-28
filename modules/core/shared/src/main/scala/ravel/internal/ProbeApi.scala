@@ -2,12 +2,11 @@ package ravel.internal
 
 import ravel.DType
 
-/**
- * Executable representation probe used to freeze the internal storage ABI.
- *
- * Production array operations call the same allocation and monomorphic kernel
- * entry points. `Storage[A]` is a sealed, platform-specific family.
- */
+/** Executable representation probe used to freeze the internal storage ABI.
+  *
+  * Production array operations call the same allocation and monomorphic kernel entry points.
+  * `Storage[A]` is a sealed, platform-specific family.
+  */
 private[ravel] object ProbeApi:
   def allocate[A](size: Int)(using dtype: DType[A]): Storage[A] =
     PlatformStorage.allocate(size)

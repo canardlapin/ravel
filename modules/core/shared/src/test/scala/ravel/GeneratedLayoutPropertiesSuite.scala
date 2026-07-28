@@ -28,47 +28,43 @@ final class GeneratedLayoutPropertiesSuite extends ScalaCheckSuite:
   }
 
   property("generated transpose, reversal, and slicing match coordinates") {
-    forAll(nonemptyDimension, nonemptyDimension, Gen.choose(1, 3)) {
-      (rows, columns, step) =>
-        val source =
-          NDArray.tabulate[Int](rows, columns)((row, column) => row * 100 + column)
-        val actual =
-          source
-            .transpose
-            .reverse(0)
-            .slice(1, Slice(0, rows, step))
-            .elementsIterator
-            .toList
-        val expected =
-          (columns - 1 to 0 by -1).flatMap { column =>
-            (0 until rows by step).map(row => row * 100 + column)
-          }.toList
-        actual == expected
+    forAll(nonemptyDimension, nonemptyDimension, Gen.choose(1, 3)) { (rows, columns, step) =>
+      val source =
+        NDArray.tabulate[Int](rows, columns)((row, column) => row * 100 + column)
+      val actual =
+        source.transpose
+          .reverse(0)
+          .slice(1, Slice(0, rows, step))
+          .elementsIterator
+          .toList
+      val expected =
+        (columns - 1 to 0 by -1).flatMap { column =>
+          (0 until rows by step).map(row => row * 100 + column)
+        }.toList
+      actual == expected
     }
   }
 
   property("generated broadcast addition matches a coordinate oracle") {
-    forAll(smallDimension, smallDimension, Gen.choose(-100, 100)) {
-      (rows, columns, shift) =>
-        val left =
-          NDArray.tabulate[Int](rows, columns)((row, column) => row * 100 + column)
-        val right = NDArray.tabulate[Int](columns)(column => shift - column)
-        val actual = (left + right).elementsIterator.toList
-        val expected =
-          (0 until rows).flatMap { row =>
-            (0 until columns).map { column =>
-              row * 100 + column + shift - column
-            }
-          }.toList
-        actual == expected
+    forAll(smallDimension, smallDimension, Gen.choose(-100, 100)) { (rows, columns, shift) =>
+      val left =
+        NDArray.tabulate[Int](rows, columns)((row, column) => row * 100 + column)
+      val right = NDArray.tabulate[Int](columns)(column => shift - column)
+      val actual = (left + right).elementsIterator.toList
+      val expected =
+        (0 until rows).flatMap { row =>
+          (0 until columns).map { column =>
+            row * 100 + column + shift - column
+          }
+        }.toList
+      actual == expected
     }
   }
 
   property("generated mutable view updates remain local") {
     forAll(nonemptyDimension, nonemptyDimension) { (rows, columns) =>
       val mutable =
-        NDArray.tabulate[Int](rows, columns)((row, column) => row * columns + column)
-          .mutableCopy
+        NDArray.tabulate[Int](rows, columns)((row, column) => row * columns + column).mutableCopy
       val view = mutable.transpose.reverse(0)
       val targetRow = columns / 2
       val targetColumn = rows / 2

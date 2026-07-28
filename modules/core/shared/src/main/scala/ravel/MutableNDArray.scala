@@ -1,8 +1,8 @@
 package ravel
 
 import ravel.internal.*
-import scala.annotation.publicInBinary
 import scala.annotation.unused
+import scala.annotation.publicInBinary
 import scala.compiletime.erasedValue
 
 final class MutableNDArray[A, R <: AnyRank] private[ravel] (
@@ -13,10 +13,13 @@ final class MutableNDArray[A, R <: AnyRank] private[ravel] (
   private[ravel] def layout: Layout = mutableLayout.underlying
 
   val shape: Shape[R] =
-    Shape.unsafeRanked[R](layout.shape)
+    Shape.retag[R](layout.shapeValue)
 
   def rank: Int = layout.rank
   def size: Int = layout.size
+  def isContiguous: Boolean = layout.isCContiguous
+  def isCanonicalLayout: Boolean = layout.isCanonicalLayout
+  def isWholeBuffer: Boolean = layout.isWholeBuffer(storage.length)
 
   inline def apply(i: Int): A =
     readPrimitive(physicalIndex1(i))
@@ -135,21 +138,36 @@ final class MutableNDArray[A, R <: AnyRank] private[ravel] (
   def fill(value: A): Unit =
     if layout.isCContiguous && layout.offset == 0 && layout.size == storage.length then
       ProbeApi.fill(storage, value)
-    else
-      layout.foreachPhysicalIndex(index => ProbeApi.set(storage, index, value))
+    else layout.foreachPhysicalIndex(index => ProbeApi.set(storage, index, value))
 
   def assign(source: NDArray[A, ?]): Unit =
     MutableNDArray.requireSameShape(layout.shape, source.layout.shape)
-    val iterator = source.elementsIterator
-    layout.foreachPhysicalIndex { index =>
-      ProbeApi.set(storage, index, iterator.next())
-    }
+    MutableKernels.assign(source.storage, source.layout, storage, layout)
 
   def addInPlace(value: A)(using
       @unused arithmetic: ArithmeticDType[A]
   ): Unit =
-    val transformed = KernelApi.scalar(KernelOp.Add, freezeCopy(), value)
-    assign(transformed)
+    MutableKernels.scalarInPlace(KernelOp.Add, storage, layout, value)
+
+  def subtractInPlace(value: A)(using
+      @unused arithmetic: ArithmeticDType[A]
+  ): Unit =
+    MutableKernels.scalarInPlace(KernelOp.Subtract, storage, layout, value)
+
+  def multiplyInPlace(value: A)(using
+      @unused arithmetic: ArithmeticDType[A]
+  ): Unit =
+    MutableKernels.scalarInPlace(KernelOp.Multiply, storage, layout, value)
+
+  def quotInPlace(value: A)(using
+      @unused integral: IntegralArithmeticDType[A]
+  ): Unit =
+    MutableKernels.scalarInPlace(KernelOp.Divide, storage, layout, value)
+
+  def divideInPlace(value: A)(using
+      @unused floating: FloatingDType[A]
+  ): Unit =
+    MutableKernels.scalarInPlace(KernelOp.Divide, storage, layout, value)
 
   def select(axis: Int, index: Int)(using
       CanDropAxis[R]
@@ -231,13 +249,28 @@ final class MutableNDArray[A, R <: AnyRank] private[ravel] (
       dtype
     )
 
+  def reshape[S <: AnyRank](target: Shape[S]): MutableNDArray[A, S] =
+    try reshapeView(target)
+    catch
+      case _: NonContiguousLayout =>
+        val owned = freezeCopy().reshapeCopy(target)
+        new MutableNDArray(
+          owned.storage,
+          MutableLayout.owned(owned.shape, owned.size),
+          dtype
+        )
+
+  def reshapeCopy[S <: AnyRank](target: Shape[S]): MutableNDArray[A, S] =
+    val owned = freezeCopy().reshapeCopy(target)
+    new MutableNDArray(
+      owned.storage,
+      MutableLayout.owned(owned.shape, owned.size),
+      dtype
+    )
+
   def freezeCopy(): NDArray[A, R] =
     val output = ProbeApi.allocate[A](size)(using dtype)
-    var write = 0
-    layout.foreachPhysicalIndex { index =>
-      ProbeApi.set(output, write, ProbeApi.get(storage, index))
-      write += 1
-    }
+    CopyKernels.logical(storage, layout, output)
     new NDArray(output, Layout.contiguous(shape, size), dtype)
 
 object MutableNDArray:

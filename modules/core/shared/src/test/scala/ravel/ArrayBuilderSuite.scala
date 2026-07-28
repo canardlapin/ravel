@@ -77,7 +77,7 @@ final class ArrayBuilderSuite extends FunSuite:
       escaped = Some(builder)
       assertEquals(builder.size, 0)
     }
-    assertEquals(empty.shape.toIArray.toList, List(2, 0, 3))
+    assertEquals(empty.shape, Shape(2, 0, 3))
     assertEquals(empty.size, 0)
     assertEquals(empty.elementsIterator.toList, Nil)
     intercept[BuilderClosed] {

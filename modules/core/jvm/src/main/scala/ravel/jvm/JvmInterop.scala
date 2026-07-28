@@ -13,11 +13,10 @@ object JvmInterop:
   def copyToArray[A: ClassTag](array: BorrowedNDArray[A, ?]): Array[A] =
     copyOwned(array.underlying)
 
-  /**
-   * Borrows a caller-owned JVM array without copying.
-   *
-   * Later caller mutation is intentionally observable through the result.
-   */
+  /** Borrows a caller-owned JVM array without copying.
+    *
+    * Later caller mutation is intentionally observable through the result.
+    */
   def unsafeBorrow[A, R <: AnyRank](
       values: Array[A],
       shape: Shape[R]

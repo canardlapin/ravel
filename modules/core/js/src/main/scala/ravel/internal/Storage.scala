@@ -19,11 +19,9 @@ private[ravel] final class ShortStorage(val raw: Int16Array) extends Storage[Sho
 private[ravel] final class IntStorage(val raw: Int32Array) extends Storage[Int]:
   def length: Int = raw.length
 
-/**
- * Scala.js Long is opaque to JavaScript and has no Ravel 1.0 typed-array
- * contract. This fallback preserves Scala Long semantics but is not a JS
- * fast-path representation.
- */
+/** Scala.js Long is opaque to JavaScript and has no Ravel 1.0 typed-array contract. This fallback
+  * preserves Scala Long semantics but is not a JS fast-path representation.
+  */
 private[ravel] final class LongStorage(val raw: Array[Long]) extends Storage[Long]:
   def length: Int = raw.length
 
@@ -38,11 +36,11 @@ private[ravel] object PlatformStorage:
     if size < 0 then throw new IllegalArgumentException(s"negative buffer size: $size")
     (dtype.tag match
       case DType.BooleanTag => new BooleanStorage(new Uint8Array(size))
-      case DType.ByteTag    => new ByteStorage(new Int8Array(size))
-      case DType.ShortTag   => new ShortStorage(new Int16Array(size))
-      case DType.IntTag     => new IntStorage(new Int32Array(size))
-      case DType.LongTag    => new LongStorage(new Array[Long](size))
-      case DType.FloatTag   => new FloatStorage(new Float32Array(size))
-      case DType.DoubleTag  => new DoubleStorage(new Float64Array(size))
-      case tag              => throw new MatchError(tag)
+      case DType.ByteTag => new ByteStorage(new Int8Array(size))
+      case DType.ShortTag => new ShortStorage(new Int16Array(size))
+      case DType.IntTag => new IntStorage(new Int32Array(size))
+      case DType.LongTag => new LongStorage(new Array[Long](size))
+      case DType.FloatTag => new FloatStorage(new Float32Array(size))
+      case DType.DoubleTag => new DoubleStorage(new Float64Array(size))
+      case tag => throw new MatchError(tag)
     ).asInstanceOf[Storage[A]]

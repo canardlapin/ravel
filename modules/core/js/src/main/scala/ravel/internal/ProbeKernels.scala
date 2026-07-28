@@ -6,23 +6,23 @@ private[ravel] object ProbeKernels:
   def get[A](storage: Storage[A], index: Int): A =
     (storage match
       case x: BooleanStorage => x.raw(index) != 0
-      case x: ByteStorage    => x.raw(index).toByte
-      case x: ShortStorage   => x.raw(index).toShort
-      case x: IntStorage     => x.raw(index)
-      case x: LongStorage    => x.raw(index)
-      case x: FloatStorage   => x.raw(index).toFloat
-      case x: DoubleStorage  => x.raw(index)
+      case x: ByteStorage => x.raw(index).toByte
+      case x: ShortStorage => x.raw(index).toShort
+      case x: IntStorage => x.raw(index)
+      case x: LongStorage => x.raw(index)
+      case x: FloatStorage => x.raw(index).toFloat
+      case x: DoubleStorage => x.raw(index)
     ).asInstanceOf[A]
 
   def set[A](storage: Storage[A], index: Int, value: A): Unit =
     storage match
       case x: BooleanStorage => x.raw(index) = (if value.asInstanceOf[Boolean] then 1 else 0)
-      case x: ByteStorage    => x.raw(index) = value.asInstanceOf[Byte]
-      case x: ShortStorage   => x.raw(index) = value.asInstanceOf[Short]
-      case x: IntStorage     => x.raw(index) = value.asInstanceOf[Int]
-      case x: LongStorage    => x.raw(index) = value.asInstanceOf[Long]
-      case x: FloatStorage   => x.raw(index) = value.asInstanceOf[Float]
-      case x: DoubleStorage  => x.raw(index) = value.asInstanceOf[Double]
+      case x: ByteStorage => x.raw(index) = value.asInstanceOf[Byte]
+      case x: ShortStorage => x.raw(index) = value.asInstanceOf[Short]
+      case x: IntStorage => x.raw(index) = value.asInstanceOf[Int]
+      case x: LongStorage => x.raw(index) = value.asInstanceOf[Long]
+      case x: FloatStorage => x.raw(index) = value.asInstanceOf[Float]
+      case x: DoubleStorage => x.raw(index) = value.asInstanceOf[Double]
 
   def getBoolean(storage: Storage[Boolean], index: Int): Boolean =
     storage.asInstanceOf[BooleanStorage].raw(index) != 0
@@ -101,12 +101,16 @@ private[ravel] object ProbeKernels:
 
   def add[A](left: Storage[A], right: Storage[A], out: Storage[A], size: Int): Unit =
     (left, right, out) match
-      case (x: IntStorage, y: IntStorage, z: IntStorage)       => addInt(x.raw, y.raw, z.raw, size)
-      case (x: LongStorage, y: LongStorage, z: LongStorage)    => addLong(x.raw, y.raw, z.raw, size)
-      case (x: FloatStorage, y: FloatStorage, z: FloatStorage) => addFloat(x.raw, y.raw, z.raw, size)
+      case (x: IntStorage, y: IntStorage, z: IntStorage) => addInt(x.raw, y.raw, z.raw, size)
+      case (x: LongStorage, y: LongStorage, z: LongStorage) => addLong(x.raw, y.raw, z.raw, size)
+      case (x: FloatStorage, y: FloatStorage, z: FloatStorage) =>
+        addFloat(x.raw, y.raw, z.raw, size)
       case (x: DoubleStorage, y: DoubleStorage, z: DoubleStorage) =>
         addDouble(x.raw, y.raw, z.raw, size)
-      case _ => throw new UnsupportedOperationException("arithmetic requires matching Int, Long, Float, or Double storage")
+      case _ =>
+        throw new UnsupportedOperationException(
+          "arithmetic requires matching Int, Long, Float, or Double storage"
+        )
 
   def addLinear[A](
       left: Storage[A],
@@ -125,15 +129,21 @@ private[ravel] object ProbeKernels:
         addFloatLinear(x.raw, leftOffset, y.raw, rightOffset, z.raw, size)
       case (x: DoubleStorage, y: DoubleStorage, z: DoubleStorage) =>
         addDoubleLinear(x.raw, leftOffset, y.raw, rightOffset, z.raw, size)
-      case _ => throw new UnsupportedOperationException("arithmetic requires matching Int, Long, Float, or Double storage")
+      case _ =>
+        throw new UnsupportedOperationException(
+          "arithmetic requires matching Int, Long, Float, or Double storage"
+        )
 
   def negate[A](source: Storage[A], out: Storage[A], size: Int): Unit =
     (source, out) match
-      case (x: IntStorage, z: IntStorage)       => negateInt(x.raw, z.raw, size)
-      case (x: LongStorage, z: LongStorage)     => negateLong(x.raw, z.raw, size)
-      case (x: FloatStorage, z: FloatStorage)   => negateFloat(x.raw, z.raw, size)
+      case (x: IntStorage, z: IntStorage) => negateInt(x.raw, z.raw, size)
+      case (x: LongStorage, z: LongStorage) => negateLong(x.raw, z.raw, size)
+      case (x: FloatStorage, z: FloatStorage) => negateFloat(x.raw, z.raw, size)
       case (x: DoubleStorage, z: DoubleStorage) => negateDouble(x.raw, z.raw, size)
-      case _ => throw new UnsupportedOperationException("arithmetic requires matching Int, Long, Float, or Double storage")
+      case _ =>
+        throw new UnsupportedOperationException(
+          "arithmetic requires matching Int, Long, Float, or Double storage"
+        )
 
   def addStrided[A](
       left: Storage[A],
@@ -153,8 +163,20 @@ private[ravel] object ProbeKernels:
       case (x: FloatStorage, y: FloatStorage, z: FloatStorage) =>
         addFloatStrided(x.raw, leftOffset, leftStride, y.raw, rightOffset, rightStride, z.raw, size)
       case (x: DoubleStorage, y: DoubleStorage, z: DoubleStorage) =>
-        addDoubleStrided(x.raw, leftOffset, leftStride, y.raw, rightOffset, rightStride, z.raw, size)
-      case _ => throw new UnsupportedOperationException("arithmetic requires matching Int, Long, Float, or Double storage")
+        addDoubleStrided(
+          x.raw,
+          leftOffset,
+          leftStride,
+          y.raw,
+          rightOffset,
+          rightStride,
+          z.raw,
+          size
+        )
+      case _ =>
+        throw new UnsupportedOperationException(
+          "arithmetic requires matching Int, Long, Float, or Double storage"
+        )
 
   private def addInt(x: Int32Array, y: Int32Array, out: Int32Array, size: Int): Unit =
     var i = 0
@@ -256,7 +278,16 @@ private[ravel] object ProbeKernels:
       out(i) = -x(i)
       i += 1
 
-  private def addIntStrided(x: Int32Array, xo: Int, xs: Int, y: Int32Array, yo: Int, ys: Int, out: Int32Array, size: Int): Unit =
+  private def addIntStrided(
+      x: Int32Array,
+      xo: Int,
+      xs: Int,
+      y: Int32Array,
+      yo: Int,
+      ys: Int,
+      out: Int32Array,
+      size: Int
+  ): Unit =
     var i = 0
     var xi = xo
     var yi = yo
@@ -266,7 +297,16 @@ private[ravel] object ProbeKernels:
       yi += ys
       i += 1
 
-  private def addLongStrided(x: Array[Long], xo: Int, xs: Int, y: Array[Long], yo: Int, ys: Int, out: Array[Long], size: Int): Unit =
+  private def addLongStrided(
+      x: Array[Long],
+      xo: Int,
+      xs: Int,
+      y: Array[Long],
+      yo: Int,
+      ys: Int,
+      out: Array[Long],
+      size: Int
+  ): Unit =
     var i = 0
     var xi = xo
     var yi = yo
@@ -276,7 +316,16 @@ private[ravel] object ProbeKernels:
       yi += ys
       i += 1
 
-  private def addFloatStrided(x: Float32Array, xo: Int, xs: Int, y: Float32Array, yo: Int, ys: Int, out: Float32Array, size: Int): Unit =
+  private def addFloatStrided(
+      x: Float32Array,
+      xo: Int,
+      xs: Int,
+      y: Float32Array,
+      yo: Int,
+      ys: Int,
+      out: Float32Array,
+      size: Int
+  ): Unit =
     var i = 0
     var xi = xo
     var yi = yo
@@ -286,7 +335,16 @@ private[ravel] object ProbeKernels:
       yi += ys
       i += 1
 
-  private def addDoubleStrided(x: Float64Array, xo: Int, xs: Int, y: Float64Array, yo: Int, ys: Int, out: Float64Array, size: Int): Unit =
+  private def addDoubleStrided(
+      x: Float64Array,
+      xo: Int,
+      xs: Int,
+      y: Float64Array,
+      yo: Int,
+      ys: Int,
+      out: Float64Array,
+      size: Int
+  ): Unit =
     var i = 0
     var xi = xo
     var yi = yo

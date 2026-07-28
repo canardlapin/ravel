@@ -53,7 +53,9 @@ object BroadcastLaws extends Assertions:
       left: NDArray[A, ?],
       right: NDArray[A, ?]
   ): Unit =
-    assertEquals((left + right).shape.toString, (right + left).shape.toString)
+    val summed: Shape[?] = (left + right).shape
+    val swapped: Shape[?] = (right + left).shape
+    assertEquals(summed, swapped)
 
 /** Closed dtype capability assertions. */
 object DTypeLaws extends Assertions:

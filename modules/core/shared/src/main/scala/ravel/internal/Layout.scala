@@ -7,20 +7,29 @@ private[ravel] final class Layout private (
     val strides: IArray[Int],
     val offset: Int,
     val size: Int,
-    val flags: Byte
+    val flags: Byte,
+    val shapeValue: Shape[AnyRank]
 ):
   def rank: Int = shape.length
 
+  /** Logical C-order values occupy a contiguous memory interval. */
   def isCContiguous: Boolean = (flags & Layout.CContiguous) != 0
+
+  /** Exact canonical C strides, including length-one axes. */
+  def isCanonicalLayout: Boolean = (flags & Layout.CanonicalLayout) != 0
+
   def hasNegativeStride: Boolean = (flags & Layout.HasNegativeStride) != 0
   def hasBroadcastStride: Boolean = (flags & Layout.HasBroadcastStride) != 0
+
+  /** Offset zero and logical size equals the whole storage length. */
+  def isWholeBuffer(storageLength: Int): Boolean =
+    offset == 0 && size == storageLength
 
   def normalizedAxis(axis: Int): Int =
     Shape.normalizeAxis(axis, rank)
 
   def physicalIndex(indices: IArray[Int]): Int =
-    if indices.length != rank then
-      throw InvalidIndex.ArityMismatch(rank, indices.length)
+    if indices.length != rank then throw InvalidIndex.ArityMismatch(rank, indices.length)
     var address = offset.toLong
     var axis = 0
     while axis < rank do
@@ -117,6 +126,7 @@ private[ravel] object Layout:
   val CContiguous: Byte = 1
   val HasNegativeStride: Byte = 2
   val HasBroadcastStride: Byte = 4
+  val CanonicalLayout: Byte = 8
 
   private[ravel] def sameShape(left: IArray[Int], right: IArray[Int]): Boolean =
     if left.length != right.length then false
@@ -149,8 +159,8 @@ private[ravel] object Layout:
       if running > Int.MaxValue.toLong then
         throw LayoutOverflow(s"canonical stride product $running exceeds Int at axis $axis")
       axis -= 1
-    create(
-      dimensions,
+    createOwned(
+      shape.asInstanceOf[Shape[AnyRank]],
       IArray.unsafeFromArray(strides),
       0,
       bufferLength,
@@ -172,12 +182,32 @@ private[ravel] object Layout:
       bufferLength: Int,
       requireContiguous: Boolean
   ): Layout =
+    val ownedDimensions =
+      IArray.unsafeFromArray(IArray.genericWrapArray(dimensions).toArray)
+    val ownedStrides =
+      IArray.unsafeFromArray(IArray.genericWrapArray(strides).toArray)
+    createOwned(
+      Shape.validated[AnyRank](ownedDimensions),
+      ownedStrides,
+      offset,
+      bufferLength,
+      requireContiguous
+    )
+
+  /** Reuse a validated shape object; strides must already be owned. */
+  private def createOwned(
+      shapeValue: Shape[AnyRank],
+      strides: IArray[Int],
+      offset: Int,
+      bufferLength: Int,
+      requireContiguous: Boolean
+  ): Layout =
+    val dimensions = shapeValue.unsafeDimensions
     if bufferLength < 0 then throw LayoutOverflow(s"negative buffer length $bufferLength")
     if dimensions.length != strides.length then
       throw InvalidShape(
         s"shape rank ${dimensions.length} differs from stride rank ${strides.length}"
       )
-    val shape = Shape.unsafeRanked[AnyRank](dimensions)
     var minimum = offset.toLong
     var maximum = offset.toLong
     var negative = false
@@ -192,12 +222,11 @@ private[ravel] object Layout:
       if strides(axis) < 0 then
         negative = true
         minimum = checkedAdd(minimum, extent, s"minimum address at axis $axis")
-      else
-        maximum = checkedAdd(maximum, extent, s"maximum address at axis $axis")
+      else maximum = checkedAdd(maximum, extent, s"maximum address at axis $axis")
       if strides(axis) == 0 && dimensions(axis) > 1 then broadcast = true
       axis += 1
 
-    if shape.size > 0 then
+    if shapeValue.size > 0 then
       if minimum < 0L || maximum >= bufferLength.toLong then
         throw LayoutOverflow(
           s"reachable addresses [$minimum, $maximum] are outside buffer length $bufferLength"
@@ -205,28 +234,52 @@ private[ravel] object Layout:
     else if offset < 0 || offset > bufferLength then
       throw LayoutOverflow(s"empty-layout offset $offset is outside [0, $bufferLength]")
 
-    val contiguous = isCanonical(dimensions, strides)
-    if requireContiguous && !contiguous then
+    val canonical = isCanonical(dimensions, strides)
+    val contiguous = isLogicalContiguous(dimensions, strides)
+    if requireContiguous && !canonical then
       throw NonContiguousLayout("canonical layout construction failed")
     var flags: Byte = 0
     if contiguous then flags = (flags | CContiguous).toByte
+    if canonical then flags = (flags | CanonicalLayout).toByte
     if negative then flags = (flags | HasNegativeStride).toByte
     if broadcast then flags = (flags | HasBroadcastStride).toByte
     new Layout(
-      IArray.unsafeFromArray(IArray.genericWrapArray(dimensions).toArray),
-      IArray.unsafeFromArray(IArray.genericWrapArray(strides).toArray),
+      dimensions,
+      strides,
       offset,
-      shape.size,
-      flags
+      shapeValue.size,
+      flags,
+      shapeValue
     )
 
-  private def isCanonical(shape: IArray[Int], strides: IArray[Int]): Boolean =
+  /** Exact canonical strides, including length-one axes. */
+  private[ravel] def isCanonical(shape: IArray[Int], strides: IArray[Int]): Boolean =
     var expected = 1L
     var axis = shape.length - 1
     var result = true
     while axis >= 0 && result do
       if strides(axis).toLong != expected then result = false
       expected = checkedMultiply(expected, shape(axis).toLong, s"contiguity axis $axis")
+      axis -= 1
+    result
+
+  /** Logical C-contiguity: non-singleton axes must have the packed C stride. Length-one axes may
+    * carry any stride (including zero from newAxis). A zero-length axis zeros the expected outer
+    * stride product.
+    */
+  private[ravel] def isLogicalContiguous(
+      shape: IArray[Int],
+      strides: IArray[Int]
+  ): Boolean =
+    var expected = 1L
+    var axis = shape.length - 1
+    var result = true
+    while axis >= 0 && result do
+      val dimension = shape(axis)
+      if dimension > 1 then
+        if strides(axis).toLong != expected then result = false
+        expected = checkedMultiply(expected, dimension.toLong, s"logical contiguity axis $axis")
+      else if dimension == 0 then expected = 0L
       axis -= 1
     result
 

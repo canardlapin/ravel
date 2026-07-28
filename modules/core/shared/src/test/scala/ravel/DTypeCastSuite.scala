@@ -12,8 +12,16 @@ final class DTypeCastSuite extends FunSuite:
     summon[ArithmeticDType[Long]]
     summon[ArithmeticDType[Float]]
     summon[ArithmeticDType[Double]]
-    assert(compileErrors("import ravel.*; import ravel.DType.given; summon[ArithmeticDType[Byte]]").nonEmpty)
-    assert(compileErrors("import ravel.*; import ravel.DType.given; summon[NumericDType[Boolean]]").nonEmpty)
+    assert(
+      compileErrors(
+        "import ravel.*; import ravel.DType.given; summon[ArithmeticDType[Byte]]"
+      ).nonEmpty
+    )
+    assert(
+      compileErrors(
+        "import ravel.*; import ravel.DType.given; summon[NumericDType[Boolean]]"
+      ).nonEmpty
+    )
   }
 
   test("integral widening and narrowing follow fixed-width semantics") {
@@ -42,13 +50,21 @@ final class DTypeCastSuite extends FunSuite:
   }
 
   test("Double to Float preserves signed zero and NaN classification") {
-    val values = NDArray.fromSeq(
-      Shape(4),
-      Seq(-0.0, 0.0, Double.NaN, Double.MaxValue)
-    ).cast[Float]
+    val values = NDArray
+      .fromSeq(
+        Shape(4),
+        Seq(-0.0, 0.0, Double.NaN, Double.MaxValue)
+      )
+      .cast[Float]
     val converted = values.elementsIterator.toList
-    assertEquals(java.lang.Float.floatToRawIntBits(converted(0)), java.lang.Float.floatToRawIntBits(-0.0f))
-    assertEquals(java.lang.Float.floatToRawIntBits(converted(1)), java.lang.Float.floatToRawIntBits(0.0f))
+    assertEquals(
+      java.lang.Float.floatToRawIntBits(converted(0)),
+      java.lang.Float.floatToRawIntBits(-0.0f)
+    )
+    assertEquals(
+      java.lang.Float.floatToRawIntBits(converted(1)),
+      java.lang.Float.floatToRawIntBits(0.0f)
+    )
     assert(converted(2).isNaN)
     assertEquals(converted(3), Float.PositiveInfinity)
   }

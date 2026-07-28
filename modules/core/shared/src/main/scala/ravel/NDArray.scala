@@ -8,13 +8,17 @@ final class NDArray[A, +R <: AnyRank] private[ravel] (
     private[ravel] val storage: Storage[A],
     private[ravel] val layout: Layout,
     val dtype: DType[A]
-):
+) extends ReadableArray[A, R]:
   val shape: Shape[R] =
-    Shape.unsafeRanked[R](layout.shape)
+    Shape.retag[R](layout.shapeValue)
 
   def rank: Int = layout.rank
   def size: Int = layout.size
   def isContiguous: Boolean = layout.isCContiguous
+  def isCanonicalLayout: Boolean = layout.isCanonicalLayout
+  def isWholeBuffer: Boolean = layout.isWholeBuffer(storage.length)
+
+  private[ravel] def toNDArray: NDArray[A, R] = this
 
   inline def apply(i: Int): A =
     readPrimitive(physicalIndex1(i))
@@ -130,6 +134,12 @@ final class NDArray[A, +R <: AnyRank] private[ravel] (
     if rank != 2 then throw InvalidAxis(2, rank)
     swapAxes(0, 1)
 
+  /** Single element when `size == 1`; otherwise throws [[InvalidShape]]. */
+  def item: A =
+    if size != 1 then throw InvalidShape(s"item requires size 1, found size $size")
+    if rank == 0 then ProbeApi.get(storage, layout.offset)
+    else at(IArray.tabulate(rank)(_ => 0))
+
   def broadcastTo[S <: AnyRank](target: Shape[S]): NDArray[A, S] =
     new NDArray[A, S](
       storage,
@@ -141,6 +151,24 @@ final class NDArray[A, +R <: AnyRank] private[ravel] (
     new NDArray[A, S](
       storage,
       ViewLayout.reshape(layout, target, storage.length),
+      dtype
+    )
+
+  /** View when strides allow it; otherwise copy then reshape. */
+  def reshape[S <: AnyRank](target: Shape[S]): NDArray[A, S] =
+    try reshapeView(target)
+    catch case _: NonContiguousLayout => reshapeCopy(target)
+
+  /** Always materializes a contiguous array of the target shape. */
+  def reshapeCopy[S <: AnyRank](target: Shape[S]): NDArray[A, S] =
+    if target.size != size then
+      throw InvalidShape(
+        s"cannot reshape array of size $size into shape $target"
+      )
+    val flat = copy
+    new NDArray(
+      flat.storage,
+      Layout.contiguous(target, target.size),
       dtype
     )
 
@@ -180,51 +208,63 @@ final class NDArray[A, +R <: AnyRank] private[ravel] (
 
   def elementsIterator: Iterator[A] =
     new Iterator[A]:
-      private val values = new Array[Any](NDArray.this.size)
-      private var write = 0
-      layout.foreachPhysicalIndex { index =>
-        values(write) = ProbeApi.get(storage, index)
-        write += 1
-      }
-      private var read = 0
-      def hasNext: Boolean = read < values.length
+      private val total = NDArray.this.size
+      private val arrayRank = NDArray.this.rank
+      private val counters =
+        if total == 0 || arrayRank == 0 then null else new Array[Int](arrayRank)
+      private var remaining = total
+      private var address = layout.offset.toLong
+
+      def hasNext: Boolean = remaining > 0
+
       def next(): A =
         if !hasNext then throw new NoSuchElementException("next on empty iterator")
-        val value = values(read).asInstanceOf[A]
-        read += 1
+        val value = ProbeApi.get(storage, Layout.checkedInt(address, "iterator address"))
+        remaining -= 1
+        if remaining > 0 && arrayRank > 0 then
+          var axis = arrayRank - 1
+          var advanced = false
+          while axis >= 0 && !advanced do
+            counters(axis) += 1
+            address = Layout.checkedAdd(
+              address,
+              layout.strides(axis).toLong,
+              "iterator advance"
+            )
+            if counters(axis) < layout.shape(axis) then advanced = true
+            else
+              address = Layout.checkedAdd(
+                address,
+                -Layout.checkedMultiply(
+                  counters(axis).toLong,
+                  layout.strides(axis).toLong,
+                  "iterator rewind"
+                ),
+                "iterator rewind"
+              )
+              counters(axis) = 0
+              axis -= 1
         value
+
+  /** Alias for [[elementsIterator]]. Lazy logical-order traversal; may box. */
+  def iterator: Iterator[A] = elementsIterator
 
   /** Always copies in logical row-major order. */
   def copy: NDArray[A, R] =
     val output = ProbeApi.allocate[A](size)(using dtype)
-    var write = 0
-    layout.foreachPhysicalIndex { index =>
-      ProbeApi.set(output, write, ProbeApi.get(storage, index))
-      write += 1
-    }
+    CopyKernels.logical(storage, layout, output)
     new NDArray(output, Layout.contiguous(shape, size), dtype)
 
   def cast[B](using source: NumericDType[A], target: NumericDType[B]): NDArray[B, R] =
     val output = ProbeApi.allocate[B](size)(using target)
-    var write = 0
-    layout.foreachPhysicalIndex { index =>
-      val converted = DType.castScalar(ProbeApi.get(storage, index), source, target)
-      ProbeApi.set(output, write, converted)
-      write += 1
-    }
+    CastKernels.convert(storage, layout, output, source, target)
     new NDArray(output, Layout.contiguous(shape, size), target)
 
-  def sameElements(other: NDArray[A, ?]): Boolean =
-    EqualityApi.sameElements(this, other)
+  def sameElements(other: ReadableArray[A, ?]): Boolean =
+    EqualityApi.sameElements(this, other.toNDArray)
 
-  def sameElements(other: BorrowedNDArray[A, ?]): Boolean =
-    EqualityApi.sameElements(this, other.underlying)
-
-  def sameElementsBits(other: NDArray[A, ?]): Boolean =
-    EqualityApi.sameElementsBits(this, other)
-
-  def sameElementsBits(other: BorrowedNDArray[A, ?]): Boolean =
-    EqualityApi.sameElementsBits(this, other.underlying)
+  def sameElementsBits(other: ReadableArray[A, ?]): Boolean =
+    EqualityApi.sameElementsBits(this, other.toNDArray)
 
   override def toString: String =
     val builder = new StringBuilder

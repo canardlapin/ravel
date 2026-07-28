@@ -45,17 +45,26 @@ private[ravel] final class LoopPlan private (
           if counters(axis) + 1 < shape(axis) then
             counters(axis) += 1
             left = Layout.checkedAdd(left, leftStrides(axis).toLong, s"callback left axis $axis")
-            right = Layout.checkedAdd(right, rightStrides(axis).toLong, s"callback right axis $axis")
+            right =
+              Layout.checkedAdd(right, rightStrides(axis).toLong, s"callback right axis $axis")
             advanced = true
           else
             left = Layout.checkedAdd(
               left,
-              -Layout.checkedMultiply(counters(axis).toLong, leftStrides(axis).toLong, s"callback left rewind $axis"),
+              -Layout.checkedMultiply(
+                counters(axis).toLong,
+                leftStrides(axis).toLong,
+                s"callback left rewind $axis"
+              ),
               s"callback left rewind $axis"
             )
             right = Layout.checkedAdd(
               right,
-              -Layout.checkedMultiply(counters(axis).toLong, rightStrides(axis).toLong, s"callback right rewind $axis"),
+              -Layout.checkedMultiply(
+                counters(axis).toLong,
+                rightStrides(axis).toLong,
+                s"callback right rewind $axis"
+              ),
               s"callback right rewind $axis"
             )
             counters(axis) = 0
@@ -63,37 +72,106 @@ private[ravel] final class LoopPlan private (
 
 private[ravel] object LoopPlan:
   def unary(layout: Layout): LoopPlan =
-    build(
-      layout.shape,
-      layout.strides,
-      layout.offset,
-      layout.shape,
-      layout.strides,
-      layout.offset,
-      exact = true
-    )
+    if layout.isCContiguous then linearUnary(layout)
+    else
+      build(
+        layout.shape,
+        layout.strides,
+        layout.offset,
+        layout.shape,
+        layout.strides,
+        layout.offset,
+        exact = true
+      )
 
   def exact(left: Layout, right: Layout): LoopPlan =
-    build(
-      left.shape,
-      left.strides,
-      left.offset,
-      right.shape,
-      right.strides,
-      right.offset,
-      exact = true
-    )
+    if left.isCContiguous &&
+      right.isCContiguous &&
+      Layout.sameShape(left.shape, right.shape)
+    then linearSameShape(left, right)
+    else
+      build(
+        left.shape,
+        left.strides,
+        left.offset,
+        right.shape,
+        right.strides,
+        right.offset,
+        exact = true
+      )
 
   def broadcast(left: Layout, right: Layout): LoopPlan =
-    build(
-      left.shape,
-      left.strides,
-      left.offset,
-      right.shape,
-      right.strides,
-      right.offset,
-      exact = false
-    )
+    if left.isCContiguous &&
+      right.isCContiguous &&
+      Layout.sameShape(left.shape, right.shape)
+    then linearSameShape(left, right)
+    else
+      build(
+        left.shape,
+        left.strides,
+        left.offset,
+        right.shape,
+        right.strides,
+        right.offset,
+        exact = false
+      )
+
+  /** Same-shape C-contiguous operands: no axis alignment or coalescing. */
+  def linearSameShape(left: Layout, right: Layout): LoopPlan =
+    if !Layout.sameShape(left.shape, right.shape) then
+      throw ShapeMismatch(
+        left.shape.mkString("(", ", ", ")"),
+        right.shape.mkString("(", ", ", ")")
+      )
+    val size = left.size
+    if size == 0 then
+      new LoopPlan(
+        Array.emptyIntArray,
+        Array.emptyIntArray,
+        Array.emptyIntArray,
+        left.offset,
+        right.offset,
+        0,
+        left.shape,
+        LoopKind.LinearContiguous
+      )
+    else
+      new LoopPlan(
+        Array(size),
+        Array(1),
+        Array(1),
+        left.offset,
+        right.offset,
+        size,
+        left.shape,
+        LoopKind.LinearContiguous
+      )
+
+  /** C-contiguous unary/scalar plans: no axis coalescing. */
+  def linearUnary(layout: Layout): LoopPlan =
+    val size = layout.size
+    if size == 0 then
+      new LoopPlan(
+        Array.emptyIntArray,
+        Array.emptyIntArray,
+        Array.emptyIntArray,
+        layout.offset,
+        0,
+        0,
+        layout.shape,
+        LoopKind.LinearContiguous
+      )
+    else
+      new LoopPlan(
+        Array(size),
+        Array(1),
+        Array(1),
+        layout.offset,
+        0,
+        size,
+        layout.shape,
+        LoopKind.LinearContiguous
+      )
 
   private def build(
       leftShape: IArray[Int],
@@ -183,7 +261,7 @@ private[ravel] object LoopPlan:
     val rightScalar = rightArray.forall(_ == 0)
     val kind =
       if intSize == 0 ||
-          (shapeArray.length <= 1 && leftArray.forall(_ == 1) && rightArray.forall(_ == 1))
+        (shapeArray.length <= 1 && leftArray.forall(_ == 1) && rightArray.forall(_ == 1))
       then LoopKind.LinearContiguous
       else if leftScalar || rightScalar then LoopKind.ScalarBroadcast
       else if shapeArray.length <= 2 then LoopKind.InnerStrided

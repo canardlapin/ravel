@@ -44,7 +44,7 @@ final class BroadcastKernelLawsSuite extends FunSuite:
     assertEquals(values(left + right), expectedLeft.zip(expectedRight).map(_ + _))
     assertEquals(values(left - right), expectedLeft.zip(expectedRight).map(_ - _))
     assertEquals(values(left * right), expectedLeft.zip(expectedRight).map(_ * _))
-    assertEquals(values(left / right), expectedLeft.zip(expectedRight).map(_ / _))
+    assertEquals(values(left.quot(right)), expectedLeft.zip(expectedRight).map(_ / _))
     assertEquals(values(-left), expectedLeft.map(-_))
     assertEquals(values(left.abs), expectedLeft.map(math.abs))
     assert(!(left + right).storage.eq(left.storage))
@@ -54,8 +54,13 @@ final class BroadcastKernelLawsSuite extends FunSuite:
     val ints = NDArray.fromSeq(Shape(3), Seq(Int.MaxValue, Int.MinValue, 6))
     assertEquals(values(ints + 1), List(Int.MinValue, Int.MinValue + 1, 7))
     assertEquals(values(ints.abs), List(Int.MaxValue, Int.MinValue, 6))
-    assertEquals(values(ints / 2), List(Int.MaxValue / 2, Int.MinValue / 2, 3))
-    intercept[ArithmeticException](ints / 0)
+    assertEquals(values(ints.quot(2)), List(Int.MaxValue / 2, Int.MinValue / 2, 3))
+    intercept[ArithmeticException](ints.quot(0))
+    assert(compileErrors("""
+      import ravel.*
+      import ravel.DType.given
+      NDArray.zeros[Int](2) / 2
+    """).nonEmpty)
     assert(compileErrors("""
       import ravel.*
       import ravel.DType.given

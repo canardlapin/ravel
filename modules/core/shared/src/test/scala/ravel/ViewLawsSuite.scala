@@ -28,7 +28,10 @@ final class ViewLawsSuite extends FunSuite:
     assertEquals(values(source.slice(0, Slice(4, -1, -1))), List(4, 3, 2, 1, 0))
     assertEquals(values(source.slice(0, Slice(3, 3, 1))), Nil)
     assertEquals(values(source.slice(0, 0 to 4 by 2)), List(0, 2, 4))
-    intercept[InvalidSlice](source.slice(0, Slice(-1, 3, 1)))
+    assertEquals(values(source.slice(0, Slice.from(-1))), List(4))
+    assertEquals(values(source.slice(0, Slice.every(2))), List(0, 2, 4))
+    assertEquals(values(source.slice(0, Slice.reverse)), List(4, 3, 2, 1, 0))
+    assertEquals(values(source.slice(0, Slice.all)), values(source))
     intercept[InvalidSlice](source.slice(0, Slice(4, -2, -1)))
     assert(Slice.from(0, 1, 0).isLeft)
     assert(Slice.from(Range.inclusive(Int.MaxValue, Int.MaxValue)).isLeft)
@@ -125,8 +128,7 @@ final class ViewLawsSuite extends FunSuite:
       while columns <= 6 do
         val source = NDArray.tabulate[Int](rows, columns)((i, j) => i * 100 + j)
         val actual =
-          source
-            .transpose
+          source.transpose
             .reverse(0)
             .slice(1, Slice(0, rows, 2))
             .elementsIterator

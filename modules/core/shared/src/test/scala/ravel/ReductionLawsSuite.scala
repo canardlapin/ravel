@@ -124,6 +124,72 @@ final class ReductionLawsSuite extends FunSuite:
     )
   }
 
+  test("specialized full and axis sums stay bit-identical to the pairwise reference") {
+    val matrix = NDArray.tabulate[Double](257, 64)((i, j) => math.sin(i * 0.17 + j * 0.09))
+    val flat = values(matrix)
+    assertEquals(
+      java.lang.Double.doubleToRawLongBits(matrix.sum),
+      java.lang.Double.doubleToRawLongBits(referenceDoublePairwise(flat))
+    )
+    val transposed = matrix.transpose
+    assertEquals(
+      java.lang.Double.doubleToRawLongBits(transposed.sum),
+      java.lang.Double.doubleToRawLongBits(referenceDoublePairwise(values(transposed)))
+    )
+    val axis0 = matrix.sum(0)
+    val axis1 = matrix.sum(1)
+    assertEquals(axis0.size, 64)
+    assertEquals(axis1.size, 257)
+    var column = 0
+    while column < 64 do
+      val fiber = Vector.tabulate(257)(row => matrix(row, column))
+      assertEquals(
+        java.lang.Double.doubleToRawLongBits(axis0(column)),
+        java.lang.Double.doubleToRawLongBits(referenceDoublePairwise(fiber))
+      )
+      column += 1
+    var row = 0
+    while row < 257 do
+      val fiber = Vector.tabulate(64)(column => matrix(row, column))
+      assertEquals(
+        java.lang.Double.doubleToRawLongBits(axis1(row)),
+        java.lang.Double.doubleToRawLongBits(referenceDoublePairwise(fiber))
+      )
+      row += 1
+  }
+
+  test("adversarial float and NaN fibers stay bit-identical across specialized paths") {
+    val floats = NDArray.tabulate[Float](129, 33)((i, j) =>
+      if (i + j) % 17 == 0 then Float.NaN
+      else math.sin(i * 0.31 + j * 0.11).toFloat
+    )
+    assertEquals(
+      java.lang.Float.floatToRawIntBits(floats.sum),
+      java.lang.Float.floatToRawIntBits(referenceFloatPairwise(values(floats)))
+    )
+    val axis0 = floats.sum(0)
+    val axis1 = floats.sum(1)
+    var column = 0
+    while column < 33 do
+      val fiber = Vector.tabulate(129)(row => floats(row, column))
+      assertEquals(
+        java.lang.Float.floatToRawIntBits(axis0(column)),
+        java.lang.Float.floatToRawIntBits(referenceFloatPairwise(fiber))
+      )
+      column += 1
+    var row = 0
+    while row < 129 do
+      val fiber = Vector.tabulate(33)(column => floats(row, column))
+      assertEquals(
+        java.lang.Float.floatToRawIntBits(axis1(row)),
+        java.lang.Float.floatToRawIntBits(referenceFloatPairwise(fiber))
+      )
+      row += 1
+    val emptyRows = NDArray.zeros[Double](0, 5)
+    assertEquals(values(emptyRows.sum(0)), List(0.0, 0.0, 0.0, 0.0, 0.0))
+    assertEquals(values(emptyRows.sum(1)), Nil)
+  }
+
   test("only Int-to-Long and Float-to-Double widening sums compile") {
     assertEquals(
       NDArray.fromSeq(Shape(2), Seq(Int.MaxValue, Int.MaxValue)).sumAs[Long],

@@ -49,50 +49,38 @@ private[ravel] object KernelApi:
       left: NDArray[A, RX],
       right: NDArray[A, RY]
   ): NDArray[A, BroadcastRank[RX, RY]] =
-    if operation == KernelOp.Add &&
-        left.layout.isCContiguous &&
-        right.layout.isCContiguous &&
-        Layout.sameShape(left.layout.shape, right.layout.shape)
+    if left.layout.isCContiguous &&
+      right.layout.isCContiguous &&
+      Layout.sameShape(left.layout.shape, right.layout.shape)
     then
-      val shape =
-        Shape.unsafeRanked[BroadcastRank[RX, RY]](left.layout.shape)
       val output = ProbeApi.allocate[A](left.size)(using left.dtype)
-      if left.layout.offset == 0 && right.layout.offset == 0 then
-        ProbeKernels.add(left.storage, right.storage, output, left.size)
+      if operation == KernelOp.Add then
+        if left.layout.offset == 0 && right.layout.offset == 0 then
+          ProbeKernels.add(left.storage, right.storage, output, left.size)
+        else
+          ProbeKernels.addLinear(
+            left.storage,
+            left.layout.offset,
+            right.storage,
+            right.layout.offset,
+            output,
+            left.size
+          )
       else
-        ProbeKernels.addLinear(
-          left.storage,
-          left.layout.offset,
-          right.storage,
-          right.layout.offset,
-          output,
-          left.size
-        )
-      new NDArray(output, Layout.contiguous(shape, left.size), left.dtype)
+        val plan = LoopPlan.linearSameShape(left.layout, right.layout)
+        ElementKernels.binary(operation, left.storage, right.storage, output, plan)
+      new NDArray(
+        output,
+        Layout.contiguous(Shape.retag[BroadcastRank[RX, RY]](left.shape), left.size),
+        left.dtype
+      )
     else
       val plan = LoopPlan.broadcast(left.layout, right.layout)
       val shape =
-        Shape.unsafeRanked[BroadcastRank[RX, RY]](plan.resultShape)
+        Shape.validated[BroadcastRank[RX, RY]](plan.resultShape)
       val output = ProbeApi.allocate[A](plan.size)(using left.dtype)
       ElementKernels.binary(operation, left.storage, right.storage, output, plan)
       new NDArray(output, Layout.contiguous(shape, plan.size), left.dtype)
-
-  def operand[A, R <: AnyRank, B <: A | NDArray[A, ? <: AnyRank]](
-      operation: Byte,
-      left: NDArray[A, R],
-      right: B
-  ): NDArray[A, OperandRank[A, R, B]] =
-    val result =
-      right match
-        case array: NDArray[?, ?] =>
-          binary(
-            operation,
-            left,
-            array.asInstanceOf[NDArray[A, AnyRank]]
-          )
-        case scalar =>
-          KernelApi.scalar(operation, left, scalar.asInstanceOf[A])
-    result.asInstanceOf[NDArray[A, OperandRank[A, R, B]]]
 
   def compare[A, RX <: AnyRank, RY <: AnyRank](
       operation: Byte,
@@ -100,7 +88,7 @@ private[ravel] object KernelApi:
       right: NDArray[A, RY]
   ): NDArray[Boolean, BroadcastRank[RX, RY]] =
     val plan = LoopPlan.broadcast(left.layout, right.layout)
-    val shape = Shape.unsafeRanked[BroadcastRank[RX, RY]](plan.resultShape)
+    val shape = Shape.validated[BroadcastRank[RX, RY]](plan.resultShape)
     val output = ProbeApi.allocate[Boolean](plan.size)(using DType.booleanDType)
     ElementKernels.compare(operation, left.storage, right.storage, output, plan)
     new NDArray(output, Layout.contiguous(shape, plan.size), DType.booleanDType)
@@ -144,7 +132,7 @@ private[ravel] object KernelApi:
     val plan =
       if exact then LoopPlan.exact(left.layout, right.layout)
       else LoopPlan.broadcast(left.layout, right.layout)
-    val shape = Shape.unsafeRanked[BroadcastRank[RX, RY]](plan.resultShape)
+    val shape = Shape.validated[BroadcastRank[RX, RY]](plan.resultShape)
     val output = ProbeApi.allocate[B](plan.size)
     plan.foreachOffset { (leftIndex, rightIndex, outputIndex) =>
       val value = f(

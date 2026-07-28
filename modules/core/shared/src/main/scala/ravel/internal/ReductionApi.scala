@@ -59,7 +59,7 @@ private[ravel] object ReductionApi:
       run: (Storage[A], Storage[A], ReductionPlan) => Unit
   ): NDArray[A, Out] =
     val plan = ReductionPlan(array.layout, axis, keep)
-    val shape = Shape.unsafeRanked[Out](plan.outputShape)
+    val shape = Shape.validated[Out](plan.outputShape)
     val output = ProbeApi.allocate[A](plan.outputSize)(using array.dtype)
     run(array.storage, output, plan)
     new NDArray(output, Layout.contiguous(shape, plan.outputSize), array.dtype)
@@ -71,7 +71,7 @@ private[ravel] object ReductionApi:
       run: (Storage[A], Storage[Int], ReductionPlan) => Unit
   ): NDArray[Int, Out] =
     val plan = ReductionPlan(array.layout, axis, keep)
-    val shape = Shape.unsafeRanked[Out](plan.outputShape)
+    val shape = Shape.validated[Out](plan.outputShape)
     val output = ProbeApi.allocate[Int](plan.outputSize)(using DType.intDType)
     run(array.storage, output, plan)
     new NDArray(output, Layout.contiguous(shape, plan.outputSize), DType.intDType)

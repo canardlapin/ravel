@@ -3,29 +3,17 @@ package ravel
 import ravel.internal.EqualityApi
 import scala.annotation.unused
 
-extension [A, R <: AnyRank](array: NDArray[A, R])(using
+extension [A, R <: AnyRank](array: ReadableArray[A, R])(using
     @unused floating: FloatingDType[A]
 )
   def allClose(
-      other: NDArray[A, ?],
+      other: ReadableArray[A, ?],
       relativeTolerance: Double,
       absoluteTolerance: Double
   ): Boolean =
     EqualityApi.allClose(
-      array,
-      other,
-      relativeTolerance,
-      absoluteTolerance
-    )
-
-  def allClose(
-      other: BorrowedNDArray[A, ?],
-      relativeTolerance: Double,
-      absoluteTolerance: Double
-  ): Boolean =
-    EqualityApi.allClose(
-      array,
-      other.underlying,
+      array.toNDArray,
+      other.toNDArray,
       relativeTolerance,
       absoluteTolerance
     )

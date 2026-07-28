@@ -20,8 +20,7 @@ final class MutableLawsSuite extends FunSuite:
   test("injectivity-preserving mutable views address distinct cells") {
     val mutable = NDArray.tabulate[Int](3, 4)((i, j) => i * 10 + j).mutableCopy
     val view =
-      mutable
-        .transpose
+      mutable.transpose
         .reverse(0)
         .slice(1, Slice(0, 3, 2))
         .newAxis(-1)
@@ -60,13 +59,34 @@ final class MutableLawsSuite extends FunSuite:
     assertEquals(values(frozen), List(1, 2, 3))
   }
 
-  test("assign and addInPlace respect logical layouts") {
+  test("elementsIterator yields values lazily in logical order") {
+    val array = NDArray.fromSeq(Shape(2, 2), Seq(1, 2, 3, 4)).transpose
+    val iterator = array.elementsIterator
+    assertEquals(iterator.next(), 1)
+    assertEquals(iterator.next(), 3)
+    assertEquals(iterator.next(), 2)
+    assertEquals(iterator.next(), 4)
+    assert(!iterator.hasNext)
+  }
+
+  test("sameElements fails fast without materializing both arrays") {
+    val left = NDArray.fromSeq(Shape(4), Seq(1, 2, 3, 4))
+    val right = NDArray.fromSeq(Shape(4), Seq(1, 9, 3, 4))
+    assert(!left.sameElements(right))
+    assert(left.sameElements(left.copy))
+  }
+
+  test("assign and in-place scalar updates mutate without intermediate owned copies") {
     val mutable = NDArray.zeros[Int](2, 3).mutableCopy
     val transposed = mutable.transpose
     transposed.assign(NDArray.fromSeq(Shape(3, 2), Seq(1, 2, 3, 4, 5, 6)))
     assertEquals(values(mutable.freezeCopy()), List(1, 3, 5, 2, 4, 6))
     mutable.addInPlace(10)
     assertEquals(values(mutable.freezeCopy()), List(11, 13, 15, 12, 14, 16))
+    mutable.multiplyInPlace(2)
+    assertEquals(values(mutable.freezeCopy()), List(22, 26, 30, 24, 28, 32))
+    mutable.subtractInPlace(2)
+    assertEquals(values(mutable.freezeCopy()), List(20, 24, 28, 22, 26, 30))
   }
 
   test("ordinary immutable arrays expose no update method") {

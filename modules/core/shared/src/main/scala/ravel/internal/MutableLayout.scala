@@ -2,12 +2,11 @@ package ravel.internal
 
 import ravel.*
 
-/**
- * Provenance wrapper for layouts known to be injective.
- *
- * It has no constructor from arbitrary strides. Instances originate from a
- * canonical owned layout or from transformations that preserve injectivity.
- */
+/** Provenance wrapper for layouts known to be injective.
+  *
+  * It has no constructor from arbitrary strides. Instances originate from a canonical owned layout
+  * or from transformations that preserve injectivity.
+  */
 private[ravel] final class MutableLayout private (
     val underlying: Layout
 )

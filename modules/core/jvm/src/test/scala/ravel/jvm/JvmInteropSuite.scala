@@ -40,6 +40,27 @@ final class JvmInteropSuite extends FunSuite:
     }
   }
 
+  test("borrowed elementsIterator observes live external storage") {
+    val values = Array(1, 2, 3, 4)
+    val borrowed = JvmInterop.unsafeBorrow(values, Shape(2, 2))
+    val iterator = borrowed.elementsIterator
+    assert(iterator.hasNext)
+    values(0) = 99
+    assertEquals(iterator.next(), 99)
+    assertEquals(iterator.next(), 2)
+  }
+
+  test("owned and borrowed arithmetic are symmetric on the JVM") {
+    val owned = NDArray.fromSeq(Shape(2), Seq(1.0, 2.0))
+    val buffer = Array(10.0, 20.0)
+    val borrowed = JvmInterop.unsafeBorrow(buffer, Shape(2))
+    assertEquals(owned.elementsIterator.toList, List(1.0, 2.0))
+    assertEquals((owned + borrowed).elementsIterator.toList, List(11.0, 22.0))
+    assertEquals((borrowed + owned).elementsIterator.toList, List(11.0, 22.0))
+    assertEquals((borrowed.sqrt).elementsIterator.toList, List(math.sqrt(10.0), math.sqrt(20.0)))
+    assertEquals((borrowed > 15.0).elementsIterator.toList, List(false, true))
+  }
+
   test("JVM bit equality distinguishes raw NaN payloads") {
     val nan1 = java.lang.Double.longBitsToDouble(0x7ff8000000000001L)
     val nan2 = java.lang.Double.longBitsToDouble(0x7ff8000000000002L)

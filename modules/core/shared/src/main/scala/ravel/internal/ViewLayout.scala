@@ -39,15 +39,15 @@ private[ravel] object ViewLayout:
   def slice(layout: Layout, axis: Int, slice: Slice, bufferLength: Int): Layout =
     val slicedAxis = layout.normalizedAxis(axis)
     val dimension = layout.shape(slicedAxis)
-    validateSlice(slice, dimension)
-    val length = sliceLength(slice)
+    val normalized = slice.normalize(dimension)
+    val length = sliceLength(normalized)
     val shape = IArray.genericWrapArray(layout.shape).toArray
     val strides = IArray.genericWrapArray(layout.strides).toArray
     shape(slicedAxis) = length
     strides(slicedAxis) = Layout.checkedInt(
       Layout.checkedMultiply(
         layout.strides(slicedAxis).toLong,
-        slice.step.toLong,
+        normalized.step.toLong,
         s"slice stride at axis $slicedAxis"
       ),
       s"slice stride at axis $slicedAxis"
@@ -59,7 +59,7 @@ private[ravel] object ViewLayout:
           Layout.checkedAdd(
             layout.offset.toLong,
             Layout.checkedMultiply(
-              slice.start.toLong,
+              normalized.start.toLong,
               layout.strides(slicedAxis).toLong,
               s"slice offset at axis $slicedAxis"
             ),
@@ -98,15 +98,13 @@ private[ravel] object ViewLayout:
       )
 
   def permute(layout: Layout, order: Seq[Int], bufferLength: Int): Layout =
-    if order.size != layout.rank then
-      throw InvalidAxis(order.size, layout.rank)
+    if order.size != layout.rank then throw InvalidAxis(order.size, layout.rank)
     val normalized = new Array[Int](layout.rank)
     val seen = new Array[Boolean](layout.rank)
     var i = 0
     while i < layout.rank do
       val axis = layout.normalizedAxis(order(i))
-      if seen(axis) then
-        throw InvalidAxis(order(i), layout.rank)
+      if seen(axis) then throw InvalidAxis(order(i), layout.rank)
       normalized(i) = axis
       seen(axis) = true
       i += 1
@@ -175,7 +173,11 @@ private[ravel] object ViewLayout:
       bufferLength: Int
   ): Layout =
     if target.rank < layout.rank then
-      throw BroadcastMismatch(layout.shape.mkString("(", ", ", ")"), target.toString, -target.rank - 1)
+      throw BroadcastMismatch(
+        layout.shape.mkString("(", ", ", ")"),
+        target.toString,
+        -target.rank - 1
+      )
     val strides = new Array[Int](target.rank)
     var targetAxis = target.rank - 1
     var sourceAxis = layout.rank - 1
@@ -184,10 +186,8 @@ private[ravel] object ViewLayout:
       if sourceAxis < 0 then strides(targetAxis) = 0
       else
         val sourceDimension = layout.shape(sourceAxis)
-        if sourceDimension == targetDimension then
-          strides(targetAxis) = layout.strides(sourceAxis)
-        else if sourceDimension == 1 then
-          strides(targetAxis) = 0
+        if sourceDimension == targetDimension then strides(targetAxis) = layout.strides(sourceAxis)
+        else if sourceDimension == 1 then strides(targetAxis) = 0
         else
           throw BroadcastMismatch(
             layout.shape.mkString("(", ", ", ")"),
@@ -213,8 +213,7 @@ private[ravel] object ViewLayout:
         layout.shape.mkString("(", ", ", ")"),
         target.toString
       )
-    if target.size == 0 then
-      return Layout.contiguous(target, bufferLength)
+    if target.size == 0 then return Layout.contiguous(target, bufferLength)
 
     val sourceAxes = Vector.newBuilder[(Int, Int)]
     var axis = 0
@@ -311,35 +310,13 @@ private[ravel] object ViewLayout:
       bufferLength
     )
 
-  private def validateSlice(slice: Slice, dimension: Int): Unit =
-    if slice.step > 0 then
-      if slice.start < 0 || slice.start > dimension then
-        throw InvalidSlice(
-          s"positive-step start ${slice.start} is outside [0, $dimension]"
-        )
-      if slice.stopExclusive < 0 || slice.stopExclusive > dimension then
-        throw InvalidSlice(
-          s"positive-step stop ${slice.stopExclusive} is outside [0, $dimension]"
-        )
-    else
-      if slice.start < 0 || slice.start >= dimension then
-        throw InvalidSlice(
-          s"negative-step start ${slice.start} is outside [0, $dimension)"
-        )
-      if slice.stopExclusive < -1 || slice.stopExclusive >= dimension then
-        throw InvalidSlice(
-          s"negative-step stop ${slice.stopExclusive} is outside [-1, $dimension)"
-        )
-
   private def sliceLength(slice: Slice): Int =
     val length =
       if slice.step > 0 then
         if slice.start >= slice.stopExclusive then 0L
-        else
-          1L + (slice.stopExclusive.toLong - 1L - slice.start.toLong) / slice.step.toLong
+        else 1L + (slice.stopExclusive.toLong - 1L - slice.start.toLong) / slice.step.toLong
       else if slice.start <= slice.stopExclusive then 0L
-      else
-        1L + (slice.start.toLong - 1L - slice.stopExclusive.toLong) / -slice.step.toLong
+      else 1L + (slice.start.toLong - 1L - slice.stopExclusive.toLong) / -slice.step.toLong
     Layout.checkedInt(length, "slice length")
 
   private def normalizeInsertionAxis(axis: Int, rank: Int): Int =

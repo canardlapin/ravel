@@ -38,7 +38,10 @@ private[ravel] object ElementKernels:
         unaryFloat(operation, x, z, plan)
       case (x: DoubleStorage, z: DoubleStorage) =>
         unaryDouble(operation, x, z, plan)
-      case _ => throw new UnsupportedOperationException("unary arithmetic requires Int, Long, Float, or Double")
+      case _ =>
+        throw new UnsupportedOperationException(
+          "unary arithmetic requires Int, Long, Float, or Double"
+        )
 
   def scalar[A](
       operation: Byte,
@@ -98,12 +101,12 @@ private[ravel] object ElementKernels:
       plan: LoopPlan
   ): Unit =
     operation match
-      case KernelOp.Add      => binaryIntAdd(x, y, z, plan)
+      case KernelOp.Add => binaryIntAdd(x, y, z, plan)
       case KernelOp.Subtract => binaryIntSubtract(x, y, z, plan)
       case KernelOp.Multiply => binaryIntMultiply(x, y, z, plan)
-      case KernelOp.Divide   => binaryIntDivide(x, y, z, plan)
-      case KernelOp.Minimum  => binaryIntMinimum(x, y, z, plan)
-      case KernelOp.Maximum  => binaryIntMaximum(x, y, z, plan)
+      case KernelOp.Divide => binaryIntDivide(x, y, z, plan)
+      case KernelOp.Minimum => binaryIntMinimum(x, y, z, plan)
+      case KernelOp.Maximum => binaryIntMaximum(x, y, z, plan)
 
   private def binaryLong(
       operation: Byte,
@@ -113,12 +116,12 @@ private[ravel] object ElementKernels:
       plan: LoopPlan
   ): Unit =
     operation match
-      case KernelOp.Add      => binaryLongAdd(x, y, z, plan)
+      case KernelOp.Add => binaryLongAdd(x, y, z, plan)
       case KernelOp.Subtract => binaryLongSubtract(x, y, z, plan)
       case KernelOp.Multiply => binaryLongMultiply(x, y, z, plan)
-      case KernelOp.Divide   => binaryLongDivide(x, y, z, plan)
-      case KernelOp.Minimum  => binaryLongMinimum(x, y, z, plan)
-      case KernelOp.Maximum  => binaryLongMaximum(x, y, z, plan)
+      case KernelOp.Divide => binaryLongDivide(x, y, z, plan)
+      case KernelOp.Minimum => binaryLongMinimum(x, y, z, plan)
+      case KernelOp.Maximum => binaryLongMaximum(x, y, z, plan)
 
   private def binaryFloat(
       operation: Byte,
@@ -128,12 +131,12 @@ private[ravel] object ElementKernels:
       plan: LoopPlan
   ): Unit =
     operation match
-      case KernelOp.Add      => binaryFloatAdd(x, y, z, plan)
+      case KernelOp.Add => binaryFloatAdd(x, y, z, plan)
       case KernelOp.Subtract => binaryFloatSubtract(x, y, z, plan)
       case KernelOp.Multiply => binaryFloatMultiply(x, y, z, plan)
-      case KernelOp.Divide   => binaryFloatDivide(x, y, z, plan)
-      case KernelOp.Minimum  => binaryFloatMinimum(x, y, z, plan)
-      case KernelOp.Maximum  => binaryFloatMaximum(x, y, z, plan)
+      case KernelOp.Divide => binaryFloatDivide(x, y, z, plan)
+      case KernelOp.Minimum => binaryFloatMinimum(x, y, z, plan)
+      case KernelOp.Maximum => binaryFloatMaximum(x, y, z, plan)
 
   private def binaryDouble(
       operation: Byte,
@@ -143,12 +146,12 @@ private[ravel] object ElementKernels:
       plan: LoopPlan
   ): Unit =
     operation match
-      case KernelOp.Add      => binaryDoubleAdd(x, y, z, plan)
+      case KernelOp.Add => binaryDoubleAdd(x, y, z, plan)
       case KernelOp.Subtract => binaryDoubleSubtract(x, y, z, plan)
       case KernelOp.Multiply => binaryDoubleMultiply(x, y, z, plan)
-      case KernelOp.Divide   => binaryDoubleDivide(x, y, z, plan)
-      case KernelOp.Minimum  => binaryDoubleMinimum(x, y, z, plan)
-      case KernelOp.Maximum  => binaryDoubleMaximum(x, y, z, plan)
+      case KernelOp.Divide => binaryDoubleDivide(x, y, z, plan)
+      case KernelOp.Minimum => binaryDoubleMinimum(x, y, z, plan)
+      case KernelOp.Maximum => binaryDoubleMaximum(x, y, z, plan)
 
   private def binaryByteMinimum(
       x: ByteStorage,
@@ -156,9 +159,7 @@ private[ravel] object ElementKernels:
       z: ByteStorage,
       plan: LoopPlan
   ): Unit =
-    binaryLoop(plan, x.raw.apply, y.raw.apply, z.raw.update)((a, b) =>
-      math.min(a, b).toByte
-    )
+    binaryLoop(plan, x.raw.apply, y.raw.apply, z.raw.update)((a, b) => math.min(a, b).toByte)
 
   private def binaryByteMaximum(
       x: ByteStorage,
@@ -166,9 +167,7 @@ private[ravel] object ElementKernels:
       z: ByteStorage,
       plan: LoopPlan
   ): Unit =
-    binaryLoop(plan, x.raw.apply, y.raw.apply, z.raw.update)((a, b) =>
-      math.max(a, b).toByte
-    )
+    binaryLoop(plan, x.raw.apply, y.raw.apply, z.raw.update)((a, b) => math.max(a, b).toByte)
 
   private def binaryShortMinimum(
       x: ShortStorage,
@@ -176,9 +175,7 @@ private[ravel] object ElementKernels:
       z: ShortStorage,
       plan: LoopPlan
   ): Unit =
-    binaryLoop(plan, x.raw.apply, y.raw.apply, z.raw.update)((a, b) =>
-      math.min(a, b).toShort
-    )
+    binaryLoop(plan, x.raw.apply, y.raw.apply, z.raw.update)((a, b) => math.min(a, b).toShort)
 
   private def binaryShortMaximum(
       x: ShortStorage,
@@ -186,9 +183,7 @@ private[ravel] object ElementKernels:
       z: ShortStorage,
       plan: LoopPlan
   ): Unit =
-    binaryLoop(plan, x.raw.apply, y.raw.apply, z.raw.update)((a, b) =>
-      math.max(a, b).toShort
-    )
+    binaryLoop(plan, x.raw.apply, y.raw.apply, z.raw.update)((a, b) => math.max(a, b).toShort)
 
   private def binaryIntAdd(
       x: IntStorage,
@@ -298,10 +293,7 @@ private[ravel] object ElementKernels:
   ): Unit =
     if plan.kind == LoopKind.LinearContiguous then addLinear(plan, x, y, z)
     else if plan.rank <= 1 then addStrided(plan, x, y, z)
-    else
-      binaryLoop(plan, x.raw.apply, y.raw.apply, z.raw.update)((a, b) =>
-        (a + b).toFloat
-      )
+    else binaryLoop(plan, x.raw.apply, y.raw.apply, z.raw.update)((a, b) => (a + b).toFloat)
 
   private def binaryFloatSubtract(
       x: FloatStorage,
@@ -309,9 +301,7 @@ private[ravel] object ElementKernels:
       z: FloatStorage,
       plan: LoopPlan
   ): Unit =
-    binaryLoop(plan, x.raw.apply, y.raw.apply, z.raw.update)((a, b) =>
-      (a - b).toFloat
-    )
+    binaryLoop(plan, x.raw.apply, y.raw.apply, z.raw.update)((a, b) => (a - b).toFloat)
 
   private def binaryFloatMultiply(
       x: FloatStorage,
@@ -319,9 +309,7 @@ private[ravel] object ElementKernels:
       z: FloatStorage,
       plan: LoopPlan
   ): Unit =
-    binaryLoop(plan, x.raw.apply, y.raw.apply, z.raw.update)((a, b) =>
-      (a * b).toFloat
-    )
+    binaryLoop(plan, x.raw.apply, y.raw.apply, z.raw.update)((a, b) => (a * b).toFloat)
 
   private def binaryFloatDivide(
       x: FloatStorage,
@@ -329,9 +317,7 @@ private[ravel] object ElementKernels:
       z: FloatStorage,
       plan: LoopPlan
   ): Unit =
-    binaryLoop(plan, x.raw.apply, y.raw.apply, z.raw.update)((a, b) =>
-      (a / b).toFloat
-    )
+    binaryLoop(plan, x.raw.apply, y.raw.apply, z.raw.update)((a, b) => (a / b).toFloat)
 
   private def binaryFloatMinimum(
       x: FloatStorage,
@@ -339,9 +325,7 @@ private[ravel] object ElementKernels:
       z: FloatStorage,
       plan: LoopPlan
   ): Unit =
-    binaryLoop(plan, x.raw.apply, y.raw.apply, z.raw.update)((a, b) =>
-      math.min(a, b).toFloat
-    )
+    binaryLoop(plan, x.raw.apply, y.raw.apply, z.raw.update)((a, b) => math.min(a, b).toFloat)
 
   private def binaryFloatMaximum(
       x: FloatStorage,
@@ -349,9 +333,7 @@ private[ravel] object ElementKernels:
       z: FloatStorage,
       plan: LoopPlan
   ): Unit =
-    binaryLoop(plan, x.raw.apply, y.raw.apply, z.raw.update)((a, b) =>
-      math.max(a, b).toFloat
-    )
+    binaryLoop(plan, x.raw.apply, y.raw.apply, z.raw.update)((a, b) => math.max(a, b).toFloat)
 
   private def binaryDoubleAdd(
       x: DoubleStorage,
@@ -410,9 +392,9 @@ private[ravel] object ElementKernels:
       plan: LoopPlan
   ): Unit =
     operation match
-      case KernelOp.Negate   => unaryLoop(plan, x.raw.apply, z.raw.update)(a => -a)
+      case KernelOp.Negate => unaryLoop(plan, x.raw.apply, z.raw.update)(a => -a)
       case KernelOp.Absolute => unaryLoop(plan, x.raw.apply, z.raw.update)(math.abs)
-      case _                 => unsupportedUnary("Int")
+      case _ => unsupportedUnary("Int")
 
   private def unaryLong(
       operation: Byte,
@@ -421,9 +403,9 @@ private[ravel] object ElementKernels:
       plan: LoopPlan
   ): Unit =
     operation match
-      case KernelOp.Negate   => unaryLoop(plan, x.raw.apply, z.raw.update)(a => -a)
+      case KernelOp.Negate => unaryLoop(plan, x.raw.apply, z.raw.update)(a => -a)
       case KernelOp.Absolute => unaryLoop(plan, x.raw.apply, z.raw.update)(math.abs)
-      case _                 => unsupportedUnary("Long")
+      case _ => unsupportedUnary("Long")
 
   private def unaryFloat(
       operation: Byte,
@@ -432,16 +414,16 @@ private[ravel] object ElementKernels:
       plan: LoopPlan
   ): Unit =
     operation match
-      case KernelOp.Negate   => unaryFloatNegate(x, z, plan)
+      case KernelOp.Negate => unaryFloatNegate(x, z, plan)
       case KernelOp.Absolute => unaryFloatAbsolute(x, z, plan)
-      case KernelOp.Sqrt     => unaryFloatSqrt(x, z, plan)
-      case KernelOp.Exp      => unaryFloatExp(x, z, plan)
-      case KernelOp.Log      => unaryFloatLog(x, z, plan)
-      case KernelOp.Sin      => unaryFloatSin(x, z, plan)
-      case KernelOp.Cos      => unaryFloatCos(x, z, plan)
-      case KernelOp.Tan      => unaryFloatTan(x, z, plan)
-      case KernelOp.Floor    => unaryFloatFloor(x, z, plan)
-      case KernelOp.Ceil     => unaryFloatCeil(x, z, plan)
+      case KernelOp.Sqrt => unaryFloatSqrt(x, z, plan)
+      case KernelOp.Exp => unaryFloatExp(x, z, plan)
+      case KernelOp.Log => unaryFloatLog(x, z, plan)
+      case KernelOp.Sin => unaryFloatSin(x, z, plan)
+      case KernelOp.Cos => unaryFloatCos(x, z, plan)
+      case KernelOp.Tan => unaryFloatTan(x, z, plan)
+      case KernelOp.Floor => unaryFloatFloor(x, z, plan)
+      case KernelOp.Ceil => unaryFloatCeil(x, z, plan)
 
   private def unaryDouble(
       operation: Byte,
@@ -450,16 +432,16 @@ private[ravel] object ElementKernels:
       plan: LoopPlan
   ): Unit =
     operation match
-      case KernelOp.Negate   => unaryDoubleNegate(x, z, plan)
+      case KernelOp.Negate => unaryDoubleNegate(x, z, plan)
       case KernelOp.Absolute => unaryDoubleAbsolute(x, z, plan)
-      case KernelOp.Sqrt     => unaryDoubleSqrt(x, z, plan)
-      case KernelOp.Exp      => unaryDoubleExp(x, z, plan)
-      case KernelOp.Log      => unaryDoubleLog(x, z, plan)
-      case KernelOp.Sin      => unaryDoubleSin(x, z, plan)
-      case KernelOp.Cos      => unaryDoubleCos(x, z, plan)
-      case KernelOp.Tan      => unaryDoubleTan(x, z, plan)
-      case KernelOp.Floor    => unaryDoubleFloor(x, z, plan)
-      case KernelOp.Ceil     => unaryDoubleCeil(x, z, plan)
+      case KernelOp.Sqrt => unaryDoubleSqrt(x, z, plan)
+      case KernelOp.Exp => unaryDoubleExp(x, z, plan)
+      case KernelOp.Log => unaryDoubleLog(x, z, plan)
+      case KernelOp.Sin => unaryDoubleSin(x, z, plan)
+      case KernelOp.Cos => unaryDoubleCos(x, z, plan)
+      case KernelOp.Tan => unaryDoubleTan(x, z, plan)
+      case KernelOp.Floor => unaryDoubleFloor(x, z, plan)
+      case KernelOp.Ceil => unaryDoubleCeil(x, z, plan)
 
   private def unaryFloatNegate(
       x: FloatStorage,
@@ -633,12 +615,12 @@ private[ravel] object ElementKernels:
       plan: LoopPlan
   ): Unit =
     operation match
-      case KernelOp.Add      => scalarIntAdd(x, value, z, plan)
+      case KernelOp.Add => scalarIntAdd(x, value, z, plan)
       case KernelOp.Subtract => scalarIntSubtract(x, value, z, plan)
       case KernelOp.Multiply => scalarIntMultiply(x, value, z, plan)
-      case KernelOp.Divide   => scalarIntDivide(x, value, z, plan)
-      case KernelOp.Minimum  => scalarIntMinimum(x, value, z, plan)
-      case KernelOp.Maximum  => scalarIntMaximum(x, value, z, plan)
+      case KernelOp.Divide => scalarIntDivide(x, value, z, plan)
+      case KernelOp.Minimum => scalarIntMinimum(x, value, z, plan)
+      case KernelOp.Maximum => scalarIntMaximum(x, value, z, plan)
 
   private def scalarLong(
       operation: Byte,
@@ -648,12 +630,12 @@ private[ravel] object ElementKernels:
       plan: LoopPlan
   ): Unit =
     operation match
-      case KernelOp.Add      => scalarLongAdd(x, value, z, plan)
+      case KernelOp.Add => scalarLongAdd(x, value, z, plan)
       case KernelOp.Subtract => scalarLongSubtract(x, value, z, plan)
       case KernelOp.Multiply => scalarLongMultiply(x, value, z, plan)
-      case KernelOp.Divide   => scalarLongDivide(x, value, z, plan)
-      case KernelOp.Minimum  => scalarLongMinimum(x, value, z, plan)
-      case KernelOp.Maximum  => scalarLongMaximum(x, value, z, plan)
+      case KernelOp.Divide => scalarLongDivide(x, value, z, plan)
+      case KernelOp.Minimum => scalarLongMinimum(x, value, z, plan)
+      case KernelOp.Maximum => scalarLongMaximum(x, value, z, plan)
 
   private def scalarFloat(
       operation: Byte,
@@ -663,12 +645,12 @@ private[ravel] object ElementKernels:
       plan: LoopPlan
   ): Unit =
     operation match
-      case KernelOp.Add      => scalarFloatAdd(x, value, z, plan)
+      case KernelOp.Add => scalarFloatAdd(x, value, z, plan)
       case KernelOp.Subtract => scalarFloatSubtract(x, value, z, plan)
       case KernelOp.Multiply => scalarFloatMultiply(x, value, z, plan)
-      case KernelOp.Divide   => scalarFloatDivide(x, value, z, plan)
-      case KernelOp.Minimum  => scalarFloatMinimum(x, value, z, plan)
-      case KernelOp.Maximum  => scalarFloatMaximum(x, value, z, plan)
+      case KernelOp.Divide => scalarFloatDivide(x, value, z, plan)
+      case KernelOp.Minimum => scalarFloatMinimum(x, value, z, plan)
+      case KernelOp.Maximum => scalarFloatMaximum(x, value, z, plan)
 
   private def scalarDouble(
       operation: Byte,
@@ -678,12 +660,12 @@ private[ravel] object ElementKernels:
       plan: LoopPlan
   ): Unit =
     operation match
-      case KernelOp.Add      => scalarDoubleAdd(x, value, z, plan)
+      case KernelOp.Add => scalarDoubleAdd(x, value, z, plan)
       case KernelOp.Subtract => scalarDoubleSubtract(x, value, z, plan)
       case KernelOp.Multiply => scalarDoubleMultiply(x, value, z, plan)
-      case KernelOp.Divide   => scalarDoubleDivide(x, value, z, plan)
-      case KernelOp.Minimum  => scalarDoubleMinimum(x, value, z, plan)
-      case KernelOp.Maximum  => scalarDoubleMaximum(x, value, z, plan)
+      case KernelOp.Divide => scalarDoubleDivide(x, value, z, plan)
+      case KernelOp.Minimum => scalarDoubleMinimum(x, value, z, plan)
+      case KernelOp.Maximum => scalarDoubleMaximum(x, value, z, plan)
 
   private def scalarByteMinimum(
       x: ByteStorage,
@@ -738,10 +720,20 @@ private[ravel] object ElementKernels:
   private def scalarLongAdd(x: LongStorage, value: Long, z: LongStorage, plan: LoopPlan): Unit =
     unaryLoop(plan, x.raw.apply, z.raw.update)(_ + value)
 
-  private def scalarLongSubtract(x: LongStorage, value: Long, z: LongStorage, plan: LoopPlan): Unit =
+  private def scalarLongSubtract(
+      x: LongStorage,
+      value: Long,
+      z: LongStorage,
+      plan: LoopPlan
+  ): Unit =
     unaryLoop(plan, x.raw.apply, z.raw.update)(_ - value)
 
-  private def scalarLongMultiply(x: LongStorage, value: Long, z: LongStorage, plan: LoopPlan): Unit =
+  private def scalarLongMultiply(
+      x: LongStorage,
+      value: Long,
+      z: LongStorage,
+      plan: LoopPlan
+  ): Unit =
     unaryLoop(plan, x.raw.apply, z.raw.update)(_ * value)
 
   private def scalarLongDivide(x: LongStorage, value: Long, z: LongStorage, plan: LoopPlan): Unit =
@@ -756,37 +748,92 @@ private[ravel] object ElementKernels:
   private def scalarFloatAdd(x: FloatStorage, value: Float, z: FloatStorage, plan: LoopPlan): Unit =
     unaryLoop(plan, x.raw.apply, z.raw.update)(a => (a + value).toFloat)
 
-  private def scalarFloatSubtract(x: FloatStorage, value: Float, z: FloatStorage, plan: LoopPlan): Unit =
+  private def scalarFloatSubtract(
+      x: FloatStorage,
+      value: Float,
+      z: FloatStorage,
+      plan: LoopPlan
+  ): Unit =
     unaryLoop(plan, x.raw.apply, z.raw.update)(a => (a - value).toFloat)
 
-  private def scalarFloatMultiply(x: FloatStorage, value: Float, z: FloatStorage, plan: LoopPlan): Unit =
+  private def scalarFloatMultiply(
+      x: FloatStorage,
+      value: Float,
+      z: FloatStorage,
+      plan: LoopPlan
+  ): Unit =
     unaryLoop(plan, x.raw.apply, z.raw.update)(a => (a * value).toFloat)
 
-  private def scalarFloatDivide(x: FloatStorage, value: Float, z: FloatStorage, plan: LoopPlan): Unit =
+  private def scalarFloatDivide(
+      x: FloatStorage,
+      value: Float,
+      z: FloatStorage,
+      plan: LoopPlan
+  ): Unit =
     unaryLoop(plan, x.raw.apply, z.raw.update)(a => (a / value).toFloat)
 
-  private def scalarFloatMinimum(x: FloatStorage, value: Float, z: FloatStorage, plan: LoopPlan): Unit =
+  private def scalarFloatMinimum(
+      x: FloatStorage,
+      value: Float,
+      z: FloatStorage,
+      plan: LoopPlan
+  ): Unit =
     unaryLoop(plan, x.raw.apply, z.raw.update)(a => math.min(a, value).toFloat)
 
-  private def scalarFloatMaximum(x: FloatStorage, value: Float, z: FloatStorage, plan: LoopPlan): Unit =
+  private def scalarFloatMaximum(
+      x: FloatStorage,
+      value: Float,
+      z: FloatStorage,
+      plan: LoopPlan
+  ): Unit =
     unaryLoop(plan, x.raw.apply, z.raw.update)(a => math.max(a, value).toFloat)
 
-  private def scalarDoubleAdd(x: DoubleStorage, value: Double, z: DoubleStorage, plan: LoopPlan): Unit =
+  private def scalarDoubleAdd(
+      x: DoubleStorage,
+      value: Double,
+      z: DoubleStorage,
+      plan: LoopPlan
+  ): Unit =
     unaryLoop(plan, x.raw.apply, z.raw.update)(_ + value)
 
-  private def scalarDoubleSubtract(x: DoubleStorage, value: Double, z: DoubleStorage, plan: LoopPlan): Unit =
+  private def scalarDoubleSubtract(
+      x: DoubleStorage,
+      value: Double,
+      z: DoubleStorage,
+      plan: LoopPlan
+  ): Unit =
     unaryLoop(plan, x.raw.apply, z.raw.update)(_ - value)
 
-  private def scalarDoubleMultiply(x: DoubleStorage, value: Double, z: DoubleStorage, plan: LoopPlan): Unit =
+  private def scalarDoubleMultiply(
+      x: DoubleStorage,
+      value: Double,
+      z: DoubleStorage,
+      plan: LoopPlan
+  ): Unit =
     unaryLoop(plan, x.raw.apply, z.raw.update)(_ * value)
 
-  private def scalarDoubleDivide(x: DoubleStorage, value: Double, z: DoubleStorage, plan: LoopPlan): Unit =
+  private def scalarDoubleDivide(
+      x: DoubleStorage,
+      value: Double,
+      z: DoubleStorage,
+      plan: LoopPlan
+  ): Unit =
     unaryLoop(plan, x.raw.apply, z.raw.update)(_ / value)
 
-  private def scalarDoubleMinimum(x: DoubleStorage, value: Double, z: DoubleStorage, plan: LoopPlan): Unit =
+  private def scalarDoubleMinimum(
+      x: DoubleStorage,
+      value: Double,
+      z: DoubleStorage,
+      plan: LoopPlan
+  ): Unit =
     unaryLoop(plan, x.raw.apply, z.raw.update)(math.min(_, value))
 
-  private def scalarDoubleMaximum(x: DoubleStorage, value: Double, z: DoubleStorage, plan: LoopPlan): Unit =
+  private def scalarDoubleMaximum(
+      x: DoubleStorage,
+      value: Double,
+      z: DoubleStorage,
+      plan: LoopPlan
+  ): Unit =
     unaryLoop(plan, x.raw.apply, z.raw.update)(math.max(_, value))
 
   def clip[A](
@@ -818,9 +865,7 @@ private[ravel] object ElementKernels:
       z: ByteStorage,
       plan: LoopPlan
   ): Unit =
-    unaryLoop(plan, x.raw.apply, z.raw.update)(a =>
-      math.min(math.max(a, lower), upper).toByte
-    )
+    unaryLoop(plan, x.raw.apply, z.raw.update)(a => math.min(math.max(a, lower), upper).toByte)
 
   private def clipShort(
       x: ShortStorage,
@@ -829,9 +874,7 @@ private[ravel] object ElementKernels:
       z: ShortStorage,
       plan: LoopPlan
   ): Unit =
-    unaryLoop(plan, x.raw.apply, z.raw.update)(a =>
-      math.min(math.max(a, lower), upper).toShort
-    )
+    unaryLoop(plan, x.raw.apply, z.raw.update)(a => math.min(math.max(a, lower), upper).toShort)
 
   private def clipInt(
       x: IntStorage,
@@ -840,9 +883,7 @@ private[ravel] object ElementKernels:
       z: IntStorage,
       plan: LoopPlan
   ): Unit =
-    unaryLoop(plan, x.raw.apply, z.raw.update)(a =>
-      math.min(math.max(a, lower), upper)
-    )
+    unaryLoop(plan, x.raw.apply, z.raw.update)(a => math.min(math.max(a, lower), upper))
 
   private def clipLong(
       x: LongStorage,
@@ -851,9 +892,7 @@ private[ravel] object ElementKernels:
       z: LongStorage,
       plan: LoopPlan
   ): Unit =
-    unaryLoop(plan, x.raw.apply, z.raw.update)(a =>
-      math.min(math.max(a, lower), upper)
-    )
+    unaryLoop(plan, x.raw.apply, z.raw.update)(a => math.min(math.max(a, lower), upper))
 
   private def clipFloat(
       x: FloatStorage,
@@ -862,9 +901,7 @@ private[ravel] object ElementKernels:
       z: FloatStorage,
       plan: LoopPlan
   ): Unit =
-    unaryLoop(plan, x.raw.apply, z.raw.update)(a =>
-      math.min(math.max(a, lower), upper).toFloat
-    )
+    unaryLoop(plan, x.raw.apply, z.raw.update)(a => math.min(math.max(a, lower), upper).toFloat)
 
   private def clipDouble(
       x: DoubleStorage,
@@ -873,9 +910,7 @@ private[ravel] object ElementKernels:
       z: DoubleStorage,
       plan: LoopPlan
   ): Unit =
-    unaryLoop(plan, x.raw.apply, z.raw.update)(a =>
-      math.min(math.max(a, lower), upper)
-    )
+    unaryLoop(plan, x.raw.apply, z.raw.update)(a => math.min(math.max(a, lower), upper))
 
   def compare[A](
       operation: Byte,
@@ -910,7 +945,7 @@ private[ravel] object ElementKernels:
       y: BooleanStorage
   ): Unit =
     operation match
-      case KernelOp.Equal    => compareBooleanEqual(plan, output, x, y)
+      case KernelOp.Equal => compareBooleanEqual(plan, output, x, y)
       case KernelOp.NotEqual => compareBooleanNotEqual(plan, output, x, y)
       case _ => unsupportedComparison("Boolean")
 
@@ -922,9 +957,9 @@ private[ravel] object ElementKernels:
       y: ByteStorage
   ): Unit =
     operation match
-      case KernelOp.Equal     => compareByteEqual(plan, output, x, y)
-      case KernelOp.NotEqual  => compareByteNotEqual(plan, output, x, y)
-      case KernelOp.Less      => compareByteLess(plan, output, x, y)
+      case KernelOp.Equal => compareByteEqual(plan, output, x, y)
+      case KernelOp.NotEqual => compareByteNotEqual(plan, output, x, y)
+      case KernelOp.Less => compareByteLess(plan, output, x, y)
       case KernelOp.LessEqual => compareByteLessEqual(plan, output, x, y)
 
   private def compareShort(
@@ -935,9 +970,9 @@ private[ravel] object ElementKernels:
       y: ShortStorage
   ): Unit =
     operation match
-      case KernelOp.Equal     => compareShortEqual(plan, output, x, y)
-      case KernelOp.NotEqual  => compareShortNotEqual(plan, output, x, y)
-      case KernelOp.Less      => compareShortLess(plan, output, x, y)
+      case KernelOp.Equal => compareShortEqual(plan, output, x, y)
+      case KernelOp.NotEqual => compareShortNotEqual(plan, output, x, y)
+      case KernelOp.Less => compareShortLess(plan, output, x, y)
       case KernelOp.LessEqual => compareShortLessEqual(plan, output, x, y)
 
   private def compareInt(
@@ -948,9 +983,9 @@ private[ravel] object ElementKernels:
       y: IntStorage
   ): Unit =
     operation match
-      case KernelOp.Equal     => compareIntEqual(plan, output, x, y)
-      case KernelOp.NotEqual  => compareIntNotEqual(plan, output, x, y)
-      case KernelOp.Less      => compareIntLess(plan, output, x, y)
+      case KernelOp.Equal => compareIntEqual(plan, output, x, y)
+      case KernelOp.NotEqual => compareIntNotEqual(plan, output, x, y)
+      case KernelOp.Less => compareIntLess(plan, output, x, y)
       case KernelOp.LessEqual => compareIntLessEqual(plan, output, x, y)
 
   private def compareLong(
@@ -961,9 +996,9 @@ private[ravel] object ElementKernels:
       y: LongStorage
   ): Unit =
     operation match
-      case KernelOp.Equal     => compareLongEqual(plan, output, x, y)
-      case KernelOp.NotEqual  => compareLongNotEqual(plan, output, x, y)
-      case KernelOp.Less      => compareLongLess(plan, output, x, y)
+      case KernelOp.Equal => compareLongEqual(plan, output, x, y)
+      case KernelOp.NotEqual => compareLongNotEqual(plan, output, x, y)
+      case KernelOp.Less => compareLongLess(plan, output, x, y)
       case KernelOp.LessEqual => compareLongLessEqual(plan, output, x, y)
 
   private def compareFloat(
@@ -974,9 +1009,9 @@ private[ravel] object ElementKernels:
       y: FloatStorage
   ): Unit =
     operation match
-      case KernelOp.Equal     => compareFloatEqual(plan, output, x, y)
-      case KernelOp.NotEqual  => compareFloatNotEqual(plan, output, x, y)
-      case KernelOp.Less      => compareFloatLess(plan, output, x, y)
+      case KernelOp.Equal => compareFloatEqual(plan, output, x, y)
+      case KernelOp.NotEqual => compareFloatNotEqual(plan, output, x, y)
+      case KernelOp.Less => compareFloatLess(plan, output, x, y)
       case KernelOp.LessEqual => compareFloatLessEqual(plan, output, x, y)
 
   private def compareDouble(
@@ -987,87 +1022,217 @@ private[ravel] object ElementKernels:
       y: DoubleStorage
   ): Unit =
     operation match
-      case KernelOp.Equal     => compareDoubleEqual(plan, output, x, y)
-      case KernelOp.NotEqual  => compareDoubleNotEqual(plan, output, x, y)
-      case KernelOp.Less      => compareDoubleLess(plan, output, x, y)
+      case KernelOp.Equal => compareDoubleEqual(plan, output, x, y)
+      case KernelOp.NotEqual => compareDoubleNotEqual(plan, output, x, y)
+      case KernelOp.Less => compareDoubleLess(plan, output, x, y)
       case KernelOp.LessEqual => compareDoubleLessEqual(plan, output, x, y)
 
-  private def compareBooleanEqual(plan: LoopPlan, output: BooleanStorage, x: BooleanStorage, y: BooleanStorage): Unit =
+  private def compareBooleanEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: BooleanStorage,
+      y: BooleanStorage
+  ): Unit =
     compareLoop(plan, output, i => x.raw(i), i => y.raw(i))(_ == _)
 
-  private def compareBooleanNotEqual(plan: LoopPlan, output: BooleanStorage, x: BooleanStorage, y: BooleanStorage): Unit =
+  private def compareBooleanNotEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: BooleanStorage,
+      y: BooleanStorage
+  ): Unit =
     compareLoop(plan, output, i => x.raw(i), i => y.raw(i))(_ != _)
 
-  private def compareByteEqual(plan: LoopPlan, output: BooleanStorage, x: ByteStorage, y: ByteStorage): Unit =
+  private def compareByteEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: ByteStorage,
+      y: ByteStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ == _)
 
-  private def compareByteNotEqual(plan: LoopPlan, output: BooleanStorage, x: ByteStorage, y: ByteStorage): Unit =
+  private def compareByteNotEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: ByteStorage,
+      y: ByteStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ != _)
 
-  private def compareByteLess(plan: LoopPlan, output: BooleanStorage, x: ByteStorage, y: ByteStorage): Unit =
+  private def compareByteLess(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: ByteStorage,
+      y: ByteStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ < _)
 
-  private def compareByteLessEqual(plan: LoopPlan, output: BooleanStorage, x: ByteStorage, y: ByteStorage): Unit =
+  private def compareByteLessEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: ByteStorage,
+      y: ByteStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ <= _)
 
-  private def compareShortEqual(plan: LoopPlan, output: BooleanStorage, x: ShortStorage, y: ShortStorage): Unit =
+  private def compareShortEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: ShortStorage,
+      y: ShortStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ == _)
 
-  private def compareShortNotEqual(plan: LoopPlan, output: BooleanStorage, x: ShortStorage, y: ShortStorage): Unit =
+  private def compareShortNotEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: ShortStorage,
+      y: ShortStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ != _)
 
-  private def compareShortLess(plan: LoopPlan, output: BooleanStorage, x: ShortStorage, y: ShortStorage): Unit =
+  private def compareShortLess(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: ShortStorage,
+      y: ShortStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ < _)
 
-  private def compareShortLessEqual(plan: LoopPlan, output: BooleanStorage, x: ShortStorage, y: ShortStorage): Unit =
+  private def compareShortLessEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: ShortStorage,
+      y: ShortStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ <= _)
 
-  private def compareIntEqual(plan: LoopPlan, output: BooleanStorage, x: IntStorage, y: IntStorage): Unit =
+  private def compareIntEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: IntStorage,
+      y: IntStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ == _)
 
-  private def compareIntNotEqual(plan: LoopPlan, output: BooleanStorage, x: IntStorage, y: IntStorage): Unit =
+  private def compareIntNotEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: IntStorage,
+      y: IntStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ != _)
 
-  private def compareIntLess(plan: LoopPlan, output: BooleanStorage, x: IntStorage, y: IntStorage): Unit =
+  private def compareIntLess(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: IntStorage,
+      y: IntStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ < _)
 
-  private def compareIntLessEqual(plan: LoopPlan, output: BooleanStorage, x: IntStorage, y: IntStorage): Unit =
+  private def compareIntLessEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: IntStorage,
+      y: IntStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ <= _)
 
-  private def compareLongEqual(plan: LoopPlan, output: BooleanStorage, x: LongStorage, y: LongStorage): Unit =
+  private def compareLongEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: LongStorage,
+      y: LongStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ == _)
 
-  private def compareLongNotEqual(plan: LoopPlan, output: BooleanStorage, x: LongStorage, y: LongStorage): Unit =
+  private def compareLongNotEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: LongStorage,
+      y: LongStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ != _)
 
-  private def compareLongLess(plan: LoopPlan, output: BooleanStorage, x: LongStorage, y: LongStorage): Unit =
+  private def compareLongLess(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: LongStorage,
+      y: LongStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ < _)
 
-  private def compareLongLessEqual(plan: LoopPlan, output: BooleanStorage, x: LongStorage, y: LongStorage): Unit =
+  private def compareLongLessEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: LongStorage,
+      y: LongStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ <= _)
 
-  private def compareFloatEqual(plan: LoopPlan, output: BooleanStorage, x: FloatStorage, y: FloatStorage): Unit =
+  private def compareFloatEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: FloatStorage,
+      y: FloatStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ == _)
 
-  private def compareFloatNotEqual(plan: LoopPlan, output: BooleanStorage, x: FloatStorage, y: FloatStorage): Unit =
+  private def compareFloatNotEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: FloatStorage,
+      y: FloatStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ != _)
 
-  private def compareFloatLess(plan: LoopPlan, output: BooleanStorage, x: FloatStorage, y: FloatStorage): Unit =
+  private def compareFloatLess(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: FloatStorage,
+      y: FloatStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ < _)
 
-  private def compareFloatLessEqual(plan: LoopPlan, output: BooleanStorage, x: FloatStorage, y: FloatStorage): Unit =
+  private def compareFloatLessEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: FloatStorage,
+      y: FloatStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ <= _)
 
-  private def compareDoubleEqual(plan: LoopPlan, output: BooleanStorage, x: DoubleStorage, y: DoubleStorage): Unit =
+  private def compareDoubleEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: DoubleStorage,
+      y: DoubleStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ == _)
 
-  private def compareDoubleNotEqual(plan: LoopPlan, output: BooleanStorage, x: DoubleStorage, y: DoubleStorage): Unit =
+  private def compareDoubleNotEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: DoubleStorage,
+      y: DoubleStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ != _)
 
-  private def compareDoubleLess(plan: LoopPlan, output: BooleanStorage, x: DoubleStorage, y: DoubleStorage): Unit =
+  private def compareDoubleLess(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: DoubleStorage,
+      y: DoubleStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ < _)
 
-  private def compareDoubleLessEqual(plan: LoopPlan, output: BooleanStorage, x: DoubleStorage, y: DoubleStorage): Unit =
+  private def compareDoubleLessEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: DoubleStorage,
+      y: DoubleStorage
+  ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ <= _)
 
   def floatingPredicate[A](
@@ -1080,13 +1245,14 @@ private[ravel] object ElementKernels:
     source match
       case x: FloatStorage =>
         operation match
-          case KernelOp.IsNaN    => predicateFloatNaN(plan, boolean, x)
+          case KernelOp.IsNaN => predicateFloatNaN(plan, boolean, x)
           case KernelOp.IsFinite => predicateFloatFinite(plan, boolean, x)
       case x: DoubleStorage =>
         operation match
-          case KernelOp.IsNaN    => predicateDoubleNaN(plan, boolean, x)
+          case KernelOp.IsNaN => predicateDoubleNaN(plan, boolean, x)
           case KernelOp.IsFinite => predicateDoubleFinite(plan, boolean, x)
-      case _ => throw new UnsupportedOperationException("floating predicate requires Float or Double")
+      case _ =>
+        throw new UnsupportedOperationException("floating predicate requires Float or Double")
 
   private def predicateFloatNaN(plan: LoopPlan, output: BooleanStorage, x: FloatStorage): Unit =
     predicateLoop(plan, output, x.raw.apply)(_.isNaN)
@@ -1097,7 +1263,11 @@ private[ravel] object ElementKernels:
   private def predicateDoubleNaN(plan: LoopPlan, output: BooleanStorage, x: DoubleStorage): Unit =
     predicateLoop(plan, output, x.raw.apply)(_.isNaN)
 
-  private def predicateDoubleFinite(plan: LoopPlan, output: BooleanStorage, x: DoubleStorage): Unit =
+  private def predicateDoubleFinite(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: DoubleStorage
+  ): Unit =
     predicateLoop(plan, output, x.raw.apply)(_.isFinite)
 
   private inline def binaryLoop[T](
@@ -1250,8 +1420,7 @@ private[ravel] object ElementKernels:
       inline body: (Int, Int, Int) => Unit
   ): Unit =
     if plan.size > 0 then
-      if plan.rank == 0 then
-        body(plan.leftOffset, plan.rightOffset, 0)
+      if plan.rank == 0 then body(plan.leftOffset, plan.rightOffset, 0)
       else
         val counters = new Array[Int](plan.rank)
         var left = plan.leftOffset

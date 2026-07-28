@@ -17,6 +17,26 @@ final class ShapeLayoutSuite extends FunSuite:
     assertEquals(typed(-1), 4)
   }
 
+  test("shape equality is structural by dimensions") {
+    assertEquals(Shape(2, 3), Shape(2, 3))
+    assertEquals(Shape(2, 3).hashCode, Shape(2, 3).hashCode)
+    assert(!(Shape(2, 3) == Shape(3, 2)))
+    assertEquals(Shape.scalar, Shape.scalar)
+    assert(Shape.from(Seq(2, 3)).exists(_ == Shape(2, 3)))
+  }
+
+  test("newAxis keeps logical contiguity while losing canonical strides") {
+    val matrix = NDArray.zeros[Int](2, 3)
+    assert(matrix.isContiguous)
+    assert(matrix.isCanonicalLayout)
+    assert(matrix.isWholeBuffer)
+    val inserted = matrix.newAxis(-1)
+    assertEquals(inserted.shape, Shape(2, 3, 1))
+    assert(inserted.isContiguous)
+    assert(!inserted.isCanonicalLayout)
+    assert(inserted.contiguous eq inserted)
+  }
+
   test("negative dimensions and element-count overflow are rejected") {
     assert(Shape.from(Seq(2, -1)).isLeft)
     assert(Shape.from(Seq(Int.MaxValue, 2)).isLeft)

@@ -21,24 +21,21 @@ type AnyNDArray[A] = NDArray[A, AnyRank]
 type DropAxis[R <: AnyRank] <: AnyRank = R match
   case Rank[0] => Nothing
   case Rank[n] => Rank[n - 1]
-  case _       => AnyRank
+  case _ => AnyRank
 
 type AddAxis[R <: AnyRank] <: AnyRank = R match
   case Rank[n] => Rank[n + 1]
-  case _       => AnyRank
+  case _ => AnyRank
 
 type BroadcastRank[X <: AnyRank, Y <: AnyRank] <: AnyRank = (X, Y) match
   case (Rank[x], Rank[y]) => Rank[Max[x, y]]
-  case _                  => AnyRank
+  case _ => AnyRank
 
+/** Result rank for scalar-or-array operands accepted by readable arithmetic. */
 type OperandRank[A, R <: AnyRank, B] <: AnyRank = B match
-  case NDArray[A, rank] => BroadcastRank[R, rank]
-  case _                => R
-
-type BorrowedOperandRank[A, R <: AnyRank, B] <: AnyRank = B match
   case BorrowedNDArray[A, rank] => BroadcastRank[R, rank]
-  case NDArray[A, rank]         => BroadcastRank[R, rank]
-  case _                        => R
+  case NDArray[A, rank] => BroadcastRank[R, rank]
+  case _ => R
 
 /** Evidence that a rank-lowering operation cannot produce a negative rank. */
 sealed trait CanDropAxis[R <: AnyRank]
@@ -47,7 +44,3 @@ object CanDropAxis:
   given dynamic: CanDropAxis[AnyRank] with {}
 
   given knownPositive[N <: Int](using (N > 0) =:= true): CanDropAxis[Rank[N]] with {}
-
-final case class RankMismatch(expected: Int, actual: Int):
-  override def toString: String =
-    s"RankMismatch(expected = $expected, actual = $actual)"
