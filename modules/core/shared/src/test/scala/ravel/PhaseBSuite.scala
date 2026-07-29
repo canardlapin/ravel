@@ -67,15 +67,15 @@ final class PhaseBSuite extends FunSuite:
     val built = NDArray.build[Int, Rank[2]](Shape(2, 3)) { builder =>
       var i = 0
       while i < builder.size do
-        builder(i) = i * 3
+        builder.writeLinear(i, i * 3)
         i += 1
     }
     assertEquals(values(built), List(0, 3, 6, 9, 12, 15))
     intercept[IllegalStateException] {
       NDArray.build[Int, Rank[1]](Shape(2)) { builder =>
-        builder(0) = 1
+        builder.writeLinear(0, 1)
         builder.seal()
-        builder(1) = 2
+        builder.writeLinear(1, 2)
       }
     }
   }

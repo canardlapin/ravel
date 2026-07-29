@@ -44,7 +44,7 @@ object InvalidIndex:
       extends InvalidIndex(s"axis $axis index $index is outside [0, $dimension)")
 
   final case class LinearOutOfBounds(index: Int, size: Int)
-      extends InvalidIndex(s"builder index $index is outside [0, $size)")
+      extends InvalidIndex(s"linear index $index is outside [0, $size)")
 
 /** A consuming [[ArrayBuilder]] was used after its construction callback ended. */
 final class BuilderClosed private[ravel] () extends IllegalStateException("array builder is closed")

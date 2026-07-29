@@ -19,7 +19,7 @@ final class ArrayBuilder[A] private[ravel] (
   private var open = true
 
   /** Write at a contiguous linear index in `[0, size)`. */
-  inline def update(index: Int, value: A): Unit =
+  inline def writeLinear(index: Int, value: A): Unit =
     // This match is reduced at the Scala call site. Each cast is guarded by its exact primitive
     // branch and routes to a primitive JVM/Scala.js method; abstract A uses the boxed fallback.
     inline erasedValue[A] match
@@ -31,10 +31,6 @@ final class ArrayBuilder[A] private[ravel] (
       case _: Float => writeFloat(index, value.asInstanceOf[Float])
       case _: Double => writeDouble(index, value.asInstanceOf[Double])
       case _ => writeGeneric(index, value)
-
-  /** Alias for [[update]]. */
-  inline def writeLinear(index: Int, value: A): Unit =
-    update(index, value)
 
   private[ravel] def seal(): Unit =
     ensureOpen()

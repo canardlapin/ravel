@@ -16,10 +16,10 @@ final class ArrayBuilderSuite extends FunSuite:
     assertEquals(ordered.elementsIterator.toList, List(1, 2, 3, 4, 5, 6))
 
     val unordered = NDArray.build[Int, Rank[1]](Shape(5)) { builder =>
-      builder(4) = 40
-      builder(1) = 10
-      builder(3) = 30
-      builder(1) = 11
+      builder.writeLinear(4, 40)
+      builder.writeLinear(1, 10)
+      builder.writeLinear(3, 30)
+      builder.writeLinear(1, 11)
     }
     assertEquals(unordered.elementsIterator.toList, List(0, 11, 0, 30, 40))
   }
@@ -29,11 +29,11 @@ final class ArrayBuilderSuite extends FunSuite:
     intercept[InvalidIndex] {
       NDArray.build[Int, Rank[1]](Shape(2)) { builder =>
         escaped = Some(builder)
-        builder(-1) = 1
+        builder.writeLinear(-1, 1)
       }
     }
     intercept[BuilderClosed] {
-      escaped.get(0) = 1
+      escaped.get.writeLinear(0, 1)
     }
 
     intercept[InvalidIndex] {
@@ -47,11 +47,11 @@ final class ArrayBuilderSuite extends FunSuite:
     var escaped = Option.empty[ArrayBuilder[Int]]
     val result = NDArray.build[Int, Rank[1]](Shape(1)) { builder =>
       escaped = Some(builder)
-      builder(0) = 42
+      builder.writeLinear(0, 42)
     }
     assertEquals(result(0), 42)
     intercept[BuilderClosed] {
-      escaped.get(0) = 7
+      escaped.get.writeLinear(0, 7)
     }
   }
 
@@ -61,13 +61,13 @@ final class ArrayBuilderSuite extends FunSuite:
     val observed = intercept[RuntimeException] {
       NDArray.build[Double, Rank[1]](Shape(4)) { builder =>
         escaped = Some(builder)
-        builder(0) = 1.0
+        builder.writeLinear(0, 1.0)
         throw sentinel
       }
     }
     assert(observed eq sentinel)
     intercept[BuilderClosed] {
-      escaped.get(1) = 2.0
+      escaped.get.writeLinear(1, 2.0)
     }
   }
 
@@ -81,21 +81,25 @@ final class ArrayBuilderSuite extends FunSuite:
     assertEquals(empty.size, 0)
     assertEquals(empty.elementsIterator.toList, Nil)
     intercept[BuilderClosed] {
-      escaped.get(0) = 1L
+      escaped.get.writeLinear(0, 1L)
     }
   }
 
   test("construction supports every primitive dtype family") {
     val booleans = NDArray.build[Boolean, Rank[1]](Shape(2)) { builder =>
-      builder(0) = true
-      builder(1) = false
+      builder.writeLinear(0, true)
+      builder.writeLinear(1, false)
     }
-    val bytes = NDArray.build[Byte, Rank[1]](Shape(1))(_(0) = 7.toByte)
-    val shorts = NDArray.build[Short, Rank[1]](Shape(1))(_(0) = 8.toShort)
-    val ints = NDArray.build[Int, Rank[1]](Shape(1))(_(0) = 9)
-    val longs = NDArray.build[Long, Rank[1]](Shape(1))(_(0) = 10L)
-    val floats = NDArray.build[Float, Rank[1]](Shape(1))(_(0) = 11.5f)
-    val doubles = NDArray.build[Double, Rank[1]](Shape(1))(_(0) = 12.5)
+    val bytes =
+      NDArray.build[Byte, Rank[1]](Shape(1))(_.writeLinear(0, 7.toByte))
+    val shorts =
+      NDArray.build[Short, Rank[1]](Shape(1))(_.writeLinear(0, 8.toShort))
+    val ints = NDArray.build[Int, Rank[1]](Shape(1))(_.writeLinear(0, 9))
+    val longs = NDArray.build[Long, Rank[1]](Shape(1))(_.writeLinear(0, 10L))
+    val floats =
+      NDArray.build[Float, Rank[1]](Shape(1))(_.writeLinear(0, 11.5f))
+    val doubles =
+      NDArray.build[Double, Rank[1]](Shape(1))(_.writeLinear(0, 12.5))
 
     assertEquals(booleans.elementsIterator.toList, List(true, false))
     assertEquals(bytes(0), 7.toByte)
@@ -112,7 +116,7 @@ final class ArrayBuilderSuite extends FunSuite:
         import ravel.*
         import ravel.DType.given
         NDArray.build[Double, Rank[1]](Shape(1)) { builder =>
-          builder(0) = "not a double"
+          builder.writeLinear(0, "not a double")
         }
       """
     )

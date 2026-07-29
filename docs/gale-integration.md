@@ -11,8 +11,8 @@ Conversions are explicit and copy logical values:
 ```scala
 import gale.interop.ravel.*
 
-val vector: gale.linalg.DVec = vectorFromRavelCopy(ravelVector)
-val matrix: gale.linalg.DMat = matrixFromRavelCopy(ravelArray2)
+val vector: gale.linalg.DVec = fromRavelCopy(ravelVector)
+val matrix: gale.linalg.DMat = fromRavelCopy(ravelArray2)
 val array1: ravel.Array1[Double] = toRavelCopy(vector)
 val array2: ravel.Array2[Double] = toRavelCopy(matrix)
 ```
@@ -24,6 +24,17 @@ without exposing either library's private platform storage.
 Ravel documentation calls `Array2[A]` a rank-two array, not a matrix. Matrix
 orientation, multiplication, adjoints, structural properties, and algorithms
 begin only after conversion to Gale.
+
+The libraries intentionally retain domain-specific semantics where uniform
+spelling would be misleading:
+
+- Ravel coordinate indices may be negative and count from the end of an axis;
+  Gale vector and matrix indices are non-negative.
+- Ravel `*` is elementwise with broadcasting; Gale `DMat.*` is matrix
+  multiplication and Gale's elementwise product is explicit through
+  `pointwise`.
+- Ravel rank-two values remain arrays; Gale values gain matrix semantics only
+  after explicit conversion.
 
 ## Deferred substrate convergence
 

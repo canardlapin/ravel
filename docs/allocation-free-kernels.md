@@ -34,9 +34,9 @@ layout. They do not expose their primitive storage publicly.
 ## Consuming immutable construction
 
 `NDArray.build(shape) { builder => ... }` allocates one primitive destination
-buffer. `ArrayBuilder.update` and `writeLinear` write directly into that buffer
-by C-order linear index. When the callback returns, the immutable `NDArray`
-owns that same buffer; Ravel does not copy it into a second destination.
+buffer. `ArrayBuilder.writeLinear` writes directly into that buffer by C-order
+linear index. When the callback returns, the immutable `NDArray` owns that same
+buffer; Ravel does not copy it into a second destination.
 
 Writes may arrive in any order. Repeated writes use the last value, and
 unwritten elements retain the primitive dtype's zero value. Invalid linear
@@ -51,20 +51,34 @@ and publishes no partially built array.
 or retain it for later work. After construction, the returned `NDArray` is
 immutable and does not expose a mutable alias to its storage.
 
+## Canonical linear access
+
+`CanonicalArray.require(array)` and `MutableCanonicalArray.require(array)`
+refine a whole canonical array without creating a wrapper. The refinement
+preserves the complete `NDArray` or `MutableNDArray` coordinate API and adds
+explicit `readLinear`; mutable refinements also add `writeLinear`.
+
+Coordinate access continues to normalize negative element indices by axis.
+Linear access is deliberately distinct and accepts only C-order indices in
+`[0, size)`. Structural operations such as `transpose` return ordinary arrays;
+callers must establish the canonical refinement again before using linear
+access on their result.
+
 ## Allocation evidence
 
-The committed JMH probe covers Rank3 and Rank4 input traversal, a Rank3 output,
-and Rank4 reads with linear output writes:
+The committed JMH probe covers Rank3 and Rank4 coordinate traversal, canonical
+linear reads and writes, canonical refinement, a Rank3 output, and Rank4 reads
+with linear output writes:
 
 ```sh
 sbt 'representationProbeJVM/Jmh/run -prof gc -wi 5 -i 7 -f 2 -p edge=8,16 .*KernelApiBenchmarks.*'
 ```
 
-`rank3_read_checksum` and `rank4_read_checksum` consume their results so the
-loops cannot be eliminated; normalized allocation must not scale with element
-count. The two builder cases may allocate one primitive output buffer plus
-constant-sized Ravel objects. Their normalized allocation must not contain a
-second output-sized buffer or per-element objects.
+The checksum methods consume their results so the loops cannot be eliminated;
+normalized allocation must not scale with element count. Canonical refinement
+must not allocate a wrapper. The two builder cases may allocate one primitive
+output buffer plus constant-sized Ravel objects. Their normalized allocation
+must not contain a second output-sized buffer or per-element objects.
 
 The clean external-consumer probe publishes the current candidate to the local
 Ivy repository, generates an unrelated temporary sbt build, and uses only

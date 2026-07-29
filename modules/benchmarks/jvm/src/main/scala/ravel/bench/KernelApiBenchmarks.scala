@@ -29,6 +29,8 @@ class KernelApiBenchmarks:
 
   private var rank3: Array3[Double] = uninitialized
   private var rank4: Array4[Double] = uninitialized
+  private var canonical3: CanonicalArray[Double, Rank[3]] = uninitialized
+  private var mutableCanonical3: MutableCanonicalArray[Double, Rank[3]] = uninitialized
 
   @Setup(Level.Trial)
   def setup(): Unit =
@@ -38,6 +40,31 @@ class KernelApiBenchmarks:
     rank4 = NDArray.tabulate(edge, edge, edge, edge) { (i, j, k, l) =>
       i.toDouble * 0.5 + j.toDouble * 0.25 + k.toDouble * 0.125 + l.toDouble
     }
+    canonical3 = CanonicalArray.require(rank3)
+    mutableCanonical3 = MutableCanonicalArray.require(
+      MutableNDArray.zeros[Double, Rank[3]](rank3.shape)
+    )
+
+  @Benchmark
+  def canonical_refine(): CanonicalArray[Double, Rank[3]] =
+    CanonicalArray.require(rank3)
+
+  @Benchmark
+  def canonical_rank3_read_linear_checksum(): Double =
+    var checksum = 0.0
+    var index = 0
+    while index < canonical3.size do
+      checksum += canonical3.readLinear(index)
+      index += 1
+    checksum
+
+  @Benchmark
+  def canonical_rank3_write_linear(): Double =
+    var index = 0
+    while index < mutableCanonical3.size do
+      mutableCanonical3.writeLinear(index, index.toDouble)
+      index += 1
+    mutableCanonical3.readLinear(mutableCanonical3.size - 1)
 
   @Benchmark
   def rank3_read_checksum(): Double =

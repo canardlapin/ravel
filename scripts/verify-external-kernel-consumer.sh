@@ -34,6 +34,11 @@ import ravel.DType.given
     NDArray.tabulate[Double](2, 2, 3, 4) { (i, j, k, l) =>
       i.toDouble * 1000.0 + j.toDouble * 100.0 + k.toDouble * 10.0 + l.toDouble
     }
+  val canonical3 = CanonicalArray.require(rank3)
+  val canonical4 = CanonicalArray.require(rank4)
+
+  assert(canonical3(1, -1, -1) == 123.0)
+  assert(canonical3.readLinear(canonical3.size - 1) == 123.0)
 
   val out3 = NDArray.build[Double, Rank[3]](rank3.shape) { builder =>
     var out = 0
@@ -50,26 +55,22 @@ import ravel.DType.given
       i += 1
   }
 
-  val out4 = NDArray.build[Double, Rank[1]](Shape(rank4.size)) { builder =>
+  val out4 = NDArray.build[Double, Rank[1]](Shape(canonical4.size)) { builder =>
     var out = 0
-    var i = 0
-    while i < 2 do
-      var j = 0
-      while j < 2 do
-        var k = 0
-        while k < 3 do
-          var l = 0
-          while l < 4 do
-            builder.writeLinear(out, rank4(i, j, k, l) + 1.0)
-            out += 1
-            l += 1
-          k += 1
-        j += 1
-      i += 1
+    while out < canonical4.size do
+      builder.writeLinear(out, canonical4.readLinear(out) + 1.0)
+      out += 1
   }
+
+  val mutable = MutableNDArray.zeros[Double, Rank[2]](Shape(2, 2))
+  val mutableCanonical = MutableCanonicalArray.require(mutable)
+  mutableCanonical.writeLinear(0, 7.0)
+  mutableCanonical(1, -1) = 9.0
 
   assert(out3(1, 2, 3) == 246.0)
   assert(out4(out4.size - 1) == 1124.0)
+  assert(mutableCanonical.readLinear(0) == 7.0)
+  assert(mutableCanonical.readLinear(3) == 9.0)
 
   val boundsArePublic =
     try
