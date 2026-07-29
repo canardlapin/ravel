@@ -76,3 +76,25 @@ final class GeneratedLayoutPropertiesSuite extends ScalaCheckSuite:
       after(targetColumn * columns + (columns - 1 - targetRow)) == Int.MinValue
     }
   }
+
+  property("generated packed mutable permutations and reversals update every element once") {
+    forAll(
+      nonemptyDimension,
+      nonemptyDimension,
+      Gen.oneOf(true, false),
+      Gen.oneOf(true, false),
+      Gen.oneOf(true, false),
+      Gen.choose(-100, 100)
+    ) { (rows, columns, transpose, reverse0, reverse1, shift) =>
+      val source =
+        NDArray.tabulate[Int](rows, columns)((row, column) => row * 100 + column)
+      val mutable = source.mutableCopy
+      val permuted = if transpose then mutable.transpose else mutable
+      val first = if reverse0 then permuted.reverse(0) else permuted
+      val target = if reverse1 then first.reverse(1) else first
+      target.addInPlace(shift)
+      target.layout.isPhysicallyDense &&
+      mutable.freezeCopy().elementsIterator.toList ==
+        source.elementsIterator.map(_ + shift).toList
+    }
+  }

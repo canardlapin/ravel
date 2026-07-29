@@ -57,6 +57,26 @@ lazy val publishableSettings = Seq(
   mimaPreviousArtifacts := Set.empty
 )
 
+lazy val benchmarkSharedSettings = Seq(
+  Compile / unmanagedSourceDirectories +=
+    (ThisBuild / baseDirectory).value / "modules/benchmarks/shared/src/main/scala",
+  Test / unmanagedSourceDirectories +=
+    (ThisBuild / baseDirectory).value / "modules/benchmarks/shared/src/test/scala",
+  Compile / sourceGenerators += Def.task {
+    val output =
+      (Compile / sourceManaged).value / "ravel/bench/CrossRuntimeCourtBuild.scala"
+    IO.write(
+      output,
+      s"""package ravel.bench
+         |
+         |private[bench] object CrossRuntimeCourtBuild:
+         |  val scalaVersion: String = "${scalaVersion.value}"
+         |""".stripMargin
+    )
+    Seq(output)
+  }.taskValue
+)
+
 lazy val core = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Full)
   .in(file("modules/core"))
@@ -96,6 +116,8 @@ lazy val representationProbeJVM = project
   .in(file("modules/benchmarks/jvm"))
   .enablePlugins(JmhPlugin)
   .dependsOn(core.jvm)
+  .settings(commonSettings)
+  .settings(benchmarkSharedSettings)
   .settings(
     name := "ravel-representation-probe-jvm",
     publish / skip := true
@@ -125,9 +147,12 @@ lazy val representationProbeJS = project
   .in(file("modules/benchmarks/js"))
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(core.js)
+  .settings(commonSettings)
+  .settings(benchmarkSharedSettings)
   .settings(
     name := "ravel-representation-probe-js",
     publish / skip := true,
+    Compile / mainClass := Some("ravel.bench.CrossRuntimeCourt"),
     scalaJSUseMainModuleInitializer := true,
     scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule))
   )
@@ -201,7 +226,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "representationProof",
-  ";coreJVM/test;coreJS/test;representationProbeJS/fullLinkJS"
+  ";coreJVM/test;coreJS/test;representationProbeJVM/test;representationProbeJS/test;representationProbeJS/fullLinkJS"
 )
 addCommandAlias("fmtCheck", ";scalafmtCheckAll;scalafmtSbtCheck")
 addCommandAlias("fmt", ";scalafmtAll;scalafmtSbt")

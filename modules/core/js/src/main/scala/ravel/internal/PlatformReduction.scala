@@ -46,10 +46,55 @@ private[ravel] object PlatformReduction:
       block += 1
     mergeFloat(scratch, block)
 
+  def pairwiseContiguousDoubleFromFloat(
+      storage: FloatStorage,
+      offset: Int,
+      size: Int,
+      scratch: Array[Double]
+  ): Double =
+    // Compute independent complete blocks in parallel lanes. Each block and
+    // the subsequent merge retain the documented fixed pairwise schedule.
+    val raw = storage.raw
+    var block = 0
+    val blockSize = ReductionKernels.PairwiseBlockSize
+    val completeBlocks = size / blockSize
+    while block + 3 < completeBlocks do
+      val base = offset + block * blockSize
+      var sum0 = 0.0
+      var sum1 = 0.0
+      var sum2 = 0.0
+      var sum3 = 0.0
+      var index = 0
+      while index < blockSize do
+        sum0 += raw(base + index).toDouble
+        sum1 += raw(base + blockSize + index).toDouble
+        sum2 += raw(base + 2 * blockSize + index).toDouble
+        sum3 += raw(base + 3 * blockSize + index).toDouble
+        index += 1
+      scratch(block) = sum0
+      scratch(block + 1) = sum1
+      scratch(block + 2) = sum2
+      scratch(block + 3) = sum3
+      block += 4
+    var index = block * blockSize
+    var physical = offset + index
+    while index < size do
+      var sum = 0.0
+      val until = math.min(index + blockSize, size)
+      while index < until do
+        sum += raw(physical).toDouble
+        physical += 1
+        index += 1
+      scratch(block) = sum
+      block += 1
+    mergeDouble(scratch, block)
+
   def axis0PairwiseDouble(
       source: DoubleStorage,
       output: DoubleStorage,
-      plan: ReductionPlan
+      plan: ReductionPlan,
+      blockValues: Array[Double],
+      workspace: Array[Double]
   ): Unit =
     val layout = plan.source
     val rows = layout.shape(0)
@@ -67,29 +112,26 @@ private[ravel] object PlatformReduction:
     else
       val blockCount =
         (rows + ReductionKernels.PairwiseBlockSize - 1) / ReductionKernels.PairwiseBlockSize
-      val blockValues = new Array[Double](blockCount * cols)
-      val partials = new Array[Double](cols)
-      val mergeScratch = new Array[Double](blockCount)
       var block = 0
       var rowStart = 0
       while rowStart < rows do
         val rowUntil = math.min(rowStart + ReductionKernels.PairwiseBlockSize, rows)
         var col = 0
         while col < cols do
-          partials(col) = 0.0
+          workspace(col) = 0.0
           col += 1
         var row = rowStart
         while row < rowUntil do
           var physical = offset + row * rowStride
           col = 0
           while col < cols do
-            partials(col) += raw(physical)
+            workspace(col) += raw(physical)
             physical += colStride
             col += 1
           row += 1
         col = 0
         while col < cols do
-          blockValues(block * cols + col) = partials(col)
+          blockValues(block * cols + col) = workspace(col)
           col += 1
         block += 1
         rowStart = rowUntil
@@ -97,9 +139,9 @@ private[ravel] object PlatformReduction:
       while col < cols do
         var b = 0
         while b < blockCount do
-          mergeScratch(b) = blockValues(b * cols + col)
+          workspace(b) = blockValues(b * cols + col)
           b += 1
-        out(col) = mergeDouble(mergeScratch, blockCount)
+        out(col) = mergeDouble(workspace, blockCount)
         col += 1
 
   def axis1PairwiseDouble(
@@ -129,7 +171,9 @@ private[ravel] object PlatformReduction:
   def axis0PairwiseFloat(
       source: FloatStorage,
       output: FloatStorage,
-      plan: ReductionPlan
+      plan: ReductionPlan,
+      blockValues: Array[Float],
+      workspace: Array[Float]
   ): Unit =
     val layout = plan.source
     val rows = layout.shape(0)
@@ -147,29 +191,26 @@ private[ravel] object PlatformReduction:
     else
       val blockCount =
         (rows + ReductionKernels.PairwiseBlockSize - 1) / ReductionKernels.PairwiseBlockSize
-      val blockValues = new Array[Float](blockCount * cols)
-      val partials = new Array[Float](cols)
-      val mergeScratch = new Array[Float](blockCount)
       var block = 0
       var rowStart = 0
       while rowStart < rows do
         val rowUntil = math.min(rowStart + ReductionKernels.PairwiseBlockSize, rows)
         var col = 0
         while col < cols do
-          partials(col) = 0.0f
+          workspace(col) = 0.0f
           col += 1
         var row = rowStart
         while row < rowUntil do
           var physical = offset + row * rowStride
           col = 0
           while col < cols do
-            partials(col) = (partials(col) + raw(physical).toFloat).toFloat
+            workspace(col) = (workspace(col) + raw(physical).toFloat).toFloat
             physical += colStride
             col += 1
           row += 1
         col = 0
         while col < cols do
-          blockValues(block * cols + col) = partials(col)
+          blockValues(block * cols + col) = workspace(col)
           col += 1
         block += 1
         rowStart = rowUntil
@@ -177,9 +218,9 @@ private[ravel] object PlatformReduction:
       while col < cols do
         var b = 0
         while b < blockCount do
-          mergeScratch(b) = blockValues(b * cols + col)
+          workspace(b) = blockValues(b * cols + col)
           b += 1
-        out(col) = mergeFloat(mergeScratch, blockCount)
+        out(col) = mergeFloat(workspace, blockCount)
         col += 1
 
   def axis1PairwiseFloat(

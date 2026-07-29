@@ -74,6 +74,33 @@ final class ShapeLayoutSuite extends FunSuite:
     assert(repeated.hasBroadcastStride)
   }
 
+  test("physical density recognizes packed permutations and reversals without admitting holes") {
+    val reversed = Layout.view(IArray(4), IArray(-1), 3, 4)
+    val permutedAndReversed =
+      Layout.view(IArray(2, 3, 4), IArray(-4, 8, -1), 7, 24)
+    val withSingleton =
+      Layout.view(IArray(1, 2, 3), IArray(0, -3, 1), 3, 6)
+    val stridedWithHoles =
+      Layout.view(IArray(2, 3), IArray(4, 1), 0, 7)
+    val overlapping =
+      Layout.view(IArray(2, 3), IArray(1, 1), 0, 4)
+    val broadcast =
+      Layout.view(IArray(2, 3), IArray(0, 1), 0, 3)
+    val empty =
+      Layout.view(IArray(0, 3), IArray(3, 0), 0, 0)
+
+    assert(reversed.isPhysicallyDense)
+    assertEquals(reversed.minimumPhysicalAddress, 0)
+    assert(permutedAndReversed.isPhysicallyDense)
+    assertEquals(permutedAndReversed.minimumPhysicalAddress, 0)
+    assert(withSingleton.isPhysicallyDense)
+    assertEquals(withSingleton.minimumPhysicalAddress, 0)
+    assert(!stridedWithHoles.isPhysicallyDense)
+    assert(!overlapping.isPhysicallyDense)
+    assert(!broadcast.isPhysicallyDense)
+    assert(!empty.isPhysicallyDense)
+  }
+
   test("reachable-address validation rejects out-of-buffer layouts") {
     intercept[LayoutOverflow] {
       Layout.view(IArray(3), IArray(2), 0, 4)

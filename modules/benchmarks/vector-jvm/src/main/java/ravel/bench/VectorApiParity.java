@@ -23,17 +23,19 @@ public final class VectorApiParity {
     }
     Files.writeString(config.output, render(fixtures), StandardCharsets.UTF_8);
     System.out.printf(
-        "Vector API parity OK: %d sides, %d-bit preferred species, %d double lanes; wrote %s%n",
+        "Vector API parity OK: %d sides, %d-bit preferred species, %d/%d/%d double/int/long lanes; wrote %s%n",
         fixtures.size(),
         VectorApiKernels.preferredVectorBits(),
         VectorApiKernels.preferredDoubleLanes(),
+        VectorApiKernels.preferredIntLanes(),
+        VectorApiKernels.preferredLongLanes(),
         config.output);
   }
 
   private static String render(List<VectorApiFixture> fixtures) {
     StringBuilder json = new StringBuilder();
     json.append("{\n");
-    json.append("  \"schema\": \"ravel.vector-api-spike.v1\",\n");
+    json.append("  \"schema\": \"ravel.vector-api-spike.v2\",\n");
     json.append("  \"metadata\": {\n");
     field(json, "java_version", System.getProperty("java.version"), true, 4);
     field(json, "java_vendor", System.getProperty("java.vendor"), true, 4);
@@ -45,6 +47,12 @@ public final class VectorApiParity {
         .append(",\n");
     json.append("    \"double_lanes\": ")
         .append(VectorApiKernels.preferredDoubleLanes())
+        .append(",\n");
+    json.append("    \"int_lanes\": ")
+        .append(VectorApiKernels.preferredIntLanes())
+        .append(",\n");
+    json.append("    \"long_lanes\": ")
+        .append(VectorApiKernels.preferredLongLanes())
         .append("\n");
     json.append("  },\n");
     json.append("  \"results\": [\n");
@@ -58,6 +66,55 @@ public final class VectorApiParity {
               "axis0_exact",
               VectorApiKernels.rawHash(fixture.scalarAxisOutput),
               VectorApiKernels.rawHash(fixture.vectorAxisOutput));
+
+      first =
+          exactDoubleResult(
+              json,
+              first,
+              fixture.side,
+              "minimum",
+              VectorApiKernels.minimumScalar(fixture.left),
+              VectorApiKernels.minimumVector(fixture.left));
+      first =
+          exactDoubleResult(
+              json,
+              first,
+              fixture.side,
+              "maximum",
+              VectorApiKernels.maximumScalar(fixture.left),
+              VectorApiKernels.maximumVector(fixture.left));
+      first =
+          exactIntegerResult(
+              json,
+              first,
+              fixture.side,
+              "sum_int",
+              VectorApiKernels.sumIntScalar(fixture.intValues),
+              VectorApiKernels.sumIntVector(fixture.intValues));
+      first =
+          exactIntegerResult(
+              json,
+              first,
+              fixture.side,
+              "product_int",
+              VectorApiKernels.productIntScalar(fixture.intProduct),
+              VectorApiKernels.productIntVector(fixture.intProduct));
+      first =
+          exactIntegerResult(
+              json,
+              first,
+              fixture.side,
+              "sum_long",
+              VectorApiKernels.sumLongScalar(fixture.longValues),
+              VectorApiKernels.sumLongVector(fixture.longValues));
+      first =
+          exactIntegerResult(
+              json,
+              first,
+              fixture.side,
+              "product_long",
+              VectorApiKernels.productLongScalar(fixture.longProduct),
+              VectorApiKernels.productLongVector(fixture.longProduct));
 
       VectorApiKernels.addScalar(
           fixture.left, fixture.right, fixture.scalarDoubleOutput);
@@ -138,6 +195,54 @@ public final class VectorApiParity {
     if (scalarHash != vectorHash) {
       throw new IllegalStateException(caseName + " hash mismatch at side " + side);
     }
+    return false;
+  }
+
+  private static boolean exactDoubleResult(
+      StringBuilder json,
+      boolean first,
+      int side,
+      String caseName,
+      double scalar,
+      double vector) {
+    VectorApiKernels.requireDoubleContractEqual(scalar, vector, caseName + " at side " + side);
+    long scalarBits = Double.doubleToLongBits(scalar);
+    long vectorBits = Double.doubleToLongBits(vector);
+    if (!first) {
+      json.append(",\n");
+    }
+    json.append("    {\"side\": ")
+        .append(side)
+        .append(", \"case\": \"")
+        .append(caseName)
+        .append("\", \"comparison\": \"nan-canonical-raw-bits\", \"scalar_bits\": \"")
+        .append(Long.toUnsignedString(scalarBits, 16))
+        .append("\", \"vector_bits\": \"")
+        .append(Long.toUnsignedString(vectorBits, 16))
+        .append("\", \"matched\": true}");
+    return false;
+  }
+
+  private static boolean exactIntegerResult(
+      StringBuilder json,
+      boolean first,
+      int side,
+      String caseName,
+      long scalar,
+      long vector) {
+    VectorApiKernels.requireEqual(scalar, vector, caseName + " at side " + side);
+    if (!first) {
+      json.append(",\n");
+    }
+    json.append("    {\"side\": ")
+        .append(side)
+        .append(", \"case\": \"")
+        .append(caseName)
+        .append("\", \"comparison\": \"fixed-width-exact\", \"scalar\": \"")
+        .append(Long.toUnsignedString(scalar))
+        .append("\", \"vector\": \"")
+        .append(Long.toUnsignedString(vector))
+        .append("\", \"matched\": true}");
     return false;
   }
 

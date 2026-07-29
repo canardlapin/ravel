@@ -7,6 +7,7 @@ private[ravel] final class Layout private (
     val strides: IArray[Int],
     val offset: Int,
     val size: Int,
+    val minimumPhysicalAddress: Int,
     val flags: Byte,
     val shapeValue: Shape[AnyRank]
 ):
@@ -17,6 +18,14 @@ private[ravel] final class Layout private (
 
   /** Exact canonical C strides, including length-one axes. */
   def isCanonicalLayout: Boolean = (flags & Layout.CanonicalLayout) != 0
+
+  /** The reachable addresses form one packed interval, independent of logical axis order or
+    * direction.
+    *
+    * Singleton axes do not affect density. Thus C-order, Fortran-order, axis permutations,
+    * reversals, and their combinations may all be physically dense.
+    */
+  def isPhysicallyDense: Boolean = (flags & Layout.PhysicallyDense) != 0
 
   def hasNegativeStride: Boolean = (flags & Layout.HasNegativeStride) != 0
   def hasBroadcastStride: Boolean = (flags & Layout.HasBroadcastStride) != 0
@@ -127,6 +136,7 @@ private[ravel] object Layout:
   val HasNegativeStride: Byte = 2
   val HasBroadcastStride: Byte = 4
   val CanonicalLayout: Byte = 8
+  val PhysicallyDense: Byte = 16
 
   private[ravel] def sameShape(left: IArray[Int], right: IArray[Int]): Boolean =
     if left.length != right.length then false
@@ -236,11 +246,13 @@ private[ravel] object Layout:
 
     val canonical = isCanonical(dimensions, strides)
     val contiguous = isLogicalContiguous(dimensions, strides)
+    val physicallyDense = isPhysicallyDense(dimensions, strides, shapeValue.size)
     if requireContiguous && !canonical then
       throw NonContiguousLayout("canonical layout construction failed")
     var flags: Byte = 0
     if contiguous then flags = (flags | CContiguous).toByte
     if canonical then flags = (flags | CanonicalLayout).toByte
+    if physicallyDense then flags = (flags | PhysicallyDense).toByte
     if negative then flags = (flags | HasNegativeStride).toByte
     if broadcast then flags = (flags | HasBroadcastStride).toByte
     new Layout(
@@ -248,6 +260,8 @@ private[ravel] object Layout:
       strides,
       offset,
       shapeValue.size,
+      if shapeValue.size == 0 then offset
+      else checkedInt(minimum, "minimum physical address"),
       flags,
       shapeValue
     )
@@ -282,6 +296,48 @@ private[ravel] object Layout:
       else if dimension == 0 then expected = 0L
       axis -= 1
     result
+
+  /** Physical density ignores logical axis order and direction. Non-singleton axes, ordered by
+    * absolute stride, must exactly tile the packed interval.
+    */
+  private def isPhysicallyDense(
+      shape: IArray[Int],
+      strides: IArray[Int],
+      size: Int
+  ): Boolean =
+    if size == 0 then false
+    else if size == 1 then true
+    else
+      val axes = new Array[Int](shape.length)
+      var count = 0
+      var axis = 0
+      while axis < shape.length do
+        if shape(axis) > 1 then
+          var position = count
+          val stride = Math.abs(strides(axis).toLong)
+          while position > 0 &&
+            Math.abs(strides(axes(position - 1)).toLong) > stride
+          do
+            axes(position) = axes(position - 1)
+            position -= 1
+          axes(position) = axis
+          count += 1
+        axis += 1
+
+      var expected = 1L
+      var index = 0
+      var dense = true
+      while index < count && dense do
+        axis = axes(index)
+        if Math.abs(strides(axis).toLong) != expected then dense = false
+        else
+          expected = checkedMultiply(
+            expected,
+            shape(axis).toLong,
+            s"physical density axis $axis"
+          )
+        index += 1
+      dense && expected == size.toLong
 
   private[ravel] def checkedMultiply(left: Long, right: Long, context: String): Long =
     try Math.multiplyExact(left, right)

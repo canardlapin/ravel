@@ -292,9 +292,9 @@ private[ravel] object MutableKernels:
   private inline def foreachPhysicalIndex(
       layout: Layout
   )(inline visit: Int => Unit): Unit =
-    if layout.isCContiguous then
+    if layout.isPhysicallyDense then
       var index = 0
-      var address = layout.offset
+      var address = layout.minimumPhysicalAddress
       while index < layout.size do
         visit(address)
         index += 1

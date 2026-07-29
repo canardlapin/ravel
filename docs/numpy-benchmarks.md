@@ -125,11 +125,14 @@ Generate Ravel semantic signatures before timing:
 
 ```sh
 sbt "representationProbeJVM/runMain ravel.bench.OperationMatrixParity \
-  --out target/operation-matrix/ravel-signatures.json --side 256,1024"
+  --out target/operation-matrix/ravel-signatures.json --side 64,256,1024"
 ```
 
-Run the full parameterized JMH matrix. Its annotations use two forks, three
-warmup iterations, and five measurement iterations:
+Run the full parameterized JMH matrix. Its annotations use two forks, five
+500 ms warmup iterations, and seven 500 ms measurement iterations. The longer
+court is intentional: short exploratory runs allowed several allocating
+operation families to tier-compile during measurement and must not be used for
+before/after claims:
 
 ```sh
 sbt "representationProbeJVM/Jmh/run -rf json \
@@ -142,7 +145,7 @@ Run the matched NumPy matrix:
 ```sh
 target/access-patterns/venv/bin/python \
   modules/benchmarks/python/numpy_operation_matrix.py \
-  --side 256 --side 1024 \
+  --side 64 --side 256 --side 1024 \
   --out target/operation-matrix/numpy.json
 ```
 
@@ -217,6 +220,53 @@ an incubator in
 [JDK 25 (JEP 508)](https://openjdk.org/jeps/508); the experiment requires
 module flags and an sbt-jmh ASM-generator/class-file compatibility workaround.
 None of those costs enter the public or core build.
+
+The expanded frontier adds exact full minimum and maximum plus fixed-width
+`Int` and `Long` sum and product controls. Its parity gate covers alternate NaN
+payloads, both signed-zero orders, infinities, singleton and vector-tail
+lengths, empty identities, and overflow-heavy fixed-width inputs. Results are
+checked in for
+[JDK 25](../modules/benchmarks/results/2026-07-29-local-jdk25-vector-frontier/)
+and
+[JDK 21](../modules/benchmarks/results/2026-07-29-local-jdk21-vector-frontier/).
+
+On JDK 25 AArch64, exact extrema improved 2.59-2.60x, `Int` sum and product
+improved 3.04x and 2.64x, and `Long` sum improved 1.34x. `Long` product fell to
+0.14x and is rejected. The clean JDK 21 rows confirm 2.46-2.67x for `Int` sum
+and product and reject `Long` product at 0.13x. Host load contaminated the
+initial JDK 21 extrema and `Long`-sum aggregates. Split quiet reruns replace
+them with 2.61x for maximum, 2.57x for minimum, and 1.33x for `Long` sum. The
+contaminated attempts remain checked in but are not combined with the clean
+receipts. The JDK 21 candidate allocation court records less than 50 normalized
+bytes per operation and zero collections for every candidate; allocation is
+constant rather than proportional to input size.
+
+## General physical-order mutable traversal
+
+The public matrix is a detector, not a specialization menu. The reversed
+scalar-mutation gap led to a rank-general layout invariant: a view is
+physically dense when its reachable addresses form one packed interval,
+regardless of axis order or direction. Scalar in-place operations may traverse
+that interval in ascending address order because each update depends only on
+the element and scalar. Paired assignment retains logical-order traversal.
+
+The focused
+[JDK 25 receipt](../modules/benchmarks/results/2026-07-29-local-jdk25-frontier/)
+improves reversed side-1024 mutation by 2.38x. More importantly, contiguous,
+transposed, reversed on either or both axes, and transpose-plus-reverse
+layouts all measure within 0.4 percent of one another under the full protocol.
+Generated JVM and Scala.js laws cover packed permutations and reversals while
+rejecting gaps, overlap, and broadcast. This is a general layout optimization,
+not a branch keyed to the benchmark's reversed case.
+
+The same invariant applies to full fixed-width reductions because wraparound
+sum and product are associative modulo the dtype width, and to full extrema
+because regrouping retains NaN propagation and signed-zero selection. It does
+not apply to floating sum or product. A rank-3 witness places `Double.maximum`
+within 1.4 percent across four packed layouts; the three transformed `Int.sum`
+rows are within 0.4 percent. The contiguous sum row has one retained outlier,
+so the receipt supports fast-path equivalence rather than a claim that a view
+outperforms contiguous storage.
 
 ## Interpretation
 

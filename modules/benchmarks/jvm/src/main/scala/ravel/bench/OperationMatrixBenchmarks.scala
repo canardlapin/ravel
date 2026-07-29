@@ -16,12 +16,12 @@ import scala.compiletime.uninitialized
   */
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-@Warmup(iterations = 3, time = 300, timeUnit = TimeUnit.MILLISECONDS)
-@Measurement(iterations = 5, time = 300, timeUnit = TimeUnit.MILLISECONDS)
+@Warmup(iterations = 5, time = 500, timeUnit = TimeUnit.MILLISECONDS)
+@Measurement(iterations = 7, time = 500, timeUnit = TimeUnit.MILLISECONDS)
 @Fork(2)
 @State(Scope.Thread)
 class OperationMatrixBenchmarks:
-  @Param(Array("256", "1024"))
+  @Param(Array("64", "256", "1024"))
   var side: Int = 0
 
   @Param(

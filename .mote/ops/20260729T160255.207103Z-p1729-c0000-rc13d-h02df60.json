@@ -1,0 +1,1 @@
+{"actor":"codex-ravel","entity":"bd-01KYQ1ZMV075JMH78ZAHRSHHYZ","kind":"note","note_kind":"progress","op":"20260729T160255.207103Z-p1729-c0000-rc13d-h02df60","text":"Hardening the receipt driver against concurrent worktree drift by verifying the source fingerprint around every phase; no core paths will be touched.","ts":"2026-07-29T16:02:55.207103Z","v":1}

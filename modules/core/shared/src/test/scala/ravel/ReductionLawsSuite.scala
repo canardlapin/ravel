@@ -70,6 +70,137 @@ final class ReductionLawsSuite extends FunSuite:
     assertEquals(ties.argMax, 3)
   }
 
+  test("optimized extrema preserve NaN and signed-zero semantics across layouts and axes") {
+    val signed = NDArray.fromSeq(
+      Shape(4, 4),
+      Seq(
+        0.0, 7.0, -0.0, -3.0, -0.0, 2.0, 0.0, 9.0, 4.0, -5.0, 6.0, 0.0, 1.0, 8.0, -2.0, -0.0
+      )
+    )
+    val expectedMinimum = values(signed).foldLeft(Double.PositiveInfinity)(math.min)
+    val expectedMaximum = values(signed).foldLeft(Double.NegativeInfinity)(math.max)
+    assertEquals(
+      java.lang.Double.doubleToRawLongBits(signed.min),
+      java.lang.Double.doubleToRawLongBits(expectedMinimum)
+    )
+    assertEquals(
+      java.lang.Double.doubleToRawLongBits(signed.max),
+      java.lang.Double.doubleToRawLongBits(expectedMaximum)
+    )
+    assertEquals(
+      java.lang.Double.doubleToRawLongBits(signed.transpose.min),
+      java.lang.Double.doubleToRawLongBits(expectedMinimum)
+    )
+    assertEquals(
+      java.lang.Double.doubleToRawLongBits(signed.transpose.max),
+      java.lang.Double.doubleToRawLongBits(expectedMaximum)
+    )
+
+    val axis0Minimum = signed.min(0)
+    val axis0Maximum = signed.max(0)
+    val axis1Minimum = signed.min(1)
+    val axis1Maximum = signed.max(1)
+    var column = 0
+    while column < signed.shape(1) do
+      val fiber = Vector.tabulate(signed.shape(0))(row => signed(row, column))
+      assertEquals(
+        java.lang.Double.doubleToRawLongBits(axis0Minimum(column)),
+        java.lang.Double.doubleToRawLongBits(fiber.reduce(math.min))
+      )
+      assertEquals(
+        java.lang.Double.doubleToRawLongBits(axis0Maximum(column)),
+        java.lang.Double.doubleToRawLongBits(fiber.reduce(math.max))
+      )
+      column += 1
+    var row = 0
+    while row < signed.shape(0) do
+      val fiber = Vector.tabulate(signed.shape(1))(column => signed(row, column))
+      assertEquals(
+        java.lang.Double.doubleToRawLongBits(axis1Minimum(row)),
+        java.lang.Double.doubleToRawLongBits(fiber.reduce(math.min))
+      )
+      assertEquals(
+        java.lang.Double.doubleToRawLongBits(axis1Maximum(row)),
+        java.lang.Double.doubleToRawLongBits(fiber.reduce(math.max))
+      )
+      row += 1
+
+    val nan = NDArray.fromSeq(Shape(4, 4), values(signed).updated(9, Double.NaN))
+    assert(nan.min.isNaN)
+    assert(nan.max.isNaN)
+    assert(nan.min(0)(1).isNaN)
+    assert(nan.max(1)(2).isNaN)
+
+    val packed3d =
+      NDArray
+        .fromSeq(
+          Shape(2, 3, 4),
+          Seq.tabulate(24)(index => if index % 3 == 0 then -0.0 else 0.0)
+        )
+        .permuteAxes(1, 2, 0)
+        .reverse(0)
+        .reverse(2)
+    assert(packed3d.layout.isPhysicallyDense)
+    assertEquals(
+      java.lang.Double.doubleToRawLongBits(packed3d.min),
+      java.lang.Double.doubleToRawLongBits(-0.0)
+    )
+    assertEquals(
+      java.lang.Double.doubleToRawLongBits(packed3d.max),
+      java.lang.Double.doubleToRawLongBits(0.0)
+    )
+
+    val packedNaN =
+      NDArray
+        .fromSeq(
+          Shape(2, 3, 4),
+          Seq.tabulate(24)(index => if index == 17 then Double.NaN else index.toDouble)
+        )
+        .permuteAxes(2, 0, 1)
+        .reverse(0)
+    assert(packedNaN.min.isNaN)
+    assert(packedNaN.max.isNaN)
+  }
+
+  test("contiguous integer fold specializations preserve wraparound and tails") {
+    var length = 0
+    while length <= 35 do
+      val ints = Vector.tabulate(length) { index =>
+        if index % 5 == 0 then Int.MaxValue else index * 17 - 23
+      }
+      val longs = Vector.tabulate(length) { index =>
+        if index % 5 == 0 then Long.MaxValue else index.toLong * 1000000007L - 31L
+      }
+      val intArray = NDArray.fromSeq(Shape(length), ints)
+      val longArray = NDArray.fromSeq(Shape(length), longs)
+      assertEquals(intArray.sum, ints.foldLeft(0)(_ + _))
+      assertEquals(intArray.product, ints.foldLeft(1)(_ * _))
+      assertEquals(longArray.sum, longs.foldLeft(0L)(_ + _))
+      assertEquals(longArray.product, longs.foldLeft(1L)(_ * _))
+      length += 1
+
+    val denseInts =
+      NDArray
+        .fromSeq(Shape(2, 3, 5), Seq.tabulate(30)(index => index * 17 - 211))
+        .permuteAxes(1, 2, 0)
+        .reverse(0)
+        .reverse(2)
+    val denseLongs =
+      NDArray
+        .fromSeq(
+          Shape(2, 3, 5),
+          Seq.tabulate(30)(index => index.toLong * 1000000007L - 31L)
+        )
+        .permuteAxes(2, 0, 1)
+        .reverse(1)
+    assert(denseInts.layout.isPhysicallyDense)
+    assert(denseLongs.layout.isPhysicallyDense)
+    assertEquals(denseInts.sum, values(denseInts).foldLeft(0)(_ + _))
+    assertEquals(denseInts.product, values(denseInts).foldLeft(1)(_ * _))
+    assertEquals(denseLongs.sum, values(denseLongs).foldLeft(0L)(_ + _))
+    assertEquals(denseLongs.product, values(denseLongs).foldLeft(1L)(_ * _))
+  }
+
   test("axis min/max/arg and empty fibers follow the scalar contract") {
     val source = NDArray.fromSeq(
       Shape(2, 4),
@@ -200,7 +331,15 @@ final class ReductionLawsSuite extends FunSuite:
       java.lang.Double.doubleToRawLongBits(doubles.sum),
       java.lang.Double.doubleToRawLongBits(referenceDoublePairwise(values(doubles)))
     )
+    assertEquals(
+      java.lang.Double.doubleToRawLongBits(doubles.mean),
+      java.lang.Double.doubleToRawLongBits(
+        referenceDoublePairwise(values(doubles)) / doubles.size.toDouble
+      )
+    )
     val doubleRows = doubles.sum(1)
+    val doubleRowMeans = doubles.mean(1)
+    val doubleColumnMeans = doubles.mean(0)
     var row = 0
     while row < 9 do
       val fiber = Vector.tabulate(513)(column => doubles(row, column))
@@ -208,7 +347,19 @@ final class ReductionLawsSuite extends FunSuite:
         java.lang.Double.doubleToRawLongBits(doubleRows(row)),
         java.lang.Double.doubleToRawLongBits(referenceDoublePairwise(fiber))
       )
+      assertEquals(
+        java.lang.Double.doubleToRawLongBits(doubleRowMeans(row)),
+        java.lang.Double.doubleToRawLongBits(referenceDoublePairwise(fiber) / fiber.size.toDouble)
+      )
       row += 1
+    var column = 0
+    while column < 513 do
+      val fiber = Vector.tabulate(9)(row => doubles(row, column))
+      assertEquals(
+        java.lang.Double.doubleToRawLongBits(doubleColumnMeans(column)),
+        java.lang.Double.doubleToRawLongBits(referenceDoublePairwise(fiber) / fiber.size.toDouble)
+      )
+      column += 1
 
     val floats =
       NDArray.tabulate[Float](7, 259)((row, column) =>

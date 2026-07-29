@@ -1,0 +1,1 @@
+{"actor":"codex-ravel","entity":"bd-01KYNW7FBJ1ZQJRQZ771J9V4HW","kind":"note","note_kind":"progress","op":"20260729T025457.595635Z-p91661-c0000-r7f0c-hd511c9","text":"Extrema second pass retained correctness and improved axis0 min to 284284 ns/op and transposed max to 275104 ns/op; now removing axis0 pairwise scratch churn.","ts":"2026-07-29T02:54:57.595635Z","v":1}

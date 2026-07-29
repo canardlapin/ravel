@@ -139,9 +139,12 @@ inner-stride multiply improved 40-41x. The post-change GC receipt shows
 approximately constant per-operation allocation instead of the former
 approximately 48 bytes per element.
 
-These are optimization receipts, not a new release score. Reversed mutable
-traversal remains 0.43-0.52x NumPy and is a measured residual gap. The next
-stage is therefore a benchmark-only targeted Vector API experiment, not a
+These are optimization receipts, not a new release score. At this stage,
+reversed mutable traversal remained 0.43-0.52x NumPy. The later
+[general packed-layout receipt](../modules/benchmarks/results/2026-07-29-local-jdk25-frontier/)
+closes the layout-specific traversal cost without adding a benchmark case
+branch: packed permutations and reversals use the same physical-order loop as
+canonical storage. The separate Vector API work remains an experiment, not a
 dependency change in `ravel-core`.
 
 ## Stage 3 Vector API decision
@@ -197,3 +200,82 @@ reassociation switch. The existing fixed 128-value block-pairwise schedule
 remains the only floating-sum contract. Reopen this gate only for a named
 consumer and workload that accepts a fully specified alternative contract and
 shows a material parity-gated benefit over the exact implementation.
+
+## Residual operation-matrix campaign
+
+The focused JDK 25 same-host receipt at
+[`2026-07-28-local-jdk25-residual-war`](../modules/benchmarks/results/2026-07-28-local-jdk25-residual-war/)
+compares commit `942ce83` with the parity-gated candidate under the same
+two-fork, five-warmup, seven-measurement protocol. Across 15 side-1024 public
+rows, the geometric-mean speedup is 3.47x; stable individual gains range from
+1.83x for axis-1 Double mean to 6.28x for transposed Double max. No stable row
+regressed.
+
+The retained changes break fixed-width sum/product dependency chains with
+eight exact modulo-arithmetic lanes, traverse rank-2 extrema and axis-0 product
+in cache-friendly physical order, reuse pairwise axis-0 scratch, execute
+Float-to-Double pairwise blocks through monomorphic storage, and rely on the
+specified primitive floating-to-integral conversion instead of repeating its
+range/NaN branches per element.
+
+The numerical contracts remain unchanged: floating sums and means keep the
+fixed 128-value block schedule and merge tree; axis products keep fiber order;
+extrema preserve NaN propagation and signed zero; fixed-width operations keep
+wraparound; and floating casts retain the JVM/Scala.js conversion result.
+The NumPy gate matched all 32 access-pattern and 158 operation-matrix
+signatures, the full JVM and Scala.js suites passed, and optimized Scala.js
+linking passed.
+
+Allocation controls show approximately 8.9 KiB/op for side-1024 axis-0 mean,
+including its required 8 KiB output, and no measured GC. Scalar Float mean and
+Int product remain effectively allocation-free. This local workstation receipt
+is diagnostic and does not replace quiet-runner release evidence.
+
+## General packed-layout campaign
+
+The broad 158-row detector at
+[`2026-07-29-local-jdk25-current-matrix`](../modules/benchmarks/results/2026-07-29-local-jdk25-current-matrix/)
+passed semantic parity at sides 256 and 1024 before timing. It identified a
+remaining reversed scalar-mutation loss, but the production change is based on
+a reusable layout invariant rather than that row.
+
+A layout is physically dense when its reachable addresses form exactly one
+packed interval after singleton axes are ignored and non-singleton axes are
+ordered by absolute stride. The invariant covers C order, Fortran order, axis
+permutations, reversals, and their combinations; it rejects gaps, overlap, and
+broadcast. Element-independent scalar mutation may therefore visit the packed
+interval in physical order. Paired assignment remains in logical order because
+alias behavior may depend on visit order.
+
+Exact full reductions reuse the same invariant only when their algebra permits
+it. Fixed-width sums and products are associative modulo their dtype width.
+Full extrema may regroup while retaining NaN propagation and signed-zero
+selection. Floating sums and products keep their documented logical schedules.
+
+On JDK 25 AArch64, reversed side-1024 mutation improved from 337,758 to 142,126
+ns/op, or 2.38x. A full-protocol six-layout witness measured 137,695-138,217
+ns/op across contiguous, transposed, independently reversed, doubly reversed,
+and transpose-plus-reverse views, a spread below 0.4 percent. JVM and Scala.js
+generated laws verify the invariant and exact results across ranks and dtypes.
+
+The rank-3 reduction witness measures full `Double.maximum` within 1.4 percent
+across contiguous, permuted, reversed, and permute-plus-reverse layouts. The
+three transformed `Int.sum` rows are within 0.4 percent. Its contiguous row
+retains one outlier and a wider interval, so the receipt establishes that
+transformed layouts reach the same fast path; it does not establish that they
+are faster than contiguous storage.
+
+The expanded standalone Vector API controls are recorded for
+[JDK 25](../modules/benchmarks/results/2026-07-29-local-jdk25-vector-frontier/)
+and
+[JDK 21](../modules/benchmarks/results/2026-07-29-local-jdk21-vector-frontier/).
+JDK 25 shows 2.59-3.04x candidates for exact extrema and `Int` reductions,
+1.34x for `Long` sum, and a decisive 0.14x rejection for `Long` product.
+The clean JDK 21 rows confirm 2.46-2.67x for the `Int` reductions and reject
+`Long` product at 0.13x. Split quiet JDK 21 reruns replace the contaminated
+aggregate with 2.61x for maximum, 2.57x for minimum, and 1.33x for `Long` sum.
+The loaded attempt remains quarantined. The JDK 21 allocation court reports
+constant normalized allocation below 50 B/op and zero collections for every
+candidate, matching the JDK 25 conclusion. No artifact can be promoted without
+x86-64 timing and an integration-specific scalar fallback and module-loading
+design.

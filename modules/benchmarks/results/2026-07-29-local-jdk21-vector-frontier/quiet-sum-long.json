@@ -1,0 +1,136 @@
+[
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "ravel.bench.VectorApiBenchmarks.scalar_sum_long",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "/private/tmp/ravel-temurin21.wqDvz9/jdk-21.0.11+10/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "--add-modules=jdk.incubator.vector",
+            "--add-modules=jdk.incubator.vector"
+        ],
+        "jdkVersion" : "21.0.11",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "21.0.11+10-LTS",
+        "warmupIterations" : 5,
+        "warmupTime" : "500 ms",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 7,
+        "measurementTime" : "500 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "side" : "1024"
+        },
+        "primaryMetric" : {
+            "score" : 130731.73525919323,
+            "scoreError" : 1661.1812070593937,
+            "scoreConfidence" : [
+                129070.55405213384,
+                132392.91646625262
+            ],
+            "scorePercentiles" : {
+                "0.0" : 128762.84509202454,
+                "50.0" : 130373.87882665756,
+                "90.0" : 133167.3958339517,
+                "95.0" : 133610.94537258023,
+                "99.0" : 133610.94537258023,
+                "99.9" : 133610.94537258023,
+                "99.99" : 133610.94537258023,
+                "99.999" : 133610.94537258023,
+                "99.9999" : 133610.94537258023,
+                "100.0" : 133610.94537258023
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    131903.8731070496,
+                    128818.12675337924,
+                    130700.03467153285,
+                    130202.29819587628,
+                    133610.94537258023,
+                    132723.84629532316,
+                    132623.5888684694
+                ],
+                [
+                    129827.55027138795,
+                    129546.10156450373,
+                    129940.0457936712,
+                    128762.84509202454,
+                    130228.09796339263,
+                    130519.65968992248,
+                    130837.27998959146
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "ravel.bench.VectorApiBenchmarks.vector_sum_long",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "/private/tmp/ravel-temurin21.wqDvz9/jdk-21.0.11+10/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "--add-modules=jdk.incubator.vector",
+            "--add-modules=jdk.incubator.vector"
+        ],
+        "jdkVersion" : "21.0.11",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "21.0.11+10-LTS",
+        "warmupIterations" : 5,
+        "warmupTime" : "500 ms",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 7,
+        "measurementTime" : "500 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "side" : "1024"
+        },
+        "primaryMetric" : {
+            "score" : 98078.58957702361,
+            "scoreError" : 1086.7910848818512,
+            "scoreConfidence" : [
+                96991.79849214175,
+                99165.38066190547
+            ],
+            "scorePercentiles" : {
+                "0.0" : 96558.9068833652,
+                "50.0" : 98167.36943722144,
+                "90.0" : 99399.12152400508,
+                "95.0" : 99409.93406809683,
+                "99.0" : 99409.93406809683,
+                "99.9" : 99409.93406809683,
+                "99.99" : 99409.93406809683,
+                "99.999" : 99409.93406809683,
+                "99.9999" : 99409.93406809683,
+                "100.0" : 99409.93406809683
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    97169.05501057896,
+                    98729.39133842838,
+                    98820.16979655712,
+                    99388.30897991334,
+                    98339.95327102803,
+                    97176.1254328588,
+                    98681.465855573
+                ],
+                [
+                    98983.70636955235,
+                    97994.78560341483,
+                    97791.89395711501,
+                    96558.9068833652,
+                    97259.71654149817,
+                    96796.8409703504,
+                    99409.93406809683
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    }
+]

@@ -134,6 +134,69 @@ final class MutableLawsSuite extends FunSuite:
     assertEquals(values(longs.freezeCopy()), List(Long.MinValue, Long.MinValue + 1L))
   }
 
+  test("dense mutable permutations and reversals use every scalar operation exactly once") {
+    val ints =
+      NDArray
+        .tabulate[Int](2, 3, 4)((plane, row, column) => plane * 100 + row * 10 + column + 8)
+        .mutableCopy
+    val intView =
+      ints
+        .permuteAxes(1, 2, 0)
+        .reverse(0)
+        .reverse(2)
+        .newAxis(1)
+        .squeeze(1)
+    intView.addInPlace(4)
+    intView.subtractInPlace(2)
+    intView.multiplyInPlace(6)
+    intView.quotInPlace(3)
+    val expectedInts =
+      NDArray.tabulate[Int](2, 3, 4)((plane, row, column) =>
+        ((plane * 100 + row * 10 + column + 8 + 4 - 2) * 6) / 3
+      )
+    assertEquals(values(ints.freezeCopy()), values(expectedInts))
+
+    val longs =
+      NDArray.fromSeq(Shape(2, 3), Seq(8L, 10L, 12L, 14L, 16L, 18L)).mutableCopy
+    val longView = longs.transpose.reverse(0).reverse(1)
+    longView.addInPlace(4L)
+    longView.subtractInPlace(2L)
+    longView.multiplyInPlace(6L)
+    longView.quotInPlace(3L)
+    assertEquals(values(longs.freezeCopy()), List(20L, 24L, 28L, 32L, 36L, 40L))
+
+    val floats =
+      NDArray.fromSeq(Shape(2, 3), Seq(1.0f, -2.0f, 3.5f, -4.5f, 8.0f, 12.0f)).mutableCopy
+    val floatView = floats.transpose.reverse(0).reverse(1)
+    floatView.addInPlace(0.5f)
+    floatView.subtractInPlace(0.25f)
+    floatView.multiplyInPlace(2.0f)
+    floatView.divideInPlace(4.0f)
+    val expectedFloats =
+      Seq(1.0f, -2.0f, 3.5f, -4.5f, 8.0f, 12.0f)
+        .map(value => (((value + 0.5f).toFloat - 0.25f).toFloat * 2.0f).toFloat / 4.0f)
+        .map(_.toFloat)
+    assertEquals(
+      values(floats.freezeCopy()).map(java.lang.Float.floatToRawIntBits),
+      expectedFloats.map(java.lang.Float.floatToRawIntBits).toList
+    )
+
+    val doubles =
+      NDArray.fromSeq(Shape(2, 3), Seq(1.0, -2.0, 3.5, -4.5, 8.0, 12.0)).mutableCopy
+    val doubleView = doubles.transpose.reverse(0).reverse(1)
+    doubleView.addInPlace(0.5)
+    doubleView.subtractInPlace(0.25)
+    doubleView.multiplyInPlace(2.0)
+    doubleView.divideInPlace(4.0)
+    val expectedDoubles =
+      Seq(1.0, -2.0, 3.5, -4.5, 8.0, 12.0)
+        .map(value => ((value + 0.5 - 0.25) * 2.0) / 4.0)
+    assertEquals(
+      values(doubles.freezeCopy()).map(java.lang.Double.doubleToRawLongBits),
+      expectedDoubles.map(java.lang.Double.doubleToRawLongBits).toList
+    )
+  }
+
   test("ordinary immutable arrays expose no update method") {
     assert(compileErrors("""
       import ravel.*

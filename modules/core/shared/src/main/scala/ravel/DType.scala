@@ -118,22 +118,10 @@ object DType:
 
   private def castDouble[B](value: Double, target: NumericDType[B]): Any =
     target.tag match
-      case ByteTag => floatingToInt(value).toByte
-      case ShortTag => floatingToInt(value).toShort
-      case IntTag => floatingToInt(value)
-      case LongTag => floatingToLong(value)
+      case ByteTag => value.toInt.toByte
+      case ShortTag => value.toInt.toShort
+      case IntTag => value.toInt
+      case LongTag => value.toLong
       case FloatTag => value.toFloat
       case DoubleTag => value
       case tag => throw new MatchError(tag)
-
-  private def floatingToInt(value: Double): Int =
-    if value.isNaN then 0
-    else if value >= Int.MaxValue.toDouble then Int.MaxValue
-    else if value <= Int.MinValue.toDouble then Int.MinValue
-    else value.toInt
-
-  private def floatingToLong(value: Double): Long =
-    if value.isNaN then 0L
-    else if value >= Long.MaxValue.toDouble then Long.MaxValue
-    else if value <= Long.MinValue.toDouble then Long.MinValue
-    else value.toLong

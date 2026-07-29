@@ -3,6 +3,8 @@ package ravel.bench;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import jdk.incubator.vector.DoubleVector;
+import jdk.incubator.vector.IntVector;
+import jdk.incubator.vector.LongVector;
 import jdk.incubator.vector.VectorMask;
 import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorSpecies;
@@ -69,6 +71,66 @@ public class VectorApiBenchmarks {
   }
 
   @Benchmark
+  public double scalar_minimum() {
+    return VectorApiKernels.minimumScalar(fixture.left);
+  }
+
+  @Benchmark
+  public double vector_minimum() {
+    return VectorApiKernels.minimumVector(fixture.left);
+  }
+
+  @Benchmark
+  public double scalar_maximum() {
+    return VectorApiKernels.maximumScalar(fixture.left);
+  }
+
+  @Benchmark
+  public double vector_maximum() {
+    return VectorApiKernels.maximumVector(fixture.left);
+  }
+
+  @Benchmark
+  public int scalar_sum_int() {
+    return VectorApiKernels.sumIntScalar(fixture.intValues);
+  }
+
+  @Benchmark
+  public int vector_sum_int() {
+    return VectorApiKernels.sumIntVector(fixture.intValues);
+  }
+
+  @Benchmark
+  public int scalar_product_int() {
+    return VectorApiKernels.productIntScalar(fixture.intProduct);
+  }
+
+  @Benchmark
+  public int vector_product_int() {
+    return VectorApiKernels.productIntVector(fixture.intProduct);
+  }
+
+  @Benchmark
+  public long scalar_sum_long() {
+    return VectorApiKernels.sumLongScalar(fixture.longValues);
+  }
+
+  @Benchmark
+  public long vector_sum_long() {
+    return VectorApiKernels.sumLongVector(fixture.longValues);
+  }
+
+  @Benchmark
+  public long scalar_product_long() {
+    return VectorApiKernels.productLongScalar(fixture.longProduct);
+  }
+
+  @Benchmark
+  public long vector_product_long() {
+    return VectorApiKernels.productLongVector(fixture.longProduct);
+  }
+
+  @Benchmark
   public double[] scalar_contiguous_add() {
     VectorApiKernels.addScalar(fixture.left, fixture.right, fixture.scalarDoubleOutput);
     return fixture.scalarDoubleOutput;
@@ -125,6 +187,10 @@ final class VectorApiFixture {
   final double[] right;
   final double[] nonFinite;
   final double[] angle;
+  final int[] intValues;
+  final int[] intProduct;
+  final long[] longValues;
+  final long[] longProduct;
 
   final double[] scalarAxisBlockValues;
   final double[] scalarAxisPartials;
@@ -153,6 +219,10 @@ final class VectorApiFixture {
     this.right = new double[size];
     this.nonFinite = new double[size];
     this.angle = new double[size];
+    this.intValues = new int[size];
+    this.intProduct = new int[size];
+    this.longValues = new long[size];
+    this.longProduct = new long[size];
     for (int index = 0; index < size; index++) {
       int row = index / side;
       int column = index - row * side;
@@ -164,6 +234,18 @@ final class VectorApiFixture {
               ? Double.NaN
               : index % 263 == 0 ? Double.POSITIVE_INFINITY : base;
       angle[index] = ((row * 131 + column * 17) % 2048 - 1024) / 128.0;
+      intValues[index] =
+          index % 257 == 0
+              ? Integer.MAX_VALUE
+              : index % 263 == 0 ? Integer.MIN_VALUE : row * 17 + column * 5 - 11;
+      intProduct[index] = (row + column) % 3 == 0 ? -1 : 1;
+      longValues[index] =
+          index % 257 == 0
+              ? Long.MAX_VALUE
+              : index % 263 == 0
+                  ? Long.MIN_VALUE
+                  : (long) row * 1_000_003L + (long) column * 97L - 41L;
+      longProduct[index] = (row + column) % 5 == 0 ? -1L : 1L;
     }
 
     scalarAxisBlockValues = new double[blockCount * side];
@@ -202,6 +284,32 @@ final class VectorApiFixture {
     VectorApiKernels.requireRawEqual(
         scalarAxisOutput, vectorAxisOutput, "axis-0 exact schedule");
 
+    VectorApiKernels.requireDoubleContractEqual(
+        VectorApiKernels.minimumScalar(left),
+        VectorApiKernels.minimumVector(left),
+        "minimum");
+    VectorApiKernels.requireDoubleContractEqual(
+        VectorApiKernels.maximumScalar(left),
+        VectorApiKernels.maximumVector(left),
+        "maximum");
+    VectorApiKernels.requireEqual(
+        VectorApiKernels.sumIntScalar(intValues),
+        VectorApiKernels.sumIntVector(intValues),
+        "Int sum");
+    VectorApiKernels.requireEqual(
+        VectorApiKernels.productIntScalar(intProduct),
+        VectorApiKernels.productIntVector(intProduct),
+        "Int product");
+    VectorApiKernels.requireEqual(
+        VectorApiKernels.sumLongScalar(longValues),
+        VectorApiKernels.sumLongVector(longValues),
+        "Long sum");
+    VectorApiKernels.requireEqual(
+        VectorApiKernels.productLongScalar(longProduct),
+        VectorApiKernels.productLongVector(longProduct),
+        "Long product");
+    VectorApiKernels.validateAdversarialReductions();
+
     VectorApiKernels.addScalar(left, right, scalarDoubleOutput);
     VectorApiKernels.addVector(left, right, vectorDoubleOutput);
     VectorApiKernels.requireRawEqual(
@@ -236,6 +344,14 @@ final class VectorApiKernels {
 
   static int preferredDoubleLanes() {
     return DoubleVector.SPECIES_PREFERRED.length();
+  }
+
+  static int preferredIntLanes() {
+    return IntVector.SPECIES_PREFERRED.length();
+  }
+
+  static int preferredLongLanes() {
+    return LongVector.SPECIES_PREFERRED.length();
   }
 
   static void axis0ExactScalar(
@@ -344,6 +460,328 @@ final class VectorApiKernels {
     return initialCount == 0 ? 0.0 : scratch[0];
   }
 
+  static double minimumScalar(double[] input) {
+    return extremumScalar(input, true);
+  }
+
+  static double maximumScalar(double[] input) {
+    return extremumScalar(input, false);
+  }
+
+  private static double extremumScalar(double[] input, boolean minimum) {
+    if (input.length == 0) {
+      throw new IllegalArgumentException("extremum requires nonempty input");
+    }
+    if (input.length < 4) {
+      double result = input[0];
+      int index = 1;
+      while (index < input.length) {
+        result = minimum ? Math.min(result, input[index]) : Math.max(result, input[index]);
+        index++;
+      }
+      return result;
+    }
+
+    double value0 = input[0];
+    double value1 = input[1];
+    double value2 = input[2];
+    double value3 = input[3];
+    int index = 4;
+    while (index + 3 < input.length) {
+      value0 = minimum ? Math.min(value0, input[index]) : Math.max(value0, input[index]);
+      value1 =
+          minimum ? Math.min(value1, input[index + 1]) : Math.max(value1, input[index + 1]);
+      value2 =
+          minimum ? Math.min(value2, input[index + 2]) : Math.max(value2, input[index + 2]);
+      value3 =
+          minimum ? Math.min(value3, input[index + 3]) : Math.max(value3, input[index + 3]);
+      index += 4;
+    }
+    double left = minimum ? Math.min(value0, value1) : Math.max(value0, value1);
+    double right = minimum ? Math.min(value2, value3) : Math.max(value2, value3);
+    double result = minimum ? Math.min(left, right) : Math.max(left, right);
+    while (index < input.length) {
+      result = minimum ? Math.min(result, input[index]) : Math.max(result, input[index]);
+      index++;
+    }
+    return result;
+  }
+
+  static double minimumVector(double[] input) {
+    return extremumVector(input, true);
+  }
+
+  static double maximumVector(double[] input) {
+    return extremumVector(input, false);
+  }
+
+  private static double extremumVector(double[] input, boolean minimum) {
+    if (input.length == 0) {
+      throw new IllegalArgumentException("extremum requires nonempty input");
+    }
+    VectorSpecies<Double> species = DoubleVector.SPECIES_PREFERRED;
+    int length = species.length();
+    int step = length * 4;
+    double identity = minimum ? Double.POSITIVE_INFINITY : Double.NEGATIVE_INFINITY;
+    DoubleVector value0 = DoubleVector.broadcast(species, identity);
+    DoubleVector value1 = value0;
+    DoubleVector value2 = value0;
+    DoubleVector value3 = value0;
+    int index = 0;
+    while (index + step <= input.length) {
+      DoubleVector input0 = DoubleVector.fromArray(species, input, index);
+      DoubleVector input1 = DoubleVector.fromArray(species, input, index + length);
+      DoubleVector input2 = DoubleVector.fromArray(species, input, index + length * 2);
+      DoubleVector input3 = DoubleVector.fromArray(species, input, index + length * 3);
+      if (minimum) {
+        value0 = value0.min(input0);
+        value1 = value1.min(input1);
+        value2 = value2.min(input2);
+        value3 = value3.min(input3);
+      } else {
+        value0 = value0.max(input0);
+        value1 = value1.max(input1);
+        value2 = value2.max(input2);
+        value3 = value3.max(input3);
+      }
+      index += step;
+    }
+    DoubleVector left = minimum ? value0.min(value1) : value0.max(value1);
+    DoubleVector right = minimum ? value2.min(value3) : value2.max(value3);
+    DoubleVector lanes = minimum ? left.min(right) : left.max(right);
+    double result =
+        lanes.reduceLanes(minimum ? VectorOperators.MIN : VectorOperators.MAX);
+    while (index < input.length) {
+      result = minimum ? Math.min(result, input[index]) : Math.max(result, input[index]);
+      index++;
+    }
+    return result;
+  }
+
+  static int sumIntScalar(int[] input) {
+    int value0 = 0;
+    int value1 = 0;
+    int value2 = 0;
+    int value3 = 0;
+    int value4 = 0;
+    int value5 = 0;
+    int value6 = 0;
+    int value7 = 0;
+    int index = 0;
+    while (index + 7 < input.length) {
+      value0 += input[index];
+      value1 += input[index + 1];
+      value2 += input[index + 2];
+      value3 += input[index + 3];
+      value4 += input[index + 4];
+      value5 += input[index + 5];
+      value6 += input[index + 6];
+      value7 += input[index + 7];
+      index += 8;
+    }
+    int result =
+        ((value0 + value1) + (value2 + value3))
+            + ((value4 + value5) + (value6 + value7));
+    while (index < input.length) {
+      result += input[index];
+      index++;
+    }
+    return result;
+  }
+
+  static int sumIntVector(int[] input) {
+    VectorSpecies<Integer> species = IntVector.SPECIES_PREFERRED;
+    int length = species.length();
+    int step = length * 4;
+    IntVector value0 = IntVector.zero(species);
+    IntVector value1 = value0;
+    IntVector value2 = value0;
+    IntVector value3 = value0;
+    int index = 0;
+    while (index + step <= input.length) {
+      value0 = value0.add(IntVector.fromArray(species, input, index));
+      value1 = value1.add(IntVector.fromArray(species, input, index + length));
+      value2 = value2.add(IntVector.fromArray(species, input, index + length * 2));
+      value3 = value3.add(IntVector.fromArray(species, input, index + length * 3));
+      index += step;
+    }
+    int result =
+        value0.add(value1).add(value2.add(value3)).reduceLanes(VectorOperators.ADD);
+    while (index < input.length) {
+      result += input[index];
+      index++;
+    }
+    return result;
+  }
+
+  static int productIntScalar(int[] input) {
+    int value0 = 1;
+    int value1 = 1;
+    int value2 = 1;
+    int value3 = 1;
+    int value4 = 1;
+    int value5 = 1;
+    int value6 = 1;
+    int value7 = 1;
+    int index = 0;
+    while (index + 7 < input.length) {
+      value0 *= input[index];
+      value1 *= input[index + 1];
+      value2 *= input[index + 2];
+      value3 *= input[index + 3];
+      value4 *= input[index + 4];
+      value5 *= input[index + 5];
+      value6 *= input[index + 6];
+      value7 *= input[index + 7];
+      index += 8;
+    }
+    int result =
+        ((value0 * value1) * (value2 * value3))
+            * ((value4 * value5) * (value6 * value7));
+    while (index < input.length) {
+      result *= input[index];
+      index++;
+    }
+    return result;
+  }
+
+  static int productIntVector(int[] input) {
+    VectorSpecies<Integer> species = IntVector.SPECIES_PREFERRED;
+    int length = species.length();
+    int step = length * 4;
+    IntVector value0 = IntVector.broadcast(species, 1);
+    IntVector value1 = value0;
+    IntVector value2 = value0;
+    IntVector value3 = value0;
+    int index = 0;
+    while (index + step <= input.length) {
+      value0 = value0.mul(IntVector.fromArray(species, input, index));
+      value1 = value1.mul(IntVector.fromArray(species, input, index + length));
+      value2 = value2.mul(IntVector.fromArray(species, input, index + length * 2));
+      value3 = value3.mul(IntVector.fromArray(species, input, index + length * 3));
+      index += step;
+    }
+    int result =
+        value0.mul(value1).mul(value2.mul(value3)).reduceLanes(VectorOperators.MUL);
+    while (index < input.length) {
+      result *= input[index];
+      index++;
+    }
+    return result;
+  }
+
+  static long sumLongScalar(long[] input) {
+    long value0 = 0L;
+    long value1 = 0L;
+    long value2 = 0L;
+    long value3 = 0L;
+    long value4 = 0L;
+    long value5 = 0L;
+    long value6 = 0L;
+    long value7 = 0L;
+    int index = 0;
+    while (index + 7 < input.length) {
+      value0 += input[index];
+      value1 += input[index + 1];
+      value2 += input[index + 2];
+      value3 += input[index + 3];
+      value4 += input[index + 4];
+      value5 += input[index + 5];
+      value6 += input[index + 6];
+      value7 += input[index + 7];
+      index += 8;
+    }
+    long result =
+        ((value0 + value1) + (value2 + value3))
+            + ((value4 + value5) + (value6 + value7));
+    while (index < input.length) {
+      result += input[index];
+      index++;
+    }
+    return result;
+  }
+
+  static long sumLongVector(long[] input) {
+    VectorSpecies<Long> species = LongVector.SPECIES_PREFERRED;
+    int length = species.length();
+    int step = length * 4;
+    LongVector value0 = LongVector.zero(species);
+    LongVector value1 = value0;
+    LongVector value2 = value0;
+    LongVector value3 = value0;
+    int index = 0;
+    while (index + step <= input.length) {
+      value0 = value0.add(LongVector.fromArray(species, input, index));
+      value1 = value1.add(LongVector.fromArray(species, input, index + length));
+      value2 = value2.add(LongVector.fromArray(species, input, index + length * 2));
+      value3 = value3.add(LongVector.fromArray(species, input, index + length * 3));
+      index += step;
+    }
+    long result =
+        value0.add(value1).add(value2.add(value3)).reduceLanes(VectorOperators.ADD);
+    while (index < input.length) {
+      result += input[index];
+      index++;
+    }
+    return result;
+  }
+
+  static long productLongScalar(long[] input) {
+    long value0 = 1L;
+    long value1 = 1L;
+    long value2 = 1L;
+    long value3 = 1L;
+    long value4 = 1L;
+    long value5 = 1L;
+    long value6 = 1L;
+    long value7 = 1L;
+    int index = 0;
+    while (index + 7 < input.length) {
+      value0 *= input[index];
+      value1 *= input[index + 1];
+      value2 *= input[index + 2];
+      value3 *= input[index + 3];
+      value4 *= input[index + 4];
+      value5 *= input[index + 5];
+      value6 *= input[index + 6];
+      value7 *= input[index + 7];
+      index += 8;
+    }
+    long result =
+        ((value0 * value1) * (value2 * value3))
+            * ((value4 * value5) * (value6 * value7));
+    while (index < input.length) {
+      result *= input[index];
+      index++;
+    }
+    return result;
+  }
+
+  static long productLongVector(long[] input) {
+    VectorSpecies<Long> species = LongVector.SPECIES_PREFERRED;
+    int length = species.length();
+    int step = length * 4;
+    LongVector value0 = LongVector.broadcast(species, 1L);
+    LongVector value1 = value0;
+    LongVector value2 = value0;
+    LongVector value3 = value0;
+    int index = 0;
+    while (index + step <= input.length) {
+      value0 = value0.mul(LongVector.fromArray(species, input, index));
+      value1 = value1.mul(LongVector.fromArray(species, input, index + length));
+      value2 = value2.mul(LongVector.fromArray(species, input, index + length * 2));
+      value3 = value3.mul(LongVector.fromArray(species, input, index + length * 3));
+      index += step;
+    }
+    long result =
+        value0.mul(value1).mul(value2.mul(value3)).reduceLanes(VectorOperators.MUL);
+    while (index < input.length) {
+      result *= input[index];
+      index++;
+    }
+    return result;
+  }
+
   static void addScalar(double[] left, double[] right, double[] output) {
     int index = 0;
     while (index < output.length) {
@@ -440,6 +878,81 @@ final class VectorApiKernels {
     while (index < output.length) {
       output[index] = Math.sin(input[index]);
       index++;
+    }
+  }
+
+  static void validateAdversarialReductions() {
+    double payloadNaN = Double.longBitsToDouble(0x7ff8_0000_0000_0042L);
+    double[][] extremaCases = {
+      {0.0},
+      {-0.0},
+      {0.0, -0.0},
+      {-0.0, 0.0},
+      {Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY},
+      {3.0, Double.NaN, -7.0},
+      {payloadNaN, 1.0, -1.0},
+      {4.0, -3.0, 2.0, -1.0, 0.0, -0.0, 8.0}
+    };
+    for (int index = 0; index < extremaCases.length; index++) {
+      double[] values = extremaCases[index];
+      requireDoubleContractEqual(
+          minimumScalar(values), minimumVector(values), "adversarial minimum " + index);
+      requireDoubleContractEqual(
+          maximumScalar(values), maximumVector(values), "adversarial maximum " + index);
+    }
+
+    int[] intTail = new int[preferredIntLanes() * 4 + 3];
+    for (int index = 0; index < intTail.length; index++) {
+      intTail[index] =
+          index % 5 == 0 ? Integer.MAX_VALUE : index % 3 == 0 ? Integer.MIN_VALUE : index * 17 + 3;
+    }
+    requireEqual(sumIntScalar(intTail), sumIntVector(intTail), "adversarial Int sum tail");
+    requireEqual(
+        productIntScalar(intTail), productIntVector(intTail), "adversarial Int product tail");
+    requireEqual(sumIntScalar(new int[0]), sumIntVector(new int[0]), "empty Int sum");
+    requireEqual(productIntScalar(new int[0]), productIntVector(new int[0]), "empty Int product");
+
+    long[] longTail = new long[preferredLongLanes() * 4 + 3];
+    for (int index = 0; index < longTail.length; index++) {
+      longTail[index] =
+          index % 5 == 0
+              ? Long.MAX_VALUE
+              : index % 3 == 0 ? Long.MIN_VALUE : (long) index * 1_000_003L + 5L;
+    }
+    requireEqual(sumLongScalar(longTail), sumLongVector(longTail), "adversarial Long sum tail");
+    requireEqual(
+        productLongScalar(longTail), productLongVector(longTail), "adversarial Long product tail");
+    requireEqual(sumLongScalar(new long[0]), sumLongVector(new long[0]), "empty Long sum");
+    requireEqual(
+        productLongScalar(new long[0]), productLongVector(new long[0]), "empty Long product");
+  }
+
+  static void requireDoubleContractEqual(double expected, double actual, String label) {
+    boolean equal =
+        Double.isNaN(expected)
+            ? Double.isNaN(actual)
+            : Double.doubleToRawLongBits(expected) == Double.doubleToRawLongBits(actual);
+    if (!equal) {
+      throw new IllegalStateException(
+          label
+              + " differs: expected 0x"
+              + Long.toUnsignedString(Double.doubleToRawLongBits(expected), 16)
+              + ", actual 0x"
+              + Long.toUnsignedString(Double.doubleToRawLongBits(actual), 16));
+    }
+  }
+
+  static void requireEqual(int expected, int actual, String label) {
+    if (expected != actual) {
+      throw new IllegalStateException(
+          label + " differs: expected " + expected + ", actual " + actual);
+    }
+  }
+
+  static void requireEqual(long expected, long actual, String label) {
+    if (expected != actual) {
+      throw new IllegalStateException(
+          label + " differs: expected " + expected + ", actual " + actual);
     }
   }
 

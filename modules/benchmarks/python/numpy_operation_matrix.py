@@ -1081,13 +1081,13 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    sides = args.sides or [256, 1024]
+    sides = args.sides or [64, 256, 1024]
     if args.warmup < 0 or args.samples < 1 or args.target_ms <= 0:
         raise ValueError(
             "warmup must be non-negative; samples and target-ms must be positive"
         )
     result = run_suite(
-        args.sides or [256, 1024],
+        sides,
         args.warmup,
         args.samples,
         args.target_ms,

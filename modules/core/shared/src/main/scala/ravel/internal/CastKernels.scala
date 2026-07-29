@@ -68,24 +68,24 @@ private[ravel] object CastKernels:
         castLogical(layout, x.raw.apply, z.raw.update)(_.toDouble)
 
       case (x: FloatStorage, z: ByteStorage) =>
-        castLogical(layout, x.raw.apply, z.raw.update)(v => floatingToInt(v.toDouble).toByte)
+        castLogical(layout, x.raw.apply, z.raw.update)(_.toInt.toByte)
       case (x: FloatStorage, z: ShortStorage) =>
-        castLogical(layout, x.raw.apply, z.raw.update)(v => floatingToInt(v.toDouble).toShort)
+        castLogical(layout, x.raw.apply, z.raw.update)(_.toInt.toShort)
       case (x: FloatStorage, z: IntStorage) =>
-        castLogical(layout, x.raw.apply, z.raw.update)(v => floatingToInt(v.toDouble))
+        castLogical(layout, x.raw.apply, z.raw.update)(_.toInt)
       case (x: FloatStorage, z: LongStorage) =>
-        castLogical(layout, x.raw.apply, z.raw.update)(v => floatingToLong(v.toDouble))
+        castLogical(layout, x.raw.apply, z.raw.update)(_.toLong)
       case (x: FloatStorage, z: DoubleStorage) =>
         castLogical(layout, x.raw.apply, z.raw.update)(_.toDouble)
 
       case (x: DoubleStorage, z: ByteStorage) =>
-        castLogical(layout, x.raw.apply, z.raw.update)(v => floatingToInt(v).toByte)
+        castLogical(layout, x.raw.apply, z.raw.update)(_.toInt.toByte)
       case (x: DoubleStorage, z: ShortStorage) =>
-        castLogical(layout, x.raw.apply, z.raw.update)(v => floatingToInt(v).toShort)
+        castLogical(layout, x.raw.apply, z.raw.update)(_.toInt.toShort)
       case (x: DoubleStorage, z: IntStorage) =>
-        castLogical(layout, x.raw.apply, z.raw.update)(floatingToInt)
+        castLogical(layout, x.raw.apply, z.raw.update)(_.toInt)
       case (x: DoubleStorage, z: LongStorage) =>
-        castLogical(layout, x.raw.apply, z.raw.update)(floatingToLong)
+        castLogical(layout, x.raw.apply, z.raw.update)(_.toLong)
       case (x: DoubleStorage, z: FloatStorage) =>
         castLogical(layout, x.raw.apply, z.raw.update)(_.toFloat)
 
@@ -112,15 +112,3 @@ private[ravel] object CastKernels:
         write(output, convert(read(address)))
         output += 1
       }
-
-  private def floatingToInt(value: Double): Int =
-    if value.isNaN then 0
-    else if value >= Int.MaxValue.toDouble then Int.MaxValue
-    else if value <= Int.MinValue.toDouble then Int.MinValue
-    else value.toInt
-
-  private def floatingToLong(value: Double): Long =
-    if value.isNaN then 0L
-    else if value >= Long.MaxValue.toDouble then Long.MaxValue
-    else if value <= Long.MinValue.toDouble then Long.MinValue
-    else value.toLong
