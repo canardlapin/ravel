@@ -231,3 +231,60 @@ final class ReferenceNeighborhoodExecutorSuite extends FunSuite:
     )
 
     assert(direct.freezeCopy().sameElements(reference.freezeCopy()))
+
+  test("direct executor matches reference for cropped and broadcast source strides"):
+    val base =
+      NDArray.tabulate[Int](5, 4)((i, j) => 10 * i + j)
+    val cropped =
+      base
+        .narrow(axis = 0, from = 1, length = 3)
+        .narrow(
+          axis = 1,
+          from = 1,
+          length = 2
+        )
+    val broadcast =
+      NDArray
+        .tabulate[Int](1, 4)((_, column) => 10 + column)
+        .broadcastTo(Shape(3, 4))
+    val reducer =
+      new NeighborhoodReducer[Int, Int, Int]:
+        def zero: Int = 0
+        def accumulate(acc: Int, value: Int, offsetIndex: Int): Int =
+          acc + value
+        def finish(acc: Int): Int = acc
+
+    Vector(cropped, broadcast).foreach { source =>
+      val reference =
+        MutableNDArray.zeros[Int, Rank[2]](source.shape)
+      val direct =
+        MutableNDArray.zeros[Int, Rank[2]](source.shape)
+      val spec =
+        NeighborhoodSpec(
+          spatialAxes = 2,
+          offsets = Vector(Vector(-1, 0), Vector(0, 0), Vector(1, 0)),
+          border = BorderMode.Replicate,
+          outputOrigin = Vector(0, 0),
+          outputSpatialShape = Vector(source.shape(0), source.shape(1))
+        )
+
+      ReferenceNeighborhoodExecutor.run(
+        source,
+        reference,
+        spec,
+        reducer,
+        constant = 0
+      )
+      DirectNeighborhoodExecutor.run(
+        source,
+        direct,
+        spec,
+        reducer,
+        constant = 0
+      )
+
+      assert(
+        direct.freezeCopy().sameElements(reference.freezeCopy()),
+        s"direct executor diverged for source layout ${source.shape}"
+      )
+    }
