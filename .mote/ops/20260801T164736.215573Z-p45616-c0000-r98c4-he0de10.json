@@ -1,0 +1,1 @@
+{"actor":"codex-ravel","entity":"bd-01KYZ3JJ6SH03ZBFRT853CN0B9","kind":"note","note_kind":"note","op":"20260801T164736.215573Z-p45616-c0000-r98c4-he0de10","text":"NDArray.convert supports rounding/overflow policies; JVM allocation court proves only final primitive buffer is output-sized; JVM and Scala.js tests pass.","ts":"2026-08-01T16:47:36.215573Z","v":1}

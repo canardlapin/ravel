@@ -68,3 +68,97 @@ final class DTypeCastSuite extends FunSuite:
     assert(converted(2).isNaN)
     assertEquals(converted(3), Float.PositiveInfinity)
   }
+
+  test("checked conversion defaults to nearest-even rounding and Reject") {
+    val values =
+      NDArray.fromSeq(Shape(4), Seq(2.5, 3.5, -2.5, -3.5))
+
+    val converted = values.convert[Int]().toOption.get
+
+    assertEquals(converted.elementsIterator.toList, List(2, 4, -2, -4))
+
+    val overflow = NDArray
+      .fromSeq(Shape(3), Seq(1.0, 128.0, 2.0))
+      .convert[Byte]()
+    assertEquals(
+      overflow,
+      Left(ConversionError.OutOfRange(1, "Double", "Byte"))
+    )
+  }
+
+  test("checked conversion applies every rounding and overflow policy") {
+    val values = NDArray.fromSeq(Shape(2), Seq(1.9, -1.9))
+
+    assertEquals(
+      values
+        .convert[Int](ConversionPolicy(Rounding.TowardZero, Overflow.Reject))
+        .toOption
+        .get
+        .elementsIterator
+        .toList,
+      List(1, -1)
+    )
+    assertEquals(
+      values
+        .convert[Int](ConversionPolicy(Rounding.Floor, Overflow.Reject))
+        .toOption
+        .get
+        .elementsIterator
+        .toList,
+      List(1, -2)
+    )
+    assertEquals(
+      values
+        .convert[Int](ConversionPolicy(Rounding.Ceiling, Overflow.Reject))
+        .toOption
+        .get
+        .elementsIterator
+        .toList,
+      List(2, -1)
+    )
+
+    val outOfRange = NDArray.fromSeq(Shape(3), Seq(-200.0, 5.6, 300.0))
+    assertEquals(
+      outOfRange
+        .convert[Byte](ConversionPolicy(Rounding.NearestEven, Overflow.Clamp))
+        .toOption
+        .get
+        .elementsIterator
+        .toList,
+      List(Byte.MinValue, 6.toByte, Byte.MaxValue)
+    )
+    assertEquals(
+      NDArray
+        .fromSeq(Shape(1), Seq(130.0))
+        .convert[Byte](ConversionPolicy(Rounding.TowardZero, Overflow.Wrap))
+        .toOption
+        .get(0),
+      (-126).toByte
+    )
+  }
+
+  test("checked conversion preserves lossless integral widening round-trips") {
+    val source =
+      NDArray.fromSeq(Shape(4), Seq[Byte](Byte.MinValue, -1, 0, Byte.MaxValue))
+
+    val roundTrip =
+      source
+        .convert[Int]()
+        .toOption
+        .get
+        .convert[Byte]()
+        .toOption
+        .get
+
+    assert(roundTrip.sameElements(source))
+  }
+
+  test("checked conversion rejects non-finite floating-to-integral values") {
+    val values =
+      NDArray.fromSeq(Shape(3), Seq(1.0, Double.NaN, 3.0))
+
+    assertEquals(
+      values.convert[Int](),
+      Left(ConversionError.NonFiniteToIntegral(1, "Double", "Int"))
+    )
+  }

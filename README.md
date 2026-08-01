@@ -81,6 +81,13 @@ The current development code supports `Boolean`, `Byte`, `Short`, `Int`, `Long`,
 maximum, but not same-dtype arithmetic. On Scala.js, `Long` uses a Scala
 `Array[Long]` fallback and is outside the native typed-array fast path.
 
+`NDArray.cast` exposes the host's direct primitive conversion behavior.
+Scientific code should use `NDArray.convert`, whose default policy is
+nearest-even rounding with rejected overflow. `ConversionPolicy` can instead
+request toward-zero, floor, or ceiling rounding and reject, clamp, or explicit
+low-level wrap behavior. Checked conversion validates before allocating an
+output buffer and never creates an output-sized boxed intermediate.
+
 Owned `NDArray` values do not expose mutable backing storage. Use
 `mutableCopy` for explicit mutation and `freezeCopy` to obtain another owned
 value. Platform zero-copy input returns `BorrowedNDArray`, which is a separate

@@ -260,6 +260,23 @@ final class NDArray[A, +R <: AnyRank] private[ravel] (
     CastKernels.convert(storage, layout, output, source, target)
     new NDArray(output, Layout.contiguous(shape, size), target)
 
+  /** Convert numeric storage with explicit rounding and overflow behavior.
+    *
+    * `Overflow.Reject` validates the whole logical source before allocating the target buffer.
+    * Successful conversion always returns a canonical owned array with the same logical shape.
+    */
+  def convert[B](
+      policy: ConversionPolicy = ConversionPolicy()
+  )(using
+      source: NumericDType[A],
+      target: NumericDType[B]
+  ): Either[ConversionError, NDArray[B, R]] =
+    PolicyCastKernels
+      .convert(storage, layout, source, target, policy)
+      .map { output =>
+        new NDArray(output, Layout.contiguous(shape, size), target)
+      }
+
   def sameElements(other: ReadableArray[A, ?]): Boolean =
     EqualityApi.sameElements(this, other.toNDArray)
 
