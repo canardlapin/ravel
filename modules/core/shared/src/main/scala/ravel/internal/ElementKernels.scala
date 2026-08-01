@@ -1,5 +1,7 @@
 package ravel.internal
 
+import ravel.*
+
 private[ravel] object ElementKernels:
   def binary[A](
       operation: Byte,
@@ -11,8 +13,12 @@ private[ravel] object ElementKernels:
     (left, right, output) match
       case (x: ByteStorage, y: ByteStorage, z: ByteStorage) =>
         binaryByte(operation, x, y, z, plan)
+      case (x: UInt8Storage, y: UInt8Storage, z: UInt8Storage) =>
+        binaryUInt8(operation, x, y, z, plan)
       case (x: ShortStorage, y: ShortStorage, z: ShortStorage) =>
         binaryShort(operation, x, y, z, plan)
+      case (x: UInt16Storage, y: UInt16Storage, z: UInt16Storage) =>
+        binaryUInt16(operation, x, y, z, plan)
       case (x: IntStorage, y: IntStorage, z: IntStorage) =>
         binaryInt(operation, x, y, z, plan)
       case (x: LongStorage, y: LongStorage, z: LongStorage) =>
@@ -61,9 +67,25 @@ private[ravel] object ElementKernels:
         scalarDouble(operation, x, scalar.asInstanceOf[Double], z, plan)
       case (x: ByteStorage, z: ByteStorage) =>
         scalarByte(operation, x, scalar.asInstanceOf[Byte], z, plan)
+      case (x: UInt8Storage, z: UInt8Storage) =>
+        scalarUInt8(operation, x, scalar.asInstanceOf[UInt8].rawBits, z, plan)
       case (x: ShortStorage, z: ShortStorage) =>
         scalarShort(operation, x, scalar.asInstanceOf[Short], z, plan)
+      case (x: UInt16Storage, z: UInt16Storage) =>
+        scalarUInt16(operation, x, scalar.asInstanceOf[UInt16].rawBits, z, plan)
       case _ => throw new IllegalArgumentException("scalar kernel dtype mismatch")
+
+  private inline def minUInt8(left: Byte, right: Byte): Byte =
+    if (left & 0xff) <= (right & 0xff) then left else right
+
+  private inline def maxUInt8(left: Byte, right: Byte): Byte =
+    if (left & 0xff) >= (right & 0xff) then left else right
+
+  private inline def minUInt16(left: Short, right: Short): Short =
+    if (left & 0xffff) <= (right & 0xffff) then left else right
+
+  private inline def maxUInt16(left: Short, right: Short): Short =
+    if (left & 0xffff) >= (right & 0xffff) then left else right
 
   private def binaryByte(
       operation: Byte,
@@ -92,6 +114,34 @@ private[ravel] object ElementKernels:
       case KernelOp.Maximum =>
         binaryShortMaximum(x, y, z, plan)
       case _ => unsupportedArithmetic("Short")
+
+  private def binaryUInt8(
+      operation: Byte,
+      x: UInt8Storage,
+      y: UInt8Storage,
+      z: UInt8Storage,
+      plan: LoopPlan
+  ): Unit =
+    operation match
+      case KernelOp.Minimum =>
+        binaryLoop(plan, x.getRaw, y.getRaw, z.setRaw)(minUInt8)
+      case KernelOp.Maximum =>
+        binaryLoop(plan, x.getRaw, y.getRaw, z.setRaw)(maxUInt8)
+      case _ => unsupportedArithmetic("UInt8")
+
+  private def binaryUInt16(
+      operation: Byte,
+      x: UInt16Storage,
+      y: UInt16Storage,
+      z: UInt16Storage,
+      plan: LoopPlan
+  ): Unit =
+    operation match
+      case KernelOp.Minimum =>
+        binaryLoop(plan, x.getRaw, y.getRaw, z.setRaw)(minUInt16)
+      case KernelOp.Maximum =>
+        binaryLoop(plan, x.getRaw, y.getRaw, z.setRaw)(maxUInt16)
+      case _ => unsupportedArithmetic("UInt16")
 
   private def binaryInt(
       operation: Byte,
@@ -607,6 +657,34 @@ private[ravel] object ElementKernels:
       case KernelOp.Maximum => scalarShortMaximum(x, value, z, plan)
       case _ => unsupportedArithmetic("Short")
 
+  private def scalarUInt8(
+      operation: Byte,
+      x: UInt8Storage,
+      value: Byte,
+      z: UInt8Storage,
+      plan: LoopPlan
+  ): Unit =
+    operation match
+      case KernelOp.Minimum =>
+        unaryLoop(plan, x.getRaw, z.setRaw)(current => minUInt8(current, value))
+      case KernelOp.Maximum =>
+        unaryLoop(plan, x.getRaw, z.setRaw)(current => maxUInt8(current, value))
+      case _ => unsupportedArithmetic("UInt8")
+
+  private def scalarUInt16(
+      operation: Byte,
+      x: UInt16Storage,
+      value: Short,
+      z: UInt16Storage,
+      plan: LoopPlan
+  ): Unit =
+    operation match
+      case KernelOp.Minimum =>
+        unaryLoop(plan, x.getRaw, z.setRaw)(current => minUInt16(current, value))
+      case KernelOp.Maximum =>
+        unaryLoop(plan, x.getRaw, z.setRaw)(current => maxUInt16(current, value))
+      case _ => unsupportedArithmetic("UInt16")
+
   private def scalarInt(
       operation: Byte,
       x: IntStorage,
@@ -846,8 +924,18 @@ private[ravel] object ElementKernels:
     (source, output) match
       case (x: ByteStorage, z: ByteStorage) =>
         clipByte(x, lower.asInstanceOf[Byte], upper.asInstanceOf[Byte], z, plan)
+      case (x: UInt8Storage, z: UInt8Storage) =>
+        clipUInt8(x, lower.asInstanceOf[UInt8].rawBits, upper.asInstanceOf[UInt8].rawBits, z, plan)
       case (x: ShortStorage, z: ShortStorage) =>
         clipShort(x, lower.asInstanceOf[Short], upper.asInstanceOf[Short], z, plan)
+      case (x: UInt16Storage, z: UInt16Storage) =>
+        clipUInt16(
+          x,
+          lower.asInstanceOf[UInt16].rawBits,
+          upper.asInstanceOf[UInt16].rawBits,
+          z,
+          plan
+        )
       case (x: IntStorage, z: IntStorage) =>
         clipInt(x, lower.asInstanceOf[Int], upper.asInstanceOf[Int], z, plan)
       case (x: LongStorage, z: LongStorage) =>
@@ -867,6 +955,18 @@ private[ravel] object ElementKernels:
   ): Unit =
     unaryLoop(plan, x.raw.apply, z.raw.update)(a => math.min(math.max(a, lower), upper).toByte)
 
+  private def clipUInt8(
+      x: UInt8Storage,
+      lower: Byte,
+      upper: Byte,
+      z: UInt8Storage,
+      plan: LoopPlan
+  ): Unit =
+    unaryLoop(plan, x.getRaw, z.setRaw) { a =>
+      val clipped = maxUInt8(minUInt8(a, upper), lower)
+      clipped
+    }
+
   private def clipShort(
       x: ShortStorage,
       lower: Short,
@@ -875,6 +975,18 @@ private[ravel] object ElementKernels:
       plan: LoopPlan
   ): Unit =
     unaryLoop(plan, x.raw.apply, z.raw.update)(a => math.min(math.max(a, lower), upper).toShort)
+
+  private def clipUInt16(
+      x: UInt16Storage,
+      lower: Short,
+      upper: Short,
+      z: UInt16Storage,
+      plan: LoopPlan
+  ): Unit =
+    unaryLoop(plan, x.getRaw, z.setRaw) { a =>
+      val clipped = maxUInt16(minUInt16(a, upper), lower)
+      clipped
+    }
 
   private def clipInt(
       x: IntStorage,
@@ -925,8 +1037,12 @@ private[ravel] object ElementKernels:
         compareBoolean(operation, plan, boolean, x, y)
       case (x: ByteStorage, y: ByteStorage) =>
         compareByte(operation, plan, boolean, x, y)
+      case (x: UInt8Storage, y: UInt8Storage) =>
+        compareUInt8(operation, plan, boolean, x, y)
       case (x: ShortStorage, y: ShortStorage) =>
         compareShort(operation, plan, boolean, x, y)
+      case (x: UInt16Storage, y: UInt16Storage) =>
+        compareUInt16(operation, plan, boolean, x, y)
       case (x: IntStorage, y: IntStorage) =>
         compareInt(operation, plan, boolean, x, y)
       case (x: LongStorage, y: LongStorage) =>
@@ -962,6 +1078,23 @@ private[ravel] object ElementKernels:
       case KernelOp.Less => compareByteLess(plan, output, x, y)
       case KernelOp.LessEqual => compareByteLessEqual(plan, output, x, y)
 
+  private def compareUInt8(
+      operation: Byte,
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: UInt8Storage,
+      y: UInt8Storage
+  ): Unit =
+    operation match
+      case KernelOp.Equal =>
+        compareLoop(plan, output, x.getRaw, y.getRaw)(_ == _)
+      case KernelOp.NotEqual =>
+        compareLoop(plan, output, x.getRaw, y.getRaw)(_ != _)
+      case KernelOp.Less =>
+        compareLoop(plan, output, x.getRaw, y.getRaw)((a, b) => (a & 0xff) < (b & 0xff))
+      case KernelOp.LessEqual =>
+        compareLoop(plan, output, x.getRaw, y.getRaw)((a, b) => (a & 0xff) <= (b & 0xff))
+
   private def compareShort(
       operation: Byte,
       plan: LoopPlan,
@@ -974,6 +1107,23 @@ private[ravel] object ElementKernels:
       case KernelOp.NotEqual => compareShortNotEqual(plan, output, x, y)
       case KernelOp.Less => compareShortLess(plan, output, x, y)
       case KernelOp.LessEqual => compareShortLessEqual(plan, output, x, y)
+
+  private def compareUInt16(
+      operation: Byte,
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: UInt16Storage,
+      y: UInt16Storage
+  ): Unit =
+    operation match
+      case KernelOp.Equal =>
+        compareLoop(plan, output, x.getRaw, y.getRaw)(_ == _)
+      case KernelOp.NotEqual =>
+        compareLoop(plan, output, x.getRaw, y.getRaw)(_ != _)
+      case KernelOp.Less =>
+        compareLoop(plan, output, x.getRaw, y.getRaw)((a, b) => (a & 0xffff) < (b & 0xffff))
+      case KernelOp.LessEqual =>
+        compareLoop(plan, output, x.getRaw, y.getRaw)((a, b) => (a & 0xffff) <= (b & 0xffff))
 
   private def compareInt(
       operation: Byte,

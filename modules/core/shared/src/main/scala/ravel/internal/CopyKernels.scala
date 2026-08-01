@@ -22,8 +22,12 @@ private[ravel] object CopyKernels:
           copyBoolean(layout, x, z)
         case (x: ByteStorage, z: ByteStorage) =>
           copyByte(layout, x, z)
+        case (x: UInt8Storage, z: UInt8Storage) =>
+          copyUInt8(layout, x, z)
         case (x: ShortStorage, z: ShortStorage) =>
           copyShort(layout, x, z)
+        case (x: UInt16Storage, z: UInt16Storage) =>
+          copyUInt16(layout, x, z)
         case (x: IntStorage, z: IntStorage) =>
           copyInt(layout, x, z)
         case (x: LongStorage, z: LongStorage) =>
@@ -54,6 +58,20 @@ private[ravel] object CopyKernels:
       target: ShortStorage
   ): Unit =
     copyLogical(layout, source.raw.apply, target.raw.update)
+
+  private def copyUInt8(
+      layout: Layout,
+      source: UInt8Storage,
+      target: UInt8Storage
+  ): Unit =
+    copyLogical(layout, source.getRaw, target.setRaw)
+
+  private def copyUInt16(
+      layout: Layout,
+      source: UInt16Storage,
+      target: UInt16Storage
+  ): Unit =
+    copyLogical(layout, source.getRaw, target.setRaw)
 
   private def copyInt(
       layout: Layout,

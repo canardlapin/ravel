@@ -56,12 +56,18 @@ typed arrays:
 
 | Ravel dtype | JavaScript input or output |
 |---|---|
-| `Boolean` | `Uint8Array` containing only 0 and 1 |
+| `Boolean` | `Uint8Array` containing only 0 and 1 (`unsafeBorrow` / `copyToUint8Array`) |
+| `UInt8` | `Uint8Array` (`unsafeBorrowUInt8` / `copyToUInt8Array`) |
 | `Byte` | `Int8Array` |
+| `UInt16` | `Uint16Array` (`unsafeBorrowUInt16` / `copyToUInt16Array`) |
 | `Short` | `Int16Array` |
 | `Int` | `Int32Array` |
 | `Float` | `Float32Array` |
 | `Double` | `Float64Array` |
+
+On the JVM, `JvmInterop.unsafeBorrowUInt8` / `unsafeBorrowUInt16` borrow
+`Array[Byte]` / `Array[Short]` as unsigned magnitude storage for NIfTI-style
+buffers without copying.
 
 ```scala
 import ravel.js.JsInterop

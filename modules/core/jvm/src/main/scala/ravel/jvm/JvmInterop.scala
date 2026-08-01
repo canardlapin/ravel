@@ -29,8 +29,12 @@ object JvmInterop:
           new BooleanStorage(values.asInstanceOf[Array[Boolean]])
         case DType.ByteTag =>
           new ByteStorage(values.asInstanceOf[Array[Byte]])
+        case DType.UInt8Tag =>
+          new UInt8Storage(values.asInstanceOf[Array[Byte]])
         case DType.ShortTag =>
           new ShortStorage(values.asInstanceOf[Array[Short]])
+        case DType.UInt16Tag =>
+          new UInt16Storage(values.asInstanceOf[Array[Short]])
         case DType.IntTag =>
           new IntStorage(values.asInstanceOf[Array[Int]])
         case DType.LongTag =>
@@ -43,6 +47,20 @@ object JvmInterop:
       ).asInstanceOf[Storage[A]]
     val view = new NDArray(storage, Layout.contiguous(shape, values.length), dtype)
     new BorrowedNDArray(view)
+
+  /** Borrows a JVM `Array[Byte]` as unsigned 8-bit storage without copying. */
+  def unsafeBorrowUInt8[R <: AnyRank](
+      values: Array[Byte],
+      shape: Shape[R]
+  ): BorrowedNDArray[UInt8, R] =
+    unsafeBorrow[UInt8, R](values.asInstanceOf[Array[UInt8]], shape)
+
+  /** Borrows a JVM `Array[Short]` as unsigned 16-bit storage without copying. */
+  def unsafeBorrowUInt16[R <: AnyRank](
+      values: Array[Short],
+      shape: Shape[R]
+  ): BorrowedNDArray[UInt16, R] =
+    unsafeBorrow[UInt16, R](values.asInstanceOf[Array[UInt16]], shape)
 
   private def copyOwned[A: ClassTag](array: NDArray[A, ?]): Array[A] =
     val output = new Array[A](array.size)

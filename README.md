@@ -78,11 +78,14 @@ val dynamic: AnyNDArray[Double] = matrix
 val checked: Either[RankMismatch, Array2[Double]] = dynamic.requireRank[2]
 ```
 
-The current development code supports `Boolean`, `Byte`, `Short`, `Int`, `Long`,
-`Float`, and `Double`. Arithmetic is available for `Int`, `Long`, `Float`, and
-`Double`. `Byte` and `Short` support storage, casts, comparisons, minimum, and
-maximum, but not same-dtype arithmetic. On Scala.js, `Long` uses a Scala
-`Array[Long]` fallback and is outside the native typed-array fast path.
+The current development code supports `Boolean`, `Byte`, `UInt8`, `Short`,
+`UInt16`, `Int`, `Long`, `Float`, and `Double`. Arithmetic is available for
+`Int`, `Long`, `Float`, and `Double`. `Byte`, `UInt8`, `Short`, and `UInt16`
+support storage, casts, comparisons, minimum, and maximum, but not same-dtype
+arithmetic. Prefer `UInt8`/`UInt16` for image and NIfTI-style unsigned buffers
+instead of signed `Byte`/`Short` plus a separate encoding flag. On Scala.js,
+`Long` uses a Scala `Array[Long]` fallback and is outside the native typed-array
+fast path; `UInt8`/`UInt16` use `Uint8Array`/`Uint16Array`.
 
 `NDArray.cast` exposes the host's direct primitive conversion behavior.
 Scientific code should use `NDArray.convert`, whose default policy is

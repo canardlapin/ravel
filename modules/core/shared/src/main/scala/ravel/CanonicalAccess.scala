@@ -52,9 +52,19 @@ object CanonicalArray:
             array.asInstanceOf[CanonicalArray[Byte, R]],
             index
           ).asInstanceOf[A]
+        case _: UInt8 =>
+          readUInt8(
+            array.asInstanceOf[CanonicalArray[UInt8, R]],
+            index
+          ).asInstanceOf[A]
         case _: Short =>
           readShort(
             array.asInstanceOf[CanonicalArray[Short, R]],
+            index
+          ).asInstanceOf[A]
+        case _: UInt16 =>
+          readUInt16(
+            array.asInstanceOf[CanonicalArray[UInt16, R]],
             index
           ).asInstanceOf[A]
         case _: Int =>
@@ -103,6 +113,18 @@ object CanonicalArray:
       index: Int
   ): Short =
     ProbeApi.getShort(array.storage, checkedIndex(index, array.size))
+
+  @publicInBinary private[ravel] def readUInt8[R <: AnyRank](
+      array: CanonicalArray[UInt8, R],
+      index: Int
+  ): UInt8 =
+    ProbeApi.getUInt8(array.storage, checkedIndex(index, array.size))
+
+  @publicInBinary private[ravel] def readUInt16[R <: AnyRank](
+      array: CanonicalArray[UInt16, R],
+      index: Int
+  ): UInt16 =
+    ProbeApi.getUInt16(array.storage, checkedIndex(index, array.size))
 
   @publicInBinary private[ravel] def readInt[R <: AnyRank](
       array: CanonicalArray[Int, R],
@@ -181,9 +203,19 @@ object MutableCanonicalArray:
             array.asInstanceOf[MutableCanonicalArray[Byte, R]],
             index
           ).asInstanceOf[A]
+        case _: UInt8 =>
+          readUInt8(
+            array.asInstanceOf[MutableCanonicalArray[UInt8, R]],
+            index
+          ).asInstanceOf[A]
         case _: Short =>
           readShort(
             array.asInstanceOf[MutableCanonicalArray[Short, R]],
+            index
+          ).asInstanceOf[A]
+        case _: UInt16 =>
+          readUInt16(
+            array.asInstanceOf[MutableCanonicalArray[UInt16, R]],
             index
           ).asInstanceOf[A]
         case _: Int =>
@@ -228,11 +260,23 @@ object MutableCanonicalArray:
             index,
             value.asInstanceOf[Byte]
           )
+        case _: UInt8 =>
+          writeUInt8(
+            array.asInstanceOf[MutableCanonicalArray[UInt8, R]],
+            index,
+            value.asInstanceOf[UInt8]
+          )
         case _: Short =>
           writeShort(
             array.asInstanceOf[MutableCanonicalArray[Short, R]],
             index,
             value.asInstanceOf[Short]
+          )
+        case _: UInt16 =>
+          writeUInt16(
+            array.asInstanceOf[MutableCanonicalArray[UInt16, R]],
+            index,
+            value.asInstanceOf[UInt16]
           )
         case _: Int =>
           writeInt(
@@ -284,6 +328,18 @@ object MutableCanonicalArray:
       index: Int
   ): Short =
     ProbeApi.getShort(array.storage, checkedIndex(index, array.size))
+
+  @publicInBinary private[ravel] def readUInt8[R <: AnyRank](
+      array: MutableCanonicalArray[UInt8, R],
+      index: Int
+  ): UInt8 =
+    ProbeApi.getUInt8(array.storage, checkedIndex(index, array.size))
+
+  @publicInBinary private[ravel] def readUInt16[R <: AnyRank](
+      array: MutableCanonicalArray[UInt16, R],
+      index: Int
+  ): UInt16 =
+    ProbeApi.getUInt16(array.storage, checkedIndex(index, array.size))
 
   @publicInBinary private[ravel] def readInt[R <: AnyRank](
       array: MutableCanonicalArray[Int, R],
@@ -340,6 +396,20 @@ object MutableCanonicalArray:
       value: Short
   ): Unit =
     ProbeApi.setShort(array.storage, checkedIndex(index, array.size), value)
+
+  @publicInBinary private[ravel] def writeUInt8[R <: AnyRank](
+      array: MutableCanonicalArray[UInt8, R],
+      index: Int,
+      value: UInt8
+  ): Unit =
+    ProbeApi.setUInt8(array.storage, checkedIndex(index, array.size), value)
+
+  @publicInBinary private[ravel] def writeUInt16[R <: AnyRank](
+      array: MutableCanonicalArray[UInt16, R],
+      index: Int,
+      value: UInt16
+  ): Unit =
+    ProbeApi.setUInt16(array.storage, checkedIndex(index, array.size), value)
 
   @publicInBinary private[ravel] def writeInt[R <: AnyRank](
       array: MutableCanonicalArray[Int, R],

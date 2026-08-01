@@ -1,13 +1,17 @@
 package ravel.internal
 
 import munit.FunSuite
+import ravel.UInt16
+import ravel.UInt8
 import ravel.DType.given
 
 final class RepresentationSuite extends FunSuite:
   test("allocate, set, get, fill, and copy every storage dtype") {
     checkStorage[Boolean](true, false)
     checkStorage[Byte](12.toByte, (-2).toByte)
+    checkStorage[UInt8](UInt8.unsafe(12), UInt8.unsafe(255))
     checkStorage[Short](1234.toShort, (-3).toShort)
+    checkStorage[UInt16](UInt16.unsafe(1234), UInt16.unsafe(65535))
     checkStorage[Int](123456, -4)
     checkStorage[Long](1234567890123L, -5L)
     checkStorage[Float](1.25f, -6.5f)
@@ -38,7 +42,7 @@ final class RepresentationSuite extends FunSuite:
     )
   }
 
-  test("Byte and Short are not admitted to arithmetic kernels") {
+  test("narrow signed and unsigned dtypes are not admitted to arithmetic kernels") {
     val bytes = ProbeApi.allocate[Byte](1)
     val byteOut = ProbeApi.allocate[Byte](1)
     intercept[UnsupportedOperationException] {
@@ -49,6 +53,18 @@ final class RepresentationSuite extends FunSuite:
     val shortOut = ProbeApi.allocate[Short](1)
     intercept[UnsupportedOperationException] {
       ProbeApi.negate(shorts, shortOut, 1)
+    }
+
+    val uint8 = ProbeApi.allocate[UInt8](1)
+    val uint8Out = ProbeApi.allocate[UInt8](1)
+    intercept[UnsupportedOperationException] {
+      ProbeApi.add(uint8, uint8, uint8Out, 1)
+    }
+
+    val uint16 = ProbeApi.allocate[UInt16](1)
+    val uint16Out = ProbeApi.allocate[UInt16](1)
+    intercept[UnsupportedOperationException] {
+      ProbeApi.negate(uint16, uint16Out, 1)
     }
   }
 

@@ -1,0 +1,1 @@
+{"actor":"codex-ravel","entity":"task-ravel-uint","kind":"note","note_kind":"note","op":"20260801T232248.397709Z-p74788-c0000-rb4ea-hf9f402","text":"Acceptance met for image4s UInt8/UInt16 cross-platform dtype integration. Pin this revision in image4s and migrate NIfTI UInt8 off Short+Unsigned8 encoding.","ts":"2026-08-01T23:22:48.397709Z","v":1}

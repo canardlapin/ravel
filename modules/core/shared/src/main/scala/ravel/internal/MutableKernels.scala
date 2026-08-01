@@ -26,8 +26,12 @@ private[ravel] object MutableKernels:
           assignBoolean(x, sourceLayout, z, destinationLayout)
         case (x: ByteStorage, z: ByteStorage) =>
           assignByte(x, sourceLayout, z, destinationLayout)
+        case (x: UInt8Storage, z: UInt8Storage) =>
+          assignUInt8(x, sourceLayout, z, destinationLayout)
         case (x: ShortStorage, z: ShortStorage) =>
           assignShort(x, sourceLayout, z, destinationLayout)
+        case (x: UInt16Storage, z: UInt16Storage) =>
+          assignUInt16(x, sourceLayout, z, destinationLayout)
         case (x: IntStorage, z: IntStorage) =>
           assignInt(x, sourceLayout, z, destinationLayout)
         case (x: LongStorage, z: LongStorage) =>
@@ -90,6 +94,26 @@ private[ravel] object MutableKernels:
     val z = destination.raw
     foreachPhysicalIndexPair(sourceLayout, destinationLayout) { (read, write) =>
       z(write) = x(read)
+    }
+
+  private def assignUInt8(
+      source: UInt8Storage,
+      sourceLayout: Layout,
+      destination: UInt8Storage,
+      destinationLayout: Layout
+  ): Unit =
+    foreachPhysicalIndexPair(sourceLayout, destinationLayout) { (read, write) =>
+      destination.setRaw(write, source.getRaw(read))
+    }
+
+  private def assignUInt16(
+      source: UInt16Storage,
+      sourceLayout: Layout,
+      destination: UInt16Storage,
+      destinationLayout: Layout
+  ): Unit =
+    foreachPhysicalIndexPair(sourceLayout, destinationLayout) { (read, write) =>
+      destination.setRaw(write, source.getRaw(read))
     }
 
   private def assignInt(

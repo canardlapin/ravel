@@ -6,13 +6,13 @@ those boundaries.
 
 ## Dtype
 
-The closed `DType[A]` family supports `Boolean`, `Byte`, `Short`, `Int`,
-`Long`, `Float`, and `Double`. The compiler exposes operations only when the
-element type has the required capability:
+The closed `DType[A]` family supports `Boolean`, `Byte`, `UInt8`, `Short`,
+`UInt16`, `Int`, `Long`, `Float`, and `Double`. The compiler exposes operations
+only when the element type has the required capability:
 
 - `Int`, `Long`, `Float`, and `Double` support same-dtype arithmetic.
-- `Byte` and `Short` support storage, casts, ordering, min/max, and comparison;
-  cast to `Int` before arithmetic.
+- `Byte`, `UInt8`, `Short`, and `UInt16` support storage, casts, ordering,
+  min/max, and comparison; cast or widen to `Int` before arithmetic.
 - `/` is floating-point division. `Int` and `Long` use the explicit `quot` or
   `truncDiv` operation.
 - `Boolean` supports storage and elementwise equality.

@@ -22,9 +22,9 @@ private[ravel] object ProbeKernels:
     storage match
       case x: BooleanStorage => x.raw(index) = (if value.asInstanceOf[Boolean] then 1 else 0)
       case x: ByteStorage => x.raw(index) = value.asInstanceOf[Byte]
-      case x: UInt8Storage => x.raw(index) = value.asInstanceOf[UInt8].toInt
+      case x: UInt8Storage => x.setRaw(index, value.asInstanceOf[UInt8].rawBits)
       case x: ShortStorage => x.raw(index) = value.asInstanceOf[Short]
-      case x: UInt16Storage => x.raw(index) = value.asInstanceOf[UInt16].toInt
+      case x: UInt16Storage => x.setRaw(index, value.asInstanceOf[UInt16].rawBits)
       case x: IntStorage => x.raw(index) = value.asInstanceOf[Int]
       case x: LongStorage => x.raw(index) = value.asInstanceOf[Long]
       case x: FloatStorage => x.raw(index) = value.asInstanceOf[Float]
@@ -67,10 +67,10 @@ private[ravel] object ProbeKernels:
     storage.asInstanceOf[ShortStorage].raw(index) = value
 
   def setUInt8(storage: Storage[UInt8], index: Int, value: UInt8): Unit =
-    storage.asInstanceOf[UInt8Storage].raw(index) = value.toInt
+    storage.asInstanceOf[UInt8Storage].setRaw(index, value.rawBits)
 
   def setUInt16(storage: Storage[UInt16], index: Int, value: UInt16): Unit =
-    storage.asInstanceOf[UInt16Storage].raw(index) = value.toInt
+    storage.asInstanceOf[UInt16Storage].setRaw(index, value.rawBits)
 
   def setInt(storage: Storage[Int], index: Int, value: Int): Unit =
     storage.asInstanceOf[IntStorage].raw(index) = value

@@ -18,9 +18,13 @@ private[ravel] final class ShortStorage(val raw: Array[Short]) extends Storage[S
 
 private[ravel] final class UInt8Storage(val raw: Array[Byte]) extends Storage[UInt8]:
   def length: Int = raw.length
+  inline def getRaw(index: Int): Byte = raw(index)
+  inline def setRaw(index: Int, value: Byte): Unit = raw(index) = value
 
 private[ravel] final class UInt16Storage(val raw: Array[Short]) extends Storage[UInt16]:
   def length: Int = raw.length
+  inline def getRaw(index: Int): Short = raw(index)
+  inline def setRaw(index: Int, value: Short): Unit = raw(index) = value
 
 private[ravel] final class IntStorage(val raw: Array[Int]) extends Storage[Int]:
   def length: Int = raw.length

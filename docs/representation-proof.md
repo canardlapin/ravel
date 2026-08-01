@@ -16,12 +16,15 @@ node modules/benchmarks/js/target/scala-3.7.4/ravel-representation-probe-js-opt/
 - Dispatch occurs once at a kernel boundary.
 - A built-in inner loop receives a concrete primitive `Array[T]` on the JVM or
   a concrete typed array on Scala.js.
-- `Byte` and `Short` are storage and comparison dtypes, not arithmetic dtypes.
+- `Byte`, `UInt8`, `Short`, and `UInt16` are storage and comparison dtypes, not
+  arithmetic dtypes.
+- JVM `UInt8`/`UInt16` wrap `Array[Byte]`/`Array[Short]`; Scala.js uses
+  `Uint8Array`/`Uint16Array`.
 - Scala.js `Long` uses `Array[Long]`. Scala `Long` is opaque at the JavaScript
   boundary, so Ravel 1.0 does not claim typed-array or fast-path performance for
   this dtype.
 - Scala.js `Boolean` uses `Uint8Array` and encodes values as exactly `0` and
-  `1`.
+  `1`, distinct from `UInt8` which uses the full `0`…`255` range.
 
 ## Structural inspection
 

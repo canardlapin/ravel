@@ -63,7 +63,9 @@ private[ravel] object ReductionKernels:
     if layout.size == 0 then throw EmptyReduction("min")
     (source match
       case x: ByteStorage => logicalExtremum(layout, x.raw.apply)(math.min(_, _).toByte)
+      case x: UInt8Storage => logicalExtremum(layout, x.getRaw)(minUInt8)
       case x: ShortStorage => logicalExtremum(layout, x.raw.apply)(math.min(_, _).toShort)
+      case x: UInt16Storage => logicalExtremum(layout, x.getRaw)(minUInt16)
       case x: IntStorage => logicalExtremum(layout, x.raw.apply)(math.min)
       case x: LongStorage => logicalExtremum(layout, x.raw.apply)(math.min)
       case x: FloatStorage => logicalExtremum(layout, x.raw.apply)((a, b) => math.min(a, b).toFloat)
@@ -75,7 +77,9 @@ private[ravel] object ReductionKernels:
     if layout.size == 0 then throw EmptyReduction("max")
     (source match
       case x: ByteStorage => logicalExtremum(layout, x.raw.apply)(math.max(_, _).toByte)
+      case x: UInt8Storage => logicalExtremum(layout, x.getRaw)(maxUInt8)
       case x: ShortStorage => logicalExtremum(layout, x.raw.apply)(math.max(_, _).toShort)
+      case x: UInt16Storage => logicalExtremum(layout, x.getRaw)(maxUInt16)
       case x: IntStorage => logicalExtremum(layout, x.raw.apply)(math.max)
       case x: LongStorage => logicalExtremum(layout, x.raw.apply)(math.max)
       case x: FloatStorage => logicalExtremum(layout, x.raw.apply)((a, b) => math.max(a, b).toFloat)
@@ -87,7 +91,9 @@ private[ravel] object ReductionKernels:
     if layout.size == 0 then throw EmptyReduction("argMin")
     source match
       case x: ByteStorage => logicalArg(layout, x.raw.apply, less = _ < _)
+      case x: UInt8Storage => logicalArg(layout, x.getRaw, less = unsignedByteLess)
       case x: ShortStorage => logicalArg(layout, x.raw.apply, less = _ < _)
+      case x: UInt16Storage => logicalArg(layout, x.getRaw, less = unsignedShortLess)
       case x: IntStorage => logicalArg(layout, x.raw.apply, less = _ < _)
       case x: LongStorage => logicalArg(layout, x.raw.apply, less = _ < _)
       case x: FloatStorage => logicalArgFloat(layout, x.raw.apply, minimum = true)
@@ -98,7 +104,9 @@ private[ravel] object ReductionKernels:
     if layout.size == 0 then throw EmptyReduction("argMax")
     source match
       case x: ByteStorage => logicalArg(layout, x.raw.apply, less = _ > _)
+      case x: UInt8Storage => logicalArg(layout, x.getRaw, less = unsignedByteGreater)
       case x: ShortStorage => logicalArg(layout, x.raw.apply, less = _ > _)
+      case x: UInt16Storage => logicalArg(layout, x.getRaw, less = unsignedShortGreater)
       case x: IntStorage => logicalArg(layout, x.raw.apply, less = _ > _)
       case x: LongStorage => logicalArg(layout, x.raw.apply, less = _ > _)
       case x: FloatStorage => logicalArgFloat(layout, x.raw.apply, minimum = false)
@@ -153,8 +161,12 @@ private[ravel] object ReductionKernels:
     (source, output) match
       case (x: ByteStorage, z: ByteStorage) =>
         axisExtremum(plan, x.raw.apply, z.raw.update)(math.min(_, _).toByte)
+      case (x: UInt8Storage, z: UInt8Storage) =>
+        axisExtremum(plan, x.getRaw, z.setRaw)(minUInt8)
       case (x: ShortStorage, z: ShortStorage) =>
         axisExtremum(plan, x.raw.apply, z.raw.update)(math.min(_, _).toShort)
+      case (x: UInt16Storage, z: UInt16Storage) =>
+        axisExtremum(plan, x.getRaw, z.setRaw)(minUInt16)
       case (x: IntStorage, z: IntStorage) =>
         axisExtremum(plan, x.raw.apply, z.raw.update)(math.min)
       case (x: LongStorage, z: LongStorage) =>
@@ -170,8 +182,12 @@ private[ravel] object ReductionKernels:
     (source, output) match
       case (x: ByteStorage, z: ByteStorage) =>
         axisExtremum(plan, x.raw.apply, z.raw.update)(math.max(_, _).toByte)
+      case (x: UInt8Storage, z: UInt8Storage) =>
+        axisExtremum(plan, x.getRaw, z.setRaw)(maxUInt8)
       case (x: ShortStorage, z: ShortStorage) =>
         axisExtremum(plan, x.raw.apply, z.raw.update)(math.max(_, _).toShort)
+      case (x: UInt16Storage, z: UInt16Storage) =>
+        axisExtremum(plan, x.getRaw, z.setRaw)(maxUInt16)
       case (x: IntStorage, z: IntStorage) =>
         axisExtremum(plan, x.raw.apply, z.raw.update)(math.max)
       case (x: LongStorage, z: LongStorage) =>
@@ -217,9 +233,15 @@ private[ravel] object ReductionKernels:
       case x: ByteStorage =>
         if minimum then axisArg(plan, x.raw.apply, target.raw.update)(_ < _)
         else axisArg(plan, x.raw.apply, target.raw.update)(_ > _)
+      case x: UInt8Storage =>
+        if minimum then axisArg(plan, x.getRaw, target.raw.update)(unsignedByteLess)
+        else axisArg(plan, x.getRaw, target.raw.update)(unsignedByteGreater)
       case x: ShortStorage =>
         if minimum then axisArg(plan, x.raw.apply, target.raw.update)(_ < _)
         else axisArg(plan, x.raw.apply, target.raw.update)(_ > _)
+      case x: UInt16Storage =>
+        if minimum then axisArg(plan, x.getRaw, target.raw.update)(unsignedShortLess)
+        else axisArg(plan, x.getRaw, target.raw.update)(unsignedShortGreater)
       case x: IntStorage =>
         if minimum then axisArg(plan, x.raw.apply, target.raw.update)(_ < _)
         else axisArg(plan, x.raw.apply, target.raw.update)(_ > _)
@@ -231,6 +253,30 @@ private[ravel] object ReductionKernels:
       case x: DoubleStorage =>
         axisArgDouble(plan, x.raw.apply, target.raw.update, minimum)
       case _ => throw new UnsupportedOperationException("arg reduction requires ordered storage")
+
+  private inline def unsignedByteLess(left: Byte, right: Byte): Boolean =
+    (left & 0xff) < (right & 0xff)
+
+  private inline def unsignedByteGreater(left: Byte, right: Byte): Boolean =
+    (left & 0xff) > (right & 0xff)
+
+  private inline def unsignedShortLess(left: Short, right: Short): Boolean =
+    (left & 0xffff) < (right & 0xffff)
+
+  private inline def unsignedShortGreater(left: Short, right: Short): Boolean =
+    (left & 0xffff) > (right & 0xffff)
+
+  private inline def minUInt8(left: Byte, right: Byte): Byte =
+    if unsignedByteLess(left, right) then left else right
+
+  private inline def maxUInt8(left: Byte, right: Byte): Byte =
+    if unsignedByteGreater(left, right) then left else right
+
+  private inline def minUInt16(left: Short, right: Short): Short =
+    if unsignedShortLess(left, right) then left else right
+
+  private inline def maxUInt16(left: Short, right: Short): Short =
+    if unsignedShortGreater(left, right) then left else right
 
   // Fixed-width arithmetic is associative modulo 2^N, so independent lanes
   // preserve the public overflow result while breaking the dependency chain.

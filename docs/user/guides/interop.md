@@ -35,6 +35,18 @@ detached(0, 0)
 Borrowed structural views remain borrowed. Numerical operations and `copy`
 produce owned values.
 
+Unsigned image/NIfTI buffers borrow through dedicated helpers that keep the
+JVM primitive array while interpreting magnitudes as `UInt8`/`UInt16`:
+
+```scala
+import ravel.*
+import ravel.jvm.JvmInterop
+
+val voxels = Array[Byte](0, -1, 127, -128) // raw NIfTI UInt8 payload
+val volume = JvmInterop.unsafeBorrowUInt8(voxels, Shape(2, 2))
+volume(0, 1).toInt // 255
+```
+
 ## Scala.js typed arrays
 
 Scala.js uses dtype-specific typed arrays:
@@ -49,9 +61,13 @@ val borrowed = JsInterop.unsafeBorrow(values, Shape(2, 2))
 val copied = JsInterop.copyToFloat64Array(borrowed)
 ```
 
-`Boolean` uses `Uint8Array` values exactly equal to `0` or `1`. `Long` is
-semantically supported through Scala `Array[Long]`, but it has no JavaScript
-typed-array borrowing API and is outside the Scala.js typed-array fast path.
+`Boolean` uses `Uint8Array` values exactly equal to `0` or `1`
+(`unsafeBorrow` / `copyToUint8Array`). Full-range unsigned bytes use
+`unsafeBorrowUInt8` / `copyToUInt8Array` on `Uint8Array`; unsigned 16-bit
+values use `Uint16Array` via `unsafeBorrowUInt16` / `copyToUInt16Array`.
+`Long` is semantically supported through Scala `Array[Long]`, but it has no
+JavaScript typed-array borrowing API and is outside the Scala.js typed-array
+fast path.
 
 Descriptor methods such as `describeDouble` expose the borrowed buffer plus
 offset, shape, and strides for JavaScript consumers. They do not turn an owned

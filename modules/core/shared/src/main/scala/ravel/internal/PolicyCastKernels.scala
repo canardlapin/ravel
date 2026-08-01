@@ -39,10 +39,24 @@ private[ravel] object PolicyCastKernels:
             sourceType.name,
             targetType
           )
+        case values: UInt8Storage =>
+          validateIntegral(
+            layout,
+            index => (values.getRaw(index) & 0xff).toLong,
+            sourceType.name,
+            targetType
+          )
         case values: ShortStorage =>
           validateIntegral(
             layout,
             index => values.raw(index).toLong,
+            sourceType.name,
+            targetType
+          )
+        case values: UInt16Storage =>
+          validateIntegral(
+            layout,
+            index => (values.getRaw(index) & 0xffff).toLong,
             sourceType.name,
             targetType
           )
@@ -92,10 +106,26 @@ private[ravel] object PolicyCastKernels:
           if policy.overflow == Overflow.Clamp &&
             isIntegral(targetType) =>
         convertIntegralClamp(layout, index => values.raw(index).toLong, target)
+      case values: UInt8Storage
+          if policy.overflow == Overflow.Clamp &&
+            isIntegral(targetType) =>
+        convertIntegralClamp(
+          layout,
+          index => (values.getRaw(index) & 0xff).toLong,
+          target
+        )
       case values: ShortStorage
           if policy.overflow == Overflow.Clamp &&
             isIntegral(targetType) =>
         convertIntegralClamp(layout, index => values.raw(index).toLong, target)
+      case values: UInt16Storage
+          if policy.overflow == Overflow.Clamp &&
+            isIntegral(targetType) =>
+        convertIntegralClamp(
+          layout,
+          index => (values.getRaw(index) & 0xffff).toLong,
+          target
+        )
       case values: IntStorage
           if policy.overflow == Overflow.Clamp &&
             isIntegral(targetType) =>
@@ -193,8 +223,12 @@ private[ravel] object PolicyCastKernels:
     target match
       case output: ByteStorage =>
         castLogical(layout, read, output.raw.update)(clampByte)
+      case output: UInt8Storage =>
+        castLogical(layout, read, output.setRaw)(clampUInt8)
       case output: ShortStorage =>
         castLogical(layout, read, output.raw.update)(clampShort)
+      case output: UInt16Storage =>
+        castLogical(layout, read, output.setRaw)(clampUInt16)
       case output: IntStorage =>
         castLogical(layout, read, output.raw.update)(clampInt)
       case output: LongStorage =>
@@ -211,8 +245,12 @@ private[ravel] object PolicyCastKernels:
     target match
       case output: ByteStorage =>
         castLogical(layout, read, output.raw.update)(value => floatingToByte(value, policy))
+      case output: UInt8Storage =>
+        castLogical(layout, read, output.setRaw)(value => floatingToUInt8(value, policy))
       case output: ShortStorage =>
         castLogical(layout, read, output.raw.update)(value => floatingToShort(value, policy))
+      case output: UInt16Storage =>
+        castLogical(layout, read, output.setRaw)(value => floatingToUInt16(value, policy))
       case output: IntStorage =>
         castLogical(layout, read, output.raw.update)(value => floatingToInt(value, policy))
       case output: LongStorage =>
@@ -231,6 +269,20 @@ private[ravel] object PolicyCastKernels:
     policy.overflow match
       case Overflow.Clamp =>
         clampRounded(value, Short.MinValue, Short.MaxValue, policy.rounding).toShort
+      case _ =>
+        rounded(value, policy.rounding).toInt.toShort
+
+  private def floatingToUInt8(value: Double, policy: ConversionPolicy): Byte =
+    policy.overflow match
+      case Overflow.Clamp =>
+        clampRounded(value, 0L, 255L, policy.rounding).toByte
+      case _ =>
+        rounded(value, policy.rounding).toInt.toByte
+
+  private def floatingToUInt16(value: Double, policy: ConversionPolicy): Short =
+    policy.overflow match
+      case Overflow.Clamp =>
+        clampRounded(value, 0L, 65535L, policy.rounding).toShort
       case _ =>
         rounded(value, policy.rounding).toInt.toShort
 
@@ -273,6 +325,12 @@ private[ravel] object PolicyCastKernels:
   private def clampShort(value: Long): Short =
     value.max(Short.MinValue).min(Short.MaxValue).toShort
 
+  private def clampUInt8(value: Long): Byte =
+    value.max(0L).min(255L).toByte
+
+  private def clampUInt16(value: Long): Short =
+    value.max(0L).min(65535L).toShort
+
   private def clampInt(value: Long): Int =
     value.max(Int.MinValue).min(Int.MaxValue).toInt
 
@@ -294,8 +352,12 @@ private[ravel] object PolicyCastKernels:
     targetType.tag match
       case DType.ByteTag =>
         value >= Byte.MinValue && value <= Byte.MaxValue
+      case DType.UInt8Tag =>
+        value >= 0L && value <= 255L
       case DType.ShortTag =>
         value >= Short.MinValue && value <= Short.MaxValue
+      case DType.UInt16Tag =>
+        value >= 0L && value <= 65535L
       case DType.IntTag =>
         value >= Int.MinValue && value <= Int.MaxValue
       case DType.LongTag =>
@@ -310,8 +372,12 @@ private[ravel] object PolicyCastKernels:
     targetType.tag match
       case DType.ByteTag =>
         value >= Byte.MinValue && value <= Byte.MaxValue
+      case DType.UInt8Tag =>
+        value >= 0.0 && value <= 255.0
       case DType.ShortTag =>
         value >= Short.MinValue && value <= Short.MaxValue
+      case DType.UInt16Tag =>
+        value >= 0.0 && value <= 65535.0
       case DType.IntTag =>
         value >= Int.MinValue && value <= Int.MaxValue
       case DType.LongTag =>
@@ -321,7 +387,8 @@ private[ravel] object PolicyCastKernels:
 
   private def isIntegral[B](dtype: NumericDType[B]): Boolean =
     dtype.tag match
-      case DType.ByteTag | DType.ShortTag | DType.IntTag | DType.LongTag =>
+      case DType.ByteTag | DType.UInt8Tag | DType.ShortTag |
+          DType.UInt16Tag | DType.IntTag | DType.LongTag =>
         true
       case _ =>
         false

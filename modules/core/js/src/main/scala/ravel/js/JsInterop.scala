@@ -19,8 +19,22 @@ final case class ByteDescriptor(
     strides: Int32Array
 )
 
+final case class UInt8Descriptor(
+    buffer: Uint8Array,
+    offset: Int,
+    shape: Int32Array,
+    strides: Int32Array
+)
+
 final case class ShortDescriptor(
     buffer: Int16Array,
+    offset: Int,
+    shape: Int32Array,
+    strides: Int32Array
+)
+
+final case class UInt16Descriptor(
+    buffer: Uint16Array,
     offset: Int,
     shape: Int32Array,
     strides: Int32Array
@@ -60,11 +74,27 @@ object JsInterop:
   def copyToInt8Array(array: BorrowedNDArray[Byte, ?]): Int8Array =
     copyByte(array.underlying)
 
+  /** Logical row-major copy of unsigned 8-bit values into a `Uint8Array`.
+    *
+    * Distinct from [[copyToUint8Array]], which encodes `Boolean` as 0/1.
+    */
+  def copyToUInt8Array(array: NDArray[UInt8, ?]): Uint8Array =
+    copyUInt8(array)
+
+  def copyToUInt8Array(array: BorrowedNDArray[UInt8, ?]): Uint8Array =
+    copyUInt8(array.underlying)
+
   def copyToInt16Array(array: NDArray[Short, ?]): Int16Array =
     copyShort(array)
 
   def copyToInt16Array(array: BorrowedNDArray[Short, ?]): Int16Array =
     copyShort(array.underlying)
+
+  def copyToUInt16Array(array: NDArray[UInt16, ?]): Uint16Array =
+    copyUInt16(array)
+
+  def copyToUInt16Array(array: BorrowedNDArray[UInt16, ?]): Uint16Array =
+    copyUInt16(array.underlying)
 
   def copyToInt32Array(array: NDArray[Int, ?]): Int32Array =
     copyInt(array)
@@ -106,12 +136,29 @@ object JsInterop:
   ): BorrowedNDArray[Byte, R] =
     borrowed(new ByteStorage(values), shape, DType.byteDType)
 
+  /** Borrows a `Uint8Array` as unsigned 8-bit storage.
+    *
+    * Named distinctly from Boolean [[unsafeBorrow]] on `Uint8Array`, which
+    * validates a 0/1 encoding.
+    */
+  def unsafeBorrowUInt8[R <: AnyRank](
+      values: Uint8Array,
+      shape: Shape[R]
+  ): BorrowedNDArray[UInt8, R] =
+    borrowed(new UInt8Storage(values), shape, DType.uint8DType)
+
   @targetName("unsafeBorrowShort")
   def unsafeBorrow[R <: AnyRank](
       values: Int16Array,
       shape: Shape[R]
   ): BorrowedNDArray[Short, R] =
     borrowed(new ShortStorage(values), shape, DType.shortDType)
+
+  def unsafeBorrowUInt16[R <: AnyRank](
+      values: Uint16Array,
+      shape: Shape[R]
+  ): BorrowedNDArray[UInt16, R] =
+    borrowed(new UInt16Storage(values), shape, DType.uint16DType)
 
   @targetName("unsafeBorrowInt")
   def unsafeBorrow[R <: AnyRank](
@@ -144,10 +191,20 @@ object JsInterop:
     val storage = array.underlying.storage.asInstanceOf[ByteStorage]
     ByteDescriptor(storage.raw, layout.offset, metadata(layout.shape), metadata(layout.strides))
 
+  def describeUInt8(array: BorrowedNDArray[UInt8, ?]): UInt8Descriptor =
+    val layout = array.underlying.layout
+    val storage = array.underlying.storage.asInstanceOf[UInt8Storage]
+    UInt8Descriptor(storage.raw, layout.offset, metadata(layout.shape), metadata(layout.strides))
+
   def describeShort(array: BorrowedNDArray[Short, ?]): ShortDescriptor =
     val layout = array.underlying.layout
     val storage = array.underlying.storage.asInstanceOf[ShortStorage]
     ShortDescriptor(storage.raw, layout.offset, metadata(layout.shape), metadata(layout.strides))
+
+  def describeUInt16(array: BorrowedNDArray[UInt16, ?]): UInt16Descriptor =
+    val layout = array.underlying.layout
+    val storage = array.underlying.storage.asInstanceOf[UInt16Storage]
+    UInt16Descriptor(storage.raw, layout.offset, metadata(layout.shape), metadata(layout.strides))
 
   def describeInt(array: BorrowedNDArray[Int, ?]): IntDescriptor =
     val layout = array.underlying.layout
@@ -192,11 +249,29 @@ object JsInterop:
     }
     output
 
+  private def copyUInt8(array: NDArray[UInt8, ?]): Uint8Array =
+    val output = new Uint8Array(array.size)
+    var write = 0
+    array.foreachElement { value =>
+      output(write) = value.toInt.toShort
+      write += 1
+    }
+    output
+
   private def copyShort(array: NDArray[Short, ?]): Int16Array =
     val output = new Int16Array(array.size)
     var write = 0
     array.foreachElement { value =>
       output(write) = value
+      write += 1
+    }
+    output
+
+  private def copyUInt16(array: NDArray[UInt16, ?]): Uint16Array =
+    val output = new Uint16Array(array.size)
+    var write = 0
+    array.foreachElement { value =>
+      output(write) = value.toInt
       write += 1
     }
     output

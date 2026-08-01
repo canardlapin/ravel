@@ -1,6 +1,8 @@
 package ravel.internal
 
 import munit.FunSuite
+import ravel.UInt16
+import ravel.UInt8
 import ravel.DType.given
 
 final class JvmRepresentationSuite extends FunSuite:
@@ -17,6 +19,12 @@ final class JvmRepresentationSuite extends FunSuite:
     )
     assert(
       ProbeApi.allocate[Short](1).asInstanceOf[ShortStorage].raw.getClass == classOf[Array[Short]]
+    )
+    assert(
+      ProbeApi.allocate[UInt8](1).asInstanceOf[UInt8Storage].raw.getClass == classOf[Array[Byte]]
+    )
+    assert(
+      ProbeApi.allocate[UInt16](1).asInstanceOf[UInt16Storage].raw.getClass == classOf[Array[Short]]
     )
     assert(ProbeApi.allocate[Int](1).asInstanceOf[IntStorage].raw.getClass == classOf[Array[Int]])
     assert(
