@@ -4,7 +4,7 @@ import scala.annotation.implicitNotFound
 
 /** Closed primitive storage family supported by Ravel 1.0. */
 @implicitNotFound(
-  "No DType evidence for ${A}. Use Boolean, Byte, Short, Int, Long, Float, or Double."
+  "No DType evidence for ${A}. Use Boolean, Byte, UInt8, Short, UInt16, Int, Long, Float, or Double."
 )
 sealed trait DType[A]:
   private[ravel] def tag: Byte
@@ -12,7 +12,9 @@ sealed trait DType[A]:
   def zero: A
 
 /** Primitive numeric dtypes that can participate in explicit casts. */
-@implicitNotFound("${A} is not a numeric dtype. Use Byte, Short, Int, Long, Float, or Double.")
+@implicitNotFound(
+  "${A} is not a numeric dtype. Use Byte, UInt8, Short, UInt16, Int, Long, Float, or Double."
+)
 sealed trait NumericDType[A] extends DType[A]:
   def one: A
 
@@ -48,6 +50,8 @@ object DType:
   private[ravel] val LongTag: Byte = 4
   private[ravel] val FloatTag: Byte = 5
   private[ravel] val DoubleTag: Byte = 6
+  private[ravel] val UInt8Tag: Byte = 7
+  private[ravel] val UInt16Tag: Byte = 8
 
   given booleanDType: DType[Boolean] with
     private[ravel] val tag = BooleanTag
@@ -65,6 +69,18 @@ object DType:
     val name = "Short"
     val zero: Short = 0
     val one: Short = 1
+
+  given uint8DType: IntegralDType[UInt8] with
+    private[ravel] val tag = UInt8Tag
+    val name = "UInt8"
+    val zero: UInt8 = UInt8.MinValue
+    val one: UInt8 = UInt8.unsafe(1)
+
+  given uint16DType: IntegralDType[UInt16] with
+    private[ravel] val tag = UInt16Tag
+    val name = "UInt16"
+    val zero: UInt16 = UInt16.MinValue
+    val one: UInt16 = UInt16.unsafe(1)
 
   given intDType: IntegralArithmeticDType[Int] with
     private[ravel] val tag = IntTag
@@ -98,7 +114,9 @@ object DType:
     val result: Any =
       source.tag match
         case ByteTag => castLong(value.asInstanceOf[Byte].toLong, target)
+        case UInt8Tag => castLong(value.asInstanceOf[UInt8].toLong, target)
         case ShortTag => castLong(value.asInstanceOf[Short].toLong, target)
+        case UInt16Tag => castLong(value.asInstanceOf[UInt16].toLong, target)
         case IntTag => castLong(value.asInstanceOf[Int].toLong, target)
         case LongTag => castLong(value.asInstanceOf[Long], target)
         case FloatTag => castDouble(value.asInstanceOf[Float].toDouble, target)
@@ -109,7 +127,9 @@ object DType:
   private def castLong[B](value: Long, target: NumericDType[B]): Any =
     target.tag match
       case ByteTag => value.toByte
+      case UInt8Tag => UInt8.fromRawBits(value.toByte)
       case ShortTag => value.toShort
+      case UInt16Tag => UInt16.fromRawBits(value.toShort)
       case IntTag => value.toInt
       case LongTag => value
       case FloatTag => value.toFloat
@@ -119,7 +139,9 @@ object DType:
   private def castDouble[B](value: Double, target: NumericDType[B]): Any =
     target.tag match
       case ByteTag => value.toInt.toByte
+      case UInt8Tag => UInt8.fromRawBits(value.toInt.toByte)
       case ShortTag => value.toInt.toShort
+      case UInt16Tag => UInt16.fromRawBits(value.toInt.toShort)
       case IntTag => value.toInt
       case LongTag => value.toLong
       case FloatTag => value.toFloat

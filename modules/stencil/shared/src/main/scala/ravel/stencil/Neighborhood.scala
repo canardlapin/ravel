@@ -21,6 +21,24 @@ trait DoubleNeighborhoodReducer:
   def accumulate(acc: Double, value: Double, offsetIndex: Int): Double
   def finish(acc: Double): Double
 
+/** Primitive-float reducer used by direct floating-point executors. */
+trait FloatNeighborhoodReducer:
+  def zero: Float
+  def accumulate(acc: Float, value: Float, offsetIndex: Int): Float
+  def finish(acc: Float): Float
+
+/** Primitive-byte reducer used by direct morphology-style executors. */
+trait ByteNeighborhoodReducer:
+  def zero: Byte
+  def accumulate(acc: Byte, value: Byte, offsetIndex: Int): Byte
+  def finish(acc: Byte): Byte
+
+/** Primitive-short reducer used by direct morphology-style executors. */
+trait ShortNeighborhoodReducer:
+  def zero: Short
+  def accumulate(acc: Short, value: Short, offsetIndex: Int): Short
+  def finish(acc: Short): Short
+
 enum StencilMethod derives CanEqual:
   case Auto, Direct
 

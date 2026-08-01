@@ -15,6 +15,15 @@ import ravel.NDArray
   * unboxed.
   */
 object DirectNeighborhoodExecutor extends NeighborhoodExecutor:
+  /** Prepare a reusable direct-execution workspace for a fixed logical shape. */
+  def prepare[A, B, R <: AnyRank](
+      source: NDArray[A, R],
+      destination: MutableNDArray[B, R],
+      spec: NeighborhoodSpec,
+      policy: StencilExecutionPolicy = StencilExecutionPolicy()
+  ): PreparedDirectNeighborhoodExecutor =
+    PreparedDirectNeighborhoodExecutor.prepare(source, destination, spec, policy)
+
   def run[A, Acc, B, R <: AnyRank](
       source: NDArray[A, R],
       destination: MutableNDArray[B, R],

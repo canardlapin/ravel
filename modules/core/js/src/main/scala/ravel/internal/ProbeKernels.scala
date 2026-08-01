@@ -1,5 +1,7 @@
 package ravel.internal
 
+import ravel.UInt16
+import ravel.UInt8
 import scala.scalajs.js.typedarray.*
 
 private[ravel] object ProbeKernels:
@@ -7,7 +9,9 @@ private[ravel] object ProbeKernels:
     (storage match
       case x: BooleanStorage => x.raw(index) != 0
       case x: ByteStorage => x.raw(index).toByte
+      case x: UInt8Storage => UInt8.fromRawBits(x.raw(index).toByte)
       case x: ShortStorage => x.raw(index).toShort
+      case x: UInt16Storage => UInt16.fromRawBits(x.raw(index).toShort)
       case x: IntStorage => x.raw(index)
       case x: LongStorage => x.raw(index)
       case x: FloatStorage => x.raw(index).toFloat
@@ -18,7 +22,9 @@ private[ravel] object ProbeKernels:
     storage match
       case x: BooleanStorage => x.raw(index) = (if value.asInstanceOf[Boolean] then 1 else 0)
       case x: ByteStorage => x.raw(index) = value.asInstanceOf[Byte]
+      case x: UInt8Storage => x.raw(index) = value.asInstanceOf[UInt8].toInt
       case x: ShortStorage => x.raw(index) = value.asInstanceOf[Short]
+      case x: UInt16Storage => x.raw(index) = value.asInstanceOf[UInt16].toInt
       case x: IntStorage => x.raw(index) = value.asInstanceOf[Int]
       case x: LongStorage => x.raw(index) = value.asInstanceOf[Long]
       case x: FloatStorage => x.raw(index) = value.asInstanceOf[Float]
@@ -32,6 +38,12 @@ private[ravel] object ProbeKernels:
 
   def getShort(storage: Storage[Short], index: Int): Short =
     storage.asInstanceOf[ShortStorage].raw(index).toShort
+
+  def getUInt8(storage: Storage[UInt8], index: Int): UInt8 =
+    UInt8.fromRawBits(storage.asInstanceOf[UInt8Storage].raw(index).toByte)
+
+  def getUInt16(storage: Storage[UInt16], index: Int): UInt16 =
+    UInt16.fromRawBits(storage.asInstanceOf[UInt16Storage].raw(index).toShort)
 
   def getInt(storage: Storage[Int], index: Int): Int =
     storage.asInstanceOf[IntStorage].raw(index)
@@ -53,6 +65,12 @@ private[ravel] object ProbeKernels:
 
   def setShort(storage: Storage[Short], index: Int, value: Short): Unit =
     storage.asInstanceOf[ShortStorage].raw(index) = value
+
+  def setUInt8(storage: Storage[UInt8], index: Int, value: UInt8): Unit =
+    storage.asInstanceOf[UInt8Storage].raw(index) = value.toInt
+
+  def setUInt16(storage: Storage[UInt16], index: Int, value: UInt16): Unit =
+    storage.asInstanceOf[UInt16Storage].raw(index) = value.toInt
 
   def setInt(storage: Storage[Int], index: Int, value: Int): Unit =
     storage.asInstanceOf[IntStorage].raw(index) = value
@@ -84,7 +102,11 @@ private[ravel] object ProbeKernels:
         y.raw.set(x.raw.subarray(sourceOffset, sourceOffset + length), targetOffset)
       case (x: ByteStorage, y: ByteStorage) =>
         y.raw.set(x.raw.subarray(sourceOffset, sourceOffset + length), targetOffset)
+      case (x: UInt8Storage, y: UInt8Storage) =>
+        y.raw.set(x.raw.subarray(sourceOffset, sourceOffset + length), targetOffset)
       case (x: ShortStorage, y: ShortStorage) =>
+        y.raw.set(x.raw.subarray(sourceOffset, sourceOffset + length), targetOffset)
+      case (x: UInt16Storage, y: UInt16Storage) =>
         y.raw.set(x.raw.subarray(sourceOffset, sourceOffset + length), targetOffset)
       case (x: IntStorage, y: IntStorage) =>
         y.raw.set(x.raw.subarray(sourceOffset, sourceOffset + length), targetOffset)

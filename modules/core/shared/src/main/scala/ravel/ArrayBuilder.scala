@@ -25,7 +25,9 @@ final class ArrayBuilder[A] private[ravel] (
     inline erasedValue[A] match
       case _: Boolean => writeBoolean(index, value.asInstanceOf[Boolean])
       case _: Byte => writeByte(index, value.asInstanceOf[Byte])
+      case _: UInt8 => writeUInt8(index, value.asInstanceOf[UInt8])
       case _: Short => writeShort(index, value.asInstanceOf[Short])
+      case _: UInt16 => writeUInt16(index, value.asInstanceOf[UInt16])
       case _: Int => writeInt(index, value.asInstanceOf[Int])
       case _: Long => writeLong(index, value.asInstanceOf[Long])
       case _: Float => writeFloat(index, value.asInstanceOf[Float])
@@ -58,6 +60,12 @@ final class ArrayBuilder[A] private[ravel] (
 
   @publicInBinary private[ravel] def writeShort(index: Int, value: Short): Unit =
     ProbeApi.setShort(storage.asInstanceOf[Storage[Short]], checkedIndex(index), value)
+
+  @publicInBinary private[ravel] def writeUInt8(index: Int, value: UInt8): Unit =
+    ProbeApi.setUInt8(storage.asInstanceOf[Storage[UInt8]], checkedIndex(index), value)
+
+  @publicInBinary private[ravel] def writeUInt16(index: Int, value: UInt16): Unit =
+    ProbeApi.setUInt16(storage.asInstanceOf[Storage[UInt16]], checkedIndex(index), value)
 
   @publicInBinary private[ravel] def writeInt(index: Int, value: Int): Unit =
     ProbeApi.setInt(storage.asInstanceOf[Storage[Int]], checkedIndex(index), value)

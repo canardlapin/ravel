@@ -1,6 +1,8 @@
 package ravel.internal
 
 import ravel.DType
+import ravel.UInt16
+import ravel.UInt8
 
 /** Executable representation probe used to freeze the internal storage ABI.
   *
@@ -32,6 +34,12 @@ private[ravel] object ProbeApi:
   def getShort(storage: Storage[Short], index: Int): Short =
     ProbeKernels.getShort(storage, index)
 
+  def getUInt8(storage: Storage[UInt8], index: Int): UInt8 =
+    ProbeKernels.getUInt8(storage, index)
+
+  def getUInt16(storage: Storage[UInt16], index: Int): UInt16 =
+    ProbeKernels.getUInt16(storage, index)
+
   def getInt(storage: Storage[Int], index: Int): Int =
     ProbeKernels.getInt(storage, index)
 
@@ -52,6 +60,12 @@ private[ravel] object ProbeApi:
 
   def setShort(storage: Storage[Short], index: Int, value: Short): Unit =
     ProbeKernels.setShort(storage, index, value)
+
+  def setUInt8(storage: Storage[UInt8], index: Int, value: UInt8): Unit =
+    ProbeKernels.setUInt8(storage, index, value)
+
+  def setUInt16(storage: Storage[UInt16], index: Int, value: UInt16): Unit =
+    ProbeKernels.setUInt16(storage, index, value)
 
   def setInt(storage: Storage[Int], index: Int, value: Int): Unit =
     ProbeKernels.setInt(storage, index, value)

@@ -232,6 +232,96 @@ final class ReferenceNeighborhoodExecutorSuite extends FunSuite:
 
     assert(direct.freezeCopy().sameElements(reference.freezeCopy()))
 
+  test("prepared primitive Float, Byte, and Short paths agree with reference"):
+    val spec =
+      NeighborhoodSpec(
+        spatialAxes = 2,
+        offsets = Vector(Vector(-1, 0), Vector(0, 0), Vector(1, 0)),
+        border = BorderMode.Replicate,
+        outputOrigin = Vector(0, 0),
+        outputSpatialShape = Vector(2, 2)
+      )
+
+    val floatSource = NDArray.tabulate[Float](2, 2)((i, j) => (10 * i + j).toFloat)
+    val floatReference = MutableNDArray.zeros[Float, Rank[2]](Shape(2, 2))
+    val floatDirect = MutableNDArray.zeros[Float, Rank[2]](Shape(2, 2))
+    val floatGeneric =
+      new NeighborhoodReducer[Float, Float, Float]:
+        def zero: Float = 0.0f
+        def accumulate(acc: Float, value: Float, offsetIndex: Int): Float = acc + value
+        def finish(acc: Float): Float = acc
+    val floatPrimitive =
+      new FloatNeighborhoodReducer:
+        def zero: Float = 0.0f
+        def accumulate(acc: Float, value: Float, offsetIndex: Int): Float = acc + value
+        def finish(acc: Float): Float = acc
+    ReferenceNeighborhoodExecutor.run(
+      floatSource,
+      floatReference,
+      spec,
+      floatGeneric,
+      constant = 0.0f
+    )
+    DirectNeighborhoodExecutor
+      .prepare(floatSource, floatDirect, spec)
+      .runFloat(floatSource, floatDirect, floatPrimitive, constant = 0.0f)
+    assert(floatDirect.freezeCopy().sameElements(floatReference.freezeCopy()))
+
+    val byteSource = NDArray.tabulate[Byte](2, 2)((i, j) => (10 * i + j).toByte)
+    val byteReference = MutableNDArray.zeros[Byte, Rank[2]](Shape(2, 2))
+    val byteDirect = MutableNDArray.zeros[Byte, Rank[2]](Shape(2, 2))
+    val byteGeneric =
+      new NeighborhoodReducer[Byte, Byte, Byte]:
+        def zero: Byte = 0
+        def accumulate(acc: Byte, value: Byte, offsetIndex: Int): Byte =
+          (acc + value).toByte
+        def finish(acc: Byte): Byte = acc
+    val bytePrimitive =
+      new ByteNeighborhoodReducer:
+        def zero: Byte = 0
+        def accumulate(acc: Byte, value: Byte, offsetIndex: Int): Byte =
+          (acc + value).toByte
+        def finish(acc: Byte): Byte = acc
+    ReferenceNeighborhoodExecutor.run(
+      byteSource,
+      byteReference,
+      spec,
+      byteGeneric,
+      constant = 0.toByte
+    )
+    DirectNeighborhoodExecutor
+      .prepare(byteSource, byteDirect, spec)
+      .runByte(byteSource, byteDirect, bytePrimitive, constant = 0.toByte)
+    assert(byteDirect.freezeCopy().sameElements(byteReference.freezeCopy()))
+
+    val shortSource =
+      NDArray.tabulate[Short](2, 2)((i, j) => (100 * i + j).toShort)
+    val shortReference = MutableNDArray.zeros[Short, Rank[2]](Shape(2, 2))
+    val shortDirect = MutableNDArray.zeros[Short, Rank[2]](Shape(2, 2))
+    val shortGeneric =
+      new NeighborhoodReducer[Short, Short, Short]:
+        def zero: Short = 0
+        def accumulate(acc: Short, value: Short, offsetIndex: Int): Short =
+          (acc + value).toShort
+        def finish(acc: Short): Short = acc
+    val shortPrimitive =
+      new ShortNeighborhoodReducer:
+        def zero: Short = 0
+        def accumulate(acc: Short, value: Short, offsetIndex: Int): Short =
+          (acc + value).toShort
+        def finish(acc: Short): Short = acc
+    ReferenceNeighborhoodExecutor.run(
+      shortSource,
+      shortReference,
+      spec,
+      shortGeneric,
+      constant = 0.toShort
+    )
+    DirectNeighborhoodExecutor
+      .prepare(shortSource, shortDirect, spec)
+      .runShort(shortSource, shortDirect, shortPrimitive, constant = 0.toShort)
+    assert(shortDirect.freezeCopy().sameElements(shortReference.freezeCopy()))
+
   test("direct executor matches reference for cropped and broadcast source strides"):
     val base =
       NDArray.tabulate[Int](5, 4)((i, j) => 10 * i + j)

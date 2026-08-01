@@ -1,6 +1,8 @@
 package ravel.internal
 
 import ravel.DType
+import ravel.UInt16
+import ravel.UInt8
 import scala.scalajs.js.typedarray.*
 
 private[ravel] sealed trait Storage[A]:
@@ -14,6 +16,12 @@ private[ravel] final class ByteStorage(val raw: Int8Array) extends Storage[Byte]
   def length: Int = raw.length
 
 private[ravel] final class ShortStorage(val raw: Int16Array) extends Storage[Short]:
+  def length: Int = raw.length
+
+private[ravel] final class UInt8Storage(val raw: Uint8Array) extends Storage[UInt8]:
+  def length: Int = raw.length
+
+private[ravel] final class UInt16Storage(val raw: Uint16Array) extends Storage[UInt16]:
   def length: Int = raw.length
 
 private[ravel] final class IntStorage(val raw: Int32Array) extends Storage[Int]:
@@ -37,7 +45,9 @@ private[ravel] object PlatformStorage:
     (dtype.tag match
       case DType.BooleanTag => new BooleanStorage(new Uint8Array(size))
       case DType.ByteTag => new ByteStorage(new Int8Array(size))
+      case DType.UInt8Tag => new UInt8Storage(new Uint8Array(size))
       case DType.ShortTag => new ShortStorage(new Int16Array(size))
+      case DType.UInt16Tag => new UInt16Storage(new Uint16Array(size))
       case DType.IntTag => new IntStorage(new Int32Array(size))
       case DType.LongTag => new LongStorage(new Array[Long](size))
       case DType.FloatTag => new FloatStorage(new Float32Array(size))

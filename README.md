@@ -61,8 +61,11 @@ val spec = NeighborhoodSpec(
 Trailing axes are batch axes: a spatial neighborhood keeps their coordinates
 fixed. `ReferenceNeighborhoodExecutor` is the clarity-first conformance oracle.
 `DirectNeighborhoodExecutor` supports arbitrary Ravel source views without
-per-sample index-array allocation; its `runDouble` path keeps floating point
-reads, writes, and accumulation primitive.
+per-sample index-array allocation. Prepare a
+`PreparedDirectNeighborhoodExecutor` when repeating a pass over the same
+logical shape: its `runByte`, `runShort`, `runFloat`, and `runDouble` methods
+reuse private workspace and keep their reads, writes, and accumulators
+primitive.
 
 ## Types and storage
 

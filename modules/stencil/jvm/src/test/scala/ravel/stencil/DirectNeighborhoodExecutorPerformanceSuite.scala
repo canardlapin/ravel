@@ -16,7 +16,7 @@ import ravel.Shape
   * path must not allocate proportionally to the number of output samples or support offsets.
   */
 final class DirectNeighborhoodExecutorPerformanceSuite extends FunSuite:
-  test("direct Double execution has no output-sized index allocation"):
+  test("prepared direct Double execution reuses all workspace"):
     val nx = 192
     val ny = 128
     val source =
@@ -55,13 +55,14 @@ final class DirectNeighborhoodExecutorPerformanceSuite extends FunSuite:
         def accumulate(acc: Double, value: Double, offsetIndex: Int): Double =
           acc + value
         def finish(acc: Double): Double = acc
+    val plan =
+      DirectNeighborhoodExecutor.prepare(source, directDestination, spec)
 
     var warmup = 0
     while warmup < 20 do
-      DirectNeighborhoodExecutor.runDouble(
+      plan.runDouble(
         source,
         directDestination,
-        spec,
         primitive,
         constant = 0.0
       )
@@ -69,10 +70,9 @@ final class DirectNeighborhoodExecutorPerformanceSuite extends FunSuite:
 
     val directBytes =
       medianAllocation {
-        DirectNeighborhoodExecutor.runDouble(
+        plan.runDouble(
           source,
           directDestination,
-          spec,
           primitive,
           constant = 0.0
         )
@@ -97,8 +97,8 @@ final class DirectNeighborhoodExecutorPerformanceSuite extends FunSuite:
       "direct and reference outputs diverged"
     )
     assert(
-      directBytes <= 4096L,
-      s"direct run allocated $directBytes B; expected only constant-size setup"
+      directBytes <= 256L,
+      s"prepared direct run allocated $directBytes B; expected reusable workspace"
     )
     assert(
       referenceBytes > directBytes * 20L,

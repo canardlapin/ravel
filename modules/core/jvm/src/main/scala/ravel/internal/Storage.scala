@@ -1,6 +1,8 @@
 package ravel.internal
 
 import ravel.DType
+import ravel.UInt16
+import ravel.UInt8
 
 private[ravel] sealed trait Storage[A]:
   def length: Int
@@ -12,6 +14,12 @@ private[ravel] final class ByteStorage(val raw: Array[Byte]) extends Storage[Byt
   def length: Int = raw.length
 
 private[ravel] final class ShortStorage(val raw: Array[Short]) extends Storage[Short]:
+  def length: Int = raw.length
+
+private[ravel] final class UInt8Storage(val raw: Array[Byte]) extends Storage[UInt8]:
+  def length: Int = raw.length
+
+private[ravel] final class UInt16Storage(val raw: Array[Short]) extends Storage[UInt16]:
   def length: Int = raw.length
 
 private[ravel] final class IntStorage(val raw: Array[Int]) extends Storage[Int]:
@@ -32,7 +40,9 @@ private[ravel] object PlatformStorage:
     (dtype.tag match
       case DType.BooleanTag => new BooleanStorage(new Array[Boolean](size))
       case DType.ByteTag => new ByteStorage(new Array[Byte](size))
+      case DType.UInt8Tag => new UInt8Storage(new Array[Byte](size))
       case DType.ShortTag => new ShortStorage(new Array[Short](size))
+      case DType.UInt16Tag => new UInt16Storage(new Array[Short](size))
       case DType.IntTag => new IntStorage(new Array[Int](size))
       case DType.LongTag => new LongStorage(new Array[Long](size))
       case DType.FloatTag => new FloatStorage(new Array[Float](size))
