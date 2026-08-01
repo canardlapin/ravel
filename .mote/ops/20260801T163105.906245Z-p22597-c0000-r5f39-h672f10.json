@@ -1,0 +1,1 @@
+{"actor":"codex-ravel","entity":"bd-01KYZ2FA8MJ4E6G52A4AZ9B1HY","kind":"note","note_kind":"note","op":"20260801T163105.906245Z-p22597-c0000-r5f39-h672f10","text":"Added DirectNeighborhoodExecutor plus primitive Double path; conformance across strided/views/borders and JVM allocation court. JVM+Scala.js tests green.","ts":"2026-08-01T16:31:05.906245Z","v":1}

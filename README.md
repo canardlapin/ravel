@@ -34,9 +34,35 @@ val centered = x - columnMeans.newAxis(0)
 The array value consists of one flat primitive buffer plus a shape, strides,
 and an offset. Slicing, reversal, transposition, axis insertion, and
 broadcasting create views. Numerical operations and reductions execute eagerly.
-Ravel does not implement matrix multiplication, decompositions, sparse arrays,
-automatic differentiation, chunked storage, or I/O. Those features belong in
-[Gale](https://github.com/canardlapin/gale) or another layer.
+Ravel does not implement image semantics, matrix multiplication, decompositions,
+sparse arrays, automatic differentiation, chunked storage, or I/O. Those
+features belong in [Gale](https://github.com/canardlapin/gale) or another
+layer.
+
+## Neighborhood execution
+
+`ravel-stencil` is a generic N-dimensional neighborhood substrate for sibling
+libraries. It owns offset traversal, border-index mapping, and reference/direct
+execution over `NDArray` views; it deliberately does not know image roles,
+physical units, geometry, colour, or display.
+
+```scala
+import ravel.stencil.*
+
+val spec = NeighborhoodSpec(
+  spatialAxes = 2,
+  offsets = Vector(Vector(-1, 0), Vector(0, 0), Vector(1, 0)),
+  border = BorderMode.ReflectWithoutEdge,
+  outputOrigin = Vector(0, 0),
+  outputSpatialShape = Vector(width, height)
+)
+```
+
+Trailing axes are batch axes: a spatial neighborhood keeps their coordinates
+fixed. `ReferenceNeighborhoodExecutor` is the clarity-first conformance oracle.
+`DirectNeighborhoodExecutor` supports arbitrary Ravel source views without
+per-sample index-array allocation; its `runDouble` path keeps floating point
+reads, writes, and accumulation primitive.
 
 ## Types and storage
 
@@ -83,9 +109,9 @@ in [docs/release-contract.md](docs/release-contract.md).
 ## Availability
 
 Ravel is currently available only as source code. There is no released version
-to add to an sbt build. Artifact names `ravel-core` and `ravel-laws` are the
-intended modules when a first tagged release eventually happens; treat that as
-future packaging work, not current project maturity.
+to add to an sbt build. Artifact names `ravel-core`, `ravel-laws`, and
+`ravel-stencil` are the intended modules when a first tagged release eventually
+happens; treat that as future packaging work, not current project maturity.
 
 ## Developer commands
 
@@ -103,7 +129,7 @@ sbt verifyPublishArtifacts
 sbt coverageReportJvm               # diagnostic; no threshold
 ```
 
-`testAll` runs the core and reusable laws suites on the JVM and Node.
+`testAll` runs the core, reusable laws, and stencil suites on the JVM and Node.
 `browserTests/test` runs the browser-specific Scala.js suite in headless
 Chromium. `scripts/numpy-parity-gate.sh` compares public access-pattern
 signatures to NumPy without JMH timings. Full timed comparisons are documented

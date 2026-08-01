@@ -112,6 +112,22 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
     scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule))
   )
 
+/** Generic N-D neighborhood / stencil execution. No image semantics. */
+lazy val stencil = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Full)
+  .in(file("modules/stencil"))
+  .enablePlugins(MimaPlugin)
+  .dependsOn(core)
+  .settings(commonSettings)
+  .settings(publishableSettings)
+  .settings(
+    name := "ravel-stencil",
+    description := "Generic N-dimensional neighborhood traversal and border-index mapping for Ravel arrays."
+  )
+  .jsSettings(
+    scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule))
+  )
+
 lazy val representationProbeJVM = project
   .in(file("modules/benchmarks/jvm"))
   .enablePlugins(JmhPlugin)
@@ -209,6 +225,8 @@ lazy val root = project
     core.js,
     laws.jvm,
     laws.js,
+    stencil.jvm,
+    stencil.js,
     browserTests,
     representationProbeJVM,
     representationProbeJS
@@ -218,8 +236,14 @@ lazy val root = project
     publish / skip := true
   )
 
-addCommandAlias("compileAll", ";coreJVM/compile;coreJS/compile;lawsJVM/compile;lawsJS/compile")
-addCommandAlias("testAll", ";coreJVM/test;coreJS/test;lawsJVM/test;lawsJS/test")
+addCommandAlias(
+  "compileAll",
+  ";coreJVM/compile;coreJS/compile;lawsJVM/compile;lawsJS/compile;stencilJVM/compile;stencilJS/compile"
+)
+addCommandAlias(
+  "testAll",
+  ";coreJVM/test;coreJS/test;lawsJVM/test;lawsJS/test;stencilJVM/test;stencilJS/test"
+)
 addCommandAlias(
   "testAllFull",
   ";testAll;browserTests/test;coreJS/Test/fullLinkJS;lawsJS/Test/fullLinkJS"
