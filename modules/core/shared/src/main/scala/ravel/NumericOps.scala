@@ -135,6 +135,38 @@ extension [A, R <: AnyRank](array: ReadableArray[A, R])(using
   ): NDArray[Boolean, OperandRank[A, R, B]] =
     readableCompareSwapped(KernelOp.LessEqual, array, other)
 
+  /** Compare with `Ordering.compare` semantics rather than primitive IEEE
+    * semantics. This is primarily useful when an image operation promises to
+    * honor Scala's default total ordering for floating values.
+    */
+  def orderedLessThan[
+      B <: A | NDArray[A, ? <: AnyRank] | BorrowedNDArray[A, ? <: AnyRank]
+  ](
+      other: B
+  ): NDArray[Boolean, OperandRank[A, R, B]] =
+    readableCompare(KernelOp.OrderedLess, array, other)
+
+  def orderedLessOrEqual[
+      B <: A | NDArray[A, ? <: AnyRank] | BorrowedNDArray[A, ? <: AnyRank]
+  ](
+      other: B
+  ): NDArray[Boolean, OperandRank[A, R, B]] =
+    readableCompare(KernelOp.OrderedLessEqual, array, other)
+
+  def orderedGreaterThan[
+      B <: A | NDArray[A, ? <: AnyRank] | BorrowedNDArray[A, ? <: AnyRank]
+  ](
+      other: B
+  ): NDArray[Boolean, OperandRank[A, R, B]] =
+    readableCompareSwapped(KernelOp.OrderedLess, array, other)
+
+  def orderedGreaterOrEqual[
+      B <: A | NDArray[A, ? <: AnyRank] | BorrowedNDArray[A, ? <: AnyRank]
+  ](
+      other: B
+  ): NDArray[Boolean, OperandRank[A, R, B]] =
+    readableCompareSwapped(KernelOp.OrderedLessEqual, array, other)
+
 private def readableOperand[
     A,
     R <: AnyRank,
@@ -185,6 +217,13 @@ private def readableCompare[
           left.toNDArray,
           owned.asInstanceOf[NDArray[A, AnyRank]]
         )
+      case scalar if isOrderedComparison(operation) =>
+        KernelApi.orderedCompareScalar(
+          operation,
+          left.toNDArray,
+          scalar.asInstanceOf[A],
+          scalarLeft = false
+        )
       case scalar =>
         KernelApi.compare(
           operation,
@@ -216,6 +255,13 @@ private def readableCompareSwapped[
           owned.asInstanceOf[NDArray[A, AnyRank]],
           left.toNDArray
         )
+      case scalar if isOrderedComparison(operation) =>
+        KernelApi.orderedCompareScalar(
+          operation,
+          left.toNDArray,
+          scalar.asInstanceOf[A],
+          scalarLeft = true
+        )
       case scalar =>
         KernelApi.compare(
           operation,
@@ -223,3 +269,6 @@ private def readableCompareSwapped[
           left.toNDArray
         )
   result.asInstanceOf[NDArray[Boolean, OperandRank[A, R, B]]]
+
+private def isOrderedComparison(operation: Byte): Boolean =
+  operation == KernelOp.OrderedLess || operation == KernelOp.OrderedLessEqual

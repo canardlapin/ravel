@@ -21,8 +21,14 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
     private val rank: Int,
     private val sourceShape: Array[Int],
     private val destinationShape: Array[Int],
-    private val destinationIndices: Array[Int]
+    private val destinationIndices: Array[Int],
+    private val offsets: Array[Array[Int]],
+    private val outputOrigin: Array[Int]
 ):
+  private val offsetCount = offsets.length
+  private val spatialAxes = spec.spatialAxes
+  private val border = spec.border
+
   /** Run a primitive Double neighborhood pass without per-run workspace allocation. */
   def runDouble[R <: AnyRank](
       source: NDArray[Double, R],
@@ -31,13 +37,19 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       constant: Double
   ): Unit =
     validateCompatible(source.rank, source.shape, destination)
+    if spatialAxes == 1 then
+      runDoubleLines(source, destination, reducer, constant)
+      return
+    if spatialAxes == rank && (rank == 2 || rank == 3) then
+      runDoubleSpatial(source, destination, reducer, constant)
+      return
     var linear = 0
     while linear < destination.size do
       unravel(linear, destination)
       var acc = reducer.zero
       var offsetIndex = 0
-      while offsetIndex < spec.offsets.length do
-        val address = sourceAddress(source.layout, spec.offsets(offsetIndex))
+      while offsetIndex < offsetCount do
+        val address = sourceAddress(source.layout, offsets(offsetIndex))
         val value = if address < 0 then constant else source.readDouble(address)
         acc = reducer.accumulate(acc, value, offsetIndex)
         offsetIndex += 1
@@ -52,13 +64,19 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       constant: Double
   ): Unit =
     validateCompatibleMutable(source, destination)
+    if spatialAxes == 1 then
+      runDoubleLines(source, destination, reducer, constant)
+      return
+    if spatialAxes == rank && (rank == 2 || rank == 3) then
+      runDoubleSpatial(source, destination, reducer, constant)
+      return
     var linear = 0
     while linear < destination.size do
       unravel(linear, destination)
       var acc = reducer.zero
       var offsetIndex = 0
-      while offsetIndex < spec.offsets.length do
-        val address = sourceAddress(source.layout, spec.offsets(offsetIndex))
+      while offsetIndex < offsetCount do
+        val address = sourceAddress(source.layout, offsets(offsetIndex))
         val value = if address < 0 then constant else source.readDouble(address)
         acc = reducer.accumulate(acc, value, offsetIndex)
         offsetIndex += 1
@@ -78,8 +96,8 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       unravel(linear, destination)
       var acc = reducer.zero
       var offsetIndex = 0
-      while offsetIndex < spec.offsets.length do
-        val address = sourceAddress(source.layout, spec.offsets(offsetIndex))
+      while offsetIndex < offsetCount do
+        val address = sourceAddress(source.layout, offsets(offsetIndex))
         val value = if address < 0 then constant else source.readFloat(address)
         acc = reducer.accumulate(acc, value, offsetIndex)
         offsetIndex += 1
@@ -99,8 +117,8 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       unravel(linear, destination)
       var acc = reducer.zero
       var offsetIndex = 0
-      while offsetIndex < spec.offsets.length do
-        val address = sourceAddress(source.layout, spec.offsets(offsetIndex))
+      while offsetIndex < offsetCount do
+        val address = sourceAddress(source.layout, offsets(offsetIndex))
         val value = if address < 0 then constant else source.readFloat(address)
         acc = reducer.accumulate(acc, value, offsetIndex)
         offsetIndex += 1
@@ -115,16 +133,23 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       constant: Boolean
   ): Unit =
     validateCompatible(source.rank, source.shape, destination)
+    if spatialAxes == 1 then
+      runBooleanLines(source, destination, reducer, constant)
+      return
+    if spatialAxes == rank && (rank == 2 || rank == 3) then
+      runBooleanSpatial(source, destination, reducer, constant)
+      return
     var linear = 0
     while linear < destination.size do
       unravel(linear, destination)
       var acc = reducer.zero
       var offsetIndex = 0
-      while offsetIndex < spec.offsets.length do
-        val address = sourceAddress(source.layout, spec.offsets(offsetIndex))
+      while offsetIndex < offsetCount do
+        val address = sourceAddress(source.layout, offsets(offsetIndex))
         val value = if address < 0 then constant else source.readBoolean(address)
         acc = reducer.accumulate(acc, value, offsetIndex)
-        offsetIndex += 1
+        if reducer.isTerminal(acc) then offsetIndex = offsetCount
+        else offsetIndex += 1
       destination.writeBoolean(destinationAddress(destination), reducer.finish(acc))
       linear += 1
 
@@ -141,11 +166,12 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       unravel(linear, destination)
       var acc = reducer.zero
       var offsetIndex = 0
-      while offsetIndex < spec.offsets.length do
-        val address = sourceAddress(source.layout, spec.offsets(offsetIndex))
+      while offsetIndex < offsetCount do
+        val address = sourceAddress(source.layout, offsets(offsetIndex))
         val value = if address < 0 then constant else source.readBoolean(address)
         acc = reducer.accumulate(acc, value, offsetIndex)
-        offsetIndex += 1
+        if reducer.isTerminal(acc) then offsetIndex = offsetCount
+        else offsetIndex += 1
       destination.writeBoolean(destinationAddress(destination), reducer.finish(acc))
       linear += 1
 
@@ -162,8 +188,8 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       unravel(linear, destination)
       var acc = reducer.zero
       var offsetIndex = 0
-      while offsetIndex < spec.offsets.length do
-        val address = sourceAddress(source.layout, spec.offsets(offsetIndex))
+      while offsetIndex < offsetCount do
+        val address = sourceAddress(source.layout, offsets(offsetIndex))
         val value = if address < 0 then constant else source.readByte(address)
         acc = reducer.accumulate(acc, value, offsetIndex)
         offsetIndex += 1
@@ -183,8 +209,8 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       unravel(linear, destination)
       var acc = reducer.zero
       var offsetIndex = 0
-      while offsetIndex < spec.offsets.length do
-        val address = sourceAddress(source.layout, spec.offsets(offsetIndex))
+      while offsetIndex < offsetCount do
+        val address = sourceAddress(source.layout, offsets(offsetIndex))
         val value = if address < 0 then constant else source.readByte(address)
         acc = reducer.accumulate(acc, value, offsetIndex)
         offsetIndex += 1
@@ -204,8 +230,8 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       unravel(linear, destination)
       var acc = reducer.zero
       var offsetIndex = 0
-      while offsetIndex < spec.offsets.length do
-        val address = sourceAddress(source.layout, spec.offsets(offsetIndex))
+      while offsetIndex < offsetCount do
+        val address = sourceAddress(source.layout, offsets(offsetIndex))
         val value = if address < 0 then constant else source.readShort(address)
         acc = reducer.accumulate(acc, value, offsetIndex)
         offsetIndex += 1
@@ -225,13 +251,524 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       unravel(linear, destination)
       var acc = reducer.zero
       var offsetIndex = 0
-      while offsetIndex < spec.offsets.length do
-        val address = sourceAddress(source.layout, spec.offsets(offsetIndex))
+      while offsetIndex < offsetCount do
+        val address = sourceAddress(source.layout, offsets(offsetIndex))
         val value = if address < 0 then constant else source.readShort(address)
         acc = reducer.accumulate(acc, value, offsetIndex)
         offsetIndex += 1
       destination.writeShort(destinationAddress(destination), reducer.finish(acc))
       linear += 1
+
+  private def runDoubleLines[R <: AnyRank](
+      source: NDArray[Double, R],
+      destination: MutableNDArray[Double, R],
+      reducer: DoubleNeighborhoodReducer,
+      constant: Double
+  ): Unit =
+    val sourceLayout = source.layout
+    val destinationLayout = destination.layout
+    val sourceStride = sourceLayout.strides(0).toLong
+    val destinationStride = destinationLayout.strides(0).toLong
+    val outputExtent = destinationShape(0)
+    val lineCount = destination.size / outputExtent
+    var line = 0
+    while line < lineCount do
+      setBatchIndices(line)
+      val sourceBase = batchAddress(sourceLayout)
+      val destinationBase = batchAddress(destinationLayout)
+      var row = 0
+      while row < outputExtent do
+        var acc = reducer.zero
+        var offsetIndex = 0
+        while offsetIndex < offsetCount do
+          val offset = offsets(offsetIndex)
+          val mapped = BorderIndex.direct(
+            outputOrigin(0) + row + offset(0),
+            sourceShape(0),
+            border
+          )
+          val value =
+            if mapped < 0 then constant
+            else source.readDouble((sourceBase.toLong + mapped * sourceStride).toInt)
+          acc = reducer.accumulate(acc, value, offsetIndex)
+          offsetIndex += 1
+        destination.writeDouble(
+          (destinationBase.toLong + row * destinationStride).toInt,
+          reducer.finish(acc)
+        )
+        row += 1
+      line += 1
+
+  private def runDoubleLines[R <: AnyRank](
+      source: MutableNDArray[Double, R],
+      destination: MutableNDArray[Double, R],
+      reducer: DoubleNeighborhoodReducer,
+      constant: Double
+  ): Unit =
+    val sourceLayout = source.layout
+    val destinationLayout = destination.layout
+    val sourceStride = sourceLayout.strides(0).toLong
+    val destinationStride = destinationLayout.strides(0).toLong
+    val outputExtent = destinationShape(0)
+    val lineCount = destination.size / outputExtent
+    var line = 0
+    while line < lineCount do
+      setBatchIndices(line)
+      val sourceBase = batchAddress(sourceLayout)
+      val destinationBase = batchAddress(destinationLayout)
+      var row = 0
+      while row < outputExtent do
+        var acc = reducer.zero
+        var offsetIndex = 0
+        while offsetIndex < offsetCount do
+          val offset = offsets(offsetIndex)
+          val mapped = BorderIndex.direct(
+            outputOrigin(0) + row + offset(0),
+            sourceShape(0),
+            border
+          )
+          val value =
+            if mapped < 0 then constant
+            else source.readDouble((sourceBase.toLong + mapped * sourceStride).toInt)
+          acc = reducer.accumulate(acc, value, offsetIndex)
+          offsetIndex += 1
+        destination.writeDouble(
+          (destinationBase.toLong + row * destinationStride).toInt,
+          reducer.finish(acc)
+        )
+        row += 1
+      line += 1
+
+  private def runDoubleSpatial[R <: AnyRank](
+      source: NDArray[Double, R],
+      destination: MutableNDArray[Double, R],
+      reducer: DoubleNeighborhoodReducer,
+      constant: Double
+  ): Unit =
+    if rank == 2 then
+      val sourceLayout = source.layout
+      val destinationLayout = destination.layout
+      val sourceOffset = sourceLayout.offset.toLong
+      val destinationOffset = destinationLayout.offset.toLong
+      val sourceStride0 = sourceLayout.strides(0).toLong
+      val sourceStride1 = sourceLayout.strides(1).toLong
+      val destinationStride0 = destinationLayout.strides(0).toLong
+      val destinationStride1 = destinationLayout.strides(1).toLong
+      var first = 0
+      while first < destinationShape(0) do
+        val logicalFirst = outputOrigin(0) + first
+        var second = 0
+        while second < destinationShape(1) do
+          var acc = reducer.zero
+          var offsetIndex = 0
+          while offsetIndex < offsetCount do
+            val offset = offsets(offsetIndex)
+            val mappedFirst = BorderIndex.direct(
+              logicalFirst + offset(0),
+              sourceShape(0),
+              border
+            )
+            val value =
+              if mappedFirst < 0 then constant
+              else
+                val mappedSecond = BorderIndex.direct(
+                  outputOrigin(1) + second + offset(1),
+                  sourceShape(1),
+                  border
+                )
+                if mappedSecond < 0 then constant
+                else
+                  source.readDouble(
+                    (
+                      sourceOffset +
+                        mappedFirst.toLong * sourceStride0 +
+                        mappedSecond.toLong * sourceStride1
+                    ).toInt
+                  )
+            acc = reducer.accumulate(acc, value, offsetIndex)
+            offsetIndex += 1
+          destination.writeDouble(
+            (
+              destinationOffset +
+                first.toLong * destinationStride0 +
+                second.toLong * destinationStride1
+            ).toInt,
+            reducer.finish(acc)
+          )
+          second += 1
+        first += 1
+    else
+      val sourceLayout = source.layout
+      val destinationLayout = destination.layout
+      val sourceOffset = sourceLayout.offset.toLong
+      val destinationOffset = destinationLayout.offset.toLong
+      val sourceStride0 = sourceLayout.strides(0).toLong
+      val sourceStride1 = sourceLayout.strides(1).toLong
+      val sourceStride2 = sourceLayout.strides(2).toLong
+      val destinationStride0 = destinationLayout.strides(0).toLong
+      val destinationStride1 = destinationLayout.strides(1).toLong
+      val destinationStride2 = destinationLayout.strides(2).toLong
+      var first = 0
+      while first < destinationShape(0) do
+        val logicalFirst = outputOrigin(0) + first
+        var second = 0
+        while second < destinationShape(1) do
+          val logicalSecond = outputOrigin(1) + second
+          var third = 0
+          while third < destinationShape(2) do
+            var acc = reducer.zero
+            var offsetIndex = 0
+            while offsetIndex < offsetCount do
+              val offset = offsets(offsetIndex)
+              val mappedFirst = BorderIndex.direct(
+                logicalFirst + offset(0),
+                sourceShape(0),
+                border
+              )
+              val value =
+                if mappedFirst < 0 then constant
+                else
+                  val mappedSecond = BorderIndex.direct(
+                    logicalSecond + offset(1),
+                    sourceShape(1),
+                    border
+                  )
+                  if mappedSecond < 0 then constant
+                  else
+                    val mappedThird = BorderIndex.direct(
+                      outputOrigin(2) + third + offset(2),
+                      sourceShape(2),
+                      border
+                    )
+                    if mappedThird < 0 then constant
+                    else
+                      source.readDouble(
+                        (
+                          sourceOffset +
+                            mappedFirst.toLong * sourceStride0 +
+                            mappedSecond.toLong * sourceStride1 +
+                            mappedThird.toLong * sourceStride2
+                        ).toInt
+                      )
+              acc = reducer.accumulate(acc, value, offsetIndex)
+              offsetIndex += 1
+            destination.writeDouble(
+              (
+                destinationOffset +
+                  first.toLong * destinationStride0 +
+                  second.toLong * destinationStride1 +
+                  third.toLong * destinationStride2
+              ).toInt,
+              reducer.finish(acc)
+            )
+            third += 1
+          second += 1
+        first += 1
+
+  private def runDoubleSpatial[R <: AnyRank](
+      source: MutableNDArray[Double, R],
+      destination: MutableNDArray[Double, R],
+      reducer: DoubleNeighborhoodReducer,
+      constant: Double
+  ): Unit =
+    if rank == 2 then
+      val sourceLayout = source.layout
+      val destinationLayout = destination.layout
+      val sourceOffset = sourceLayout.offset.toLong
+      val destinationOffset = destinationLayout.offset.toLong
+      val sourceStride0 = sourceLayout.strides(0).toLong
+      val sourceStride1 = sourceLayout.strides(1).toLong
+      val destinationStride0 = destinationLayout.strides(0).toLong
+      val destinationStride1 = destinationLayout.strides(1).toLong
+      var first = 0
+      while first < destinationShape(0) do
+        val logicalFirst = outputOrigin(0) + first
+        var second = 0
+        while second < destinationShape(1) do
+          var acc = reducer.zero
+          var offsetIndex = 0
+          while offsetIndex < offsetCount do
+            val offset = offsets(offsetIndex)
+            val mappedFirst = BorderIndex.direct(
+              logicalFirst + offset(0),
+              sourceShape(0),
+              border
+            )
+            val value =
+              if mappedFirst < 0 then constant
+              else
+                val mappedSecond = BorderIndex.direct(
+                  outputOrigin(1) + second + offset(1),
+                  sourceShape(1),
+                  border
+                )
+                if mappedSecond < 0 then constant
+                else
+                  source.readDouble(
+                    (
+                      sourceOffset +
+                        mappedFirst.toLong * sourceStride0 +
+                        mappedSecond.toLong * sourceStride1
+                    ).toInt
+                  )
+            acc = reducer.accumulate(acc, value, offsetIndex)
+            offsetIndex += 1
+          destination.writeDouble(
+            (
+              destinationOffset +
+                first.toLong * destinationStride0 +
+                second.toLong * destinationStride1
+            ).toInt,
+            reducer.finish(acc)
+          )
+          second += 1
+        first += 1
+    else
+      val sourceLayout = source.layout
+      val destinationLayout = destination.layout
+      val sourceOffset = sourceLayout.offset.toLong
+      val destinationOffset = destinationLayout.offset.toLong
+      val sourceStride0 = sourceLayout.strides(0).toLong
+      val sourceStride1 = sourceLayout.strides(1).toLong
+      val sourceStride2 = sourceLayout.strides(2).toLong
+      val destinationStride0 = destinationLayout.strides(0).toLong
+      val destinationStride1 = destinationLayout.strides(1).toLong
+      val destinationStride2 = destinationLayout.strides(2).toLong
+      var first = 0
+      while first < destinationShape(0) do
+        val logicalFirst = outputOrigin(0) + first
+        var second = 0
+        while second < destinationShape(1) do
+          val logicalSecond = outputOrigin(1) + second
+          var third = 0
+          while third < destinationShape(2) do
+            var acc = reducer.zero
+            var offsetIndex = 0
+            while offsetIndex < offsetCount do
+              val offset = offsets(offsetIndex)
+              val mappedFirst = BorderIndex.direct(
+                logicalFirst + offset(0),
+                sourceShape(0),
+                border
+              )
+              val value =
+                if mappedFirst < 0 then constant
+                else
+                  val mappedSecond = BorderIndex.direct(
+                    logicalSecond + offset(1),
+                    sourceShape(1),
+                    border
+                  )
+                  if mappedSecond < 0 then constant
+                  else
+                    val mappedThird = BorderIndex.direct(
+                      outputOrigin(2) + third + offset(2),
+                      sourceShape(2),
+                      border
+                    )
+                    if mappedThird < 0 then constant
+                    else
+                      source.readDouble(
+                        (
+                          sourceOffset +
+                            mappedFirst.toLong * sourceStride0 +
+                            mappedSecond.toLong * sourceStride1 +
+                            mappedThird.toLong * sourceStride2
+                        ).toInt
+                      )
+              acc = reducer.accumulate(acc, value, offsetIndex)
+              offsetIndex += 1
+            destination.writeDouble(
+              (
+                destinationOffset +
+                  first.toLong * destinationStride0 +
+                  second.toLong * destinationStride1 +
+                  third.toLong * destinationStride2
+              ).toInt,
+              reducer.finish(acc)
+            )
+            third += 1
+          second += 1
+        first += 1
+
+  private def runBooleanLines[R <: AnyRank](
+      source: NDArray[Boolean, R],
+      destination: MutableNDArray[Boolean, R],
+      reducer: BooleanNeighborhoodReducer,
+      constant: Boolean
+  ): Unit =
+    val sourceLayout = source.layout
+    val destinationLayout = destination.layout
+    val sourceStride = sourceLayout.strides(0).toLong
+    val destinationStride = destinationLayout.strides(0).toLong
+    val outputExtent = destinationShape(0)
+    val lineCount = destination.size / outputExtent
+    var line = 0
+    while line < lineCount do
+      setBatchIndices(line)
+      val sourceBase = batchAddress(sourceLayout)
+      val destinationBase = batchAddress(destinationLayout)
+      var row = 0
+      while row < outputExtent do
+        var acc = reducer.zero
+        var offsetIndex = 0
+        while offsetIndex < offsetCount do
+          val offset = offsets(offsetIndex)
+          val mapped = BorderIndex.direct(
+            outputOrigin(0) + row + offset(0),
+            sourceShape(0),
+            border
+          )
+          val value =
+            if mapped < 0 then constant
+            else source.readBoolean((sourceBase.toLong + mapped * sourceStride).toInt)
+          acc = reducer.accumulate(acc, value, offsetIndex)
+          if reducer.isTerminal(acc) then offsetIndex = offsetCount
+          else offsetIndex += 1
+        destination.writeBoolean(
+          (destinationBase.toLong + row * destinationStride).toInt,
+          reducer.finish(acc)
+        )
+        row += 1
+      line += 1
+
+  private def runBooleanSpatial[R <: AnyRank](
+      source: NDArray[Boolean, R],
+      destination: MutableNDArray[Boolean, R],
+      reducer: BooleanNeighborhoodReducer,
+      constant: Boolean
+  ): Unit =
+    val sourceLayout = source.layout
+    val destinationLayout = destination.layout
+    val sourceOffset = sourceLayout.offset.toLong
+    val destinationOffset = destinationLayout.offset.toLong
+    val sourceStride0 = sourceLayout.strides(0).toLong
+    val sourceStride1 = sourceLayout.strides(1).toLong
+    val destinationStride0 = destinationLayout.strides(0).toLong
+    val destinationStride1 = destinationLayout.strides(1).toLong
+    if rank == 2 then
+      var first = 0
+      while first < destinationShape(0) do
+        val logicalFirst = outputOrigin(0) + first
+        var second = 0
+        while second < destinationShape(1) do
+          var acc = reducer.zero
+          var offsetIndex = 0
+          while offsetIndex < offsetCount do
+            val offset = offsets(offsetIndex)
+            val mappedFirst = BorderIndex.direct(
+              logicalFirst + offset(0),
+              sourceShape(0),
+              border
+            )
+            val value =
+              if mappedFirst < 0 then constant
+              else
+                val mappedSecond = BorderIndex.direct(
+                  outputOrigin(1) + second + offset(1),
+                  sourceShape(1),
+                  border
+                )
+                if mappedSecond < 0 then constant
+                else
+                  source.readBoolean(
+                    (
+                      sourceOffset +
+                        mappedFirst.toLong * sourceStride0 +
+                        mappedSecond.toLong * sourceStride1
+                    ).toInt
+                  )
+            acc = reducer.accumulate(acc, value, offsetIndex)
+            if reducer.isTerminal(acc) then offsetIndex = offsetCount
+            else offsetIndex += 1
+          destination.writeBoolean(
+            (
+              destinationOffset +
+                first.toLong * destinationStride0 +
+                second.toLong * destinationStride1
+            ).toInt,
+            reducer.finish(acc)
+          )
+          second += 1
+        first += 1
+    else
+      val sourceStride2 = sourceLayout.strides(2).toLong
+      val destinationStride2 = destinationLayout.strides(2).toLong
+      var first = 0
+      while first < destinationShape(0) do
+        val logicalFirst = outputOrigin(0) + first
+        var second = 0
+        while second < destinationShape(1) do
+          val logicalSecond = outputOrigin(1) + second
+          var third = 0
+          while third < destinationShape(2) do
+            var acc = reducer.zero
+            var offsetIndex = 0
+            while offsetIndex < offsetCount do
+              val offset = offsets(offsetIndex)
+              val mappedFirst = BorderIndex.direct(
+                logicalFirst + offset(0),
+                sourceShape(0),
+                border
+              )
+              val value =
+                if mappedFirst < 0 then constant
+                else
+                  val mappedSecond = BorderIndex.direct(
+                    logicalSecond + offset(1),
+                    sourceShape(1),
+                    border
+                  )
+                  if mappedSecond < 0 then constant
+                  else
+                    val mappedThird = BorderIndex.direct(
+                      outputOrigin(2) + third + offset(2),
+                      sourceShape(2),
+                      border
+                    )
+                    if mappedThird < 0 then constant
+                    else
+                      source.readBoolean(
+                        (
+                          sourceOffset +
+                            mappedFirst.toLong * sourceStride0 +
+                            mappedSecond.toLong * sourceStride1 +
+                            mappedThird.toLong * sourceStride2
+                        ).toInt
+                      )
+              acc = reducer.accumulate(acc, value, offsetIndex)
+              if reducer.isTerminal(acc) then offsetIndex = offsetCount
+              else offsetIndex += 1
+            destination.writeBoolean(
+              (
+                destinationOffset +
+                  first.toLong * destinationStride0 +
+                  second.toLong * destinationStride1 +
+                  third.toLong * destinationStride2
+              ).toInt,
+              reducer.finish(acc)
+            )
+            third += 1
+          second += 1
+        first += 1
+
+  private def setBatchIndices(linear: Int): Unit =
+    var rem = linear
+    var axis = rank - 1
+    while axis >= 1 do
+      val extent = destinationShape(axis)
+      destinationIndices(axis) = rem % extent
+      rem /= extent
+      axis -= 1
+    destinationIndices(0) = 0
+
+  private def batchAddress(layout: Layout): Int =
+    var address = layout.offset.toLong
+    var axis = 1
+    while axis < rank do
+      address += destinationIndices(axis).toLong * layout.strides(axis).toLong
+      axis += 1
+    address.toInt
 
   private def validateCompatibleMutable[A, B, R <: AnyRank](
       source: MutableNDArray[A, R],
@@ -267,15 +804,15 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
 
   private def sourceAddress(
       sourceLayout: Layout,
-      offset: Vector[Int]
+      offset: Array[Int]
   ): Int =
     var address = sourceLayout.offset.toLong
     var axis = 0
     while axis < spec.spatialAxes do
       val logical =
-        spec.outputOrigin(axis) + destinationIndices(axis) + offset(axis)
+        outputOrigin(axis) + destinationIndices(axis) + offset(axis)
       val mapped =
-        BorderIndex.direct(logical, sourceShape(axis), spec.border)
+        BorderIndex.direct(logical, sourceShape(axis), border)
       if mapped < 0 then return -1
       address += mapped.toLong * sourceLayout.strides(axis).toLong
       axis += 1
@@ -373,5 +910,7 @@ object PreparedDirectNeighborhoodExecutor:
       rank,
       Array.tabulate(rank)(sourceShapeValue(_)),
       Array.tabulate(rank)(destination.shape(_)),
-      new Array[Int](rank)
+      new Array[Int](rank),
+      spec.offsets.map(_.toArray).toArray,
+      spec.outputOrigin.toArray
     )

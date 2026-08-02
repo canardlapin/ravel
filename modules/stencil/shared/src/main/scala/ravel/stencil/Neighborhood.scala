@@ -32,6 +32,8 @@ trait BooleanNeighborhoodReducer:
   def zero: Boolean
   def accumulate(acc: Boolean, value: Boolean, offsetIndex: Int): Boolean
   def finish(acc: Boolean): Boolean
+  /** Return true when the accumulator is final and remaining offsets are irrelevant. */
+  def isTerminal(acc: Boolean): Boolean = false
 
 /** Primitive-byte reducer used by direct morphology-style executors. */
 trait ByteNeighborhoodReducer:
