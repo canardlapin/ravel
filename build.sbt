@@ -128,6 +128,21 @@ lazy val stencil = crossProject(JSPlatform, JVMPlatform)
     scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule))
   )
 
+/** Sub-byte packed arrays (1/2/4-bit codes). Parallel to NDArray, not a DType. */
+lazy val packed = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Full)
+  .in(file("modules/packed"))
+  .enablePlugins(MimaPlugin)
+  .settings(commonSettings)
+  .settings(publishableSettings)
+  .settings(
+    name := "ravel-packed",
+    description := "Endian-independent sub-byte packed arrays with logical sample strides and wordwise one-bit set algebra."
+  )
+  .jsSettings(
+    scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule))
+  )
+
 lazy val representationProbeJVM = project
   .in(file("modules/benchmarks/jvm"))
   .enablePlugins(JmhPlugin)
@@ -227,6 +242,8 @@ lazy val root = project
     laws.js,
     stencil.jvm,
     stencil.js,
+    packed.jvm,
+    packed.js,
     browserTests,
     representationProbeJVM,
     representationProbeJS
@@ -238,11 +255,11 @@ lazy val root = project
 
 addCommandAlias(
   "compileAll",
-  ";coreJVM/compile;coreJS/compile;lawsJVM/compile;lawsJS/compile;stencilJVM/compile;stencilJS/compile"
+  ";coreJVM/compile;coreJS/compile;lawsJVM/compile;lawsJS/compile;stencilJVM/compile;stencilJS/compile;packedJVM/compile;packedJS/compile"
 )
 addCommandAlias(
   "testAll",
-  ";coreJVM/test;coreJS/test;lawsJVM/test;lawsJS/test;stencilJVM/test;stencilJS/test"
+  ";coreJVM/test;coreJS/test;lawsJVM/test;lawsJS/test;stencilJVM/test;stencilJS/test;packedJVM/test;packedJS/test"
 )
 addCommandAlias(
   "testAllFull",
