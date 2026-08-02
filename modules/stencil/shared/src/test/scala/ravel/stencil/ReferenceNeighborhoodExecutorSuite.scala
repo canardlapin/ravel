@@ -6,6 +6,7 @@ import ravel.MutableNDArray
 import ravel.NDArray
 import ravel.Rank
 import ravel.Shape
+import ravel.mutableCopy
 
 final class ReferenceNeighborhoodExecutorSuite extends FunSuite:
   test("identity neighborhood copies the source under Same extent"):
@@ -321,6 +322,107 @@ final class ReferenceNeighborhoodExecutorSuite extends FunSuite:
       .prepare(shortSource, shortDirect, spec)
       .runShort(shortSource, shortDirect, shortPrimitive, constant = 0.toShort)
     assert(shortDirect.freezeCopy().sameElements(shortReference.freezeCopy()))
+
+  test("prepared mutable Double source agrees with immutable source without freezeCopy"):
+    val immutable =
+      NDArray.tabulate[Double](4, 3)((i, j) => 10.0 * i + j)
+    val mutableSource = immutable.mutableCopy
+    val fromImmutable = MutableNDArray.zeros[Double, Rank[2]](Shape(4, 3))
+    val fromMutable = MutableNDArray.zeros[Double, Rank[2]](Shape(4, 3))
+    val spec =
+      NeighborhoodSpec(
+        spatialAxes = 2,
+        offsets = Vector(Vector(-1, 0), Vector(0, 0), Vector(1, 0)),
+        border = BorderMode.Replicate,
+        outputOrigin = Vector(0, 0),
+        outputSpatialShape = Vector(4, 3)
+      )
+    val reducer =
+      new DoubleNeighborhoodReducer:
+        def zero: Double = 0.0
+        def accumulate(acc: Double, value: Double, offsetIndex: Int): Double =
+          acc + value * (offsetIndex + 1).toDouble
+        def finish(acc: Double): Double = acc
+
+    val prepared =
+      DirectNeighborhoodExecutor.prepare(immutable, fromImmutable, spec)
+    prepared.runDouble(immutable, fromImmutable, reducer, constant = 0.0)
+    prepared.runDouble(mutableSource, fromMutable, reducer, constant = 0.0)
+
+    assert(fromMutable.freezeCopy().sameElements(fromImmutable.freezeCopy()))
+
+  test("prepared Float ping-pong across two workspaces matches freezeCopy chaining"):
+    val source =
+      NDArray.tabulate[Float](3, 3)((i, j) => (10 * i + j).toFloat)
+    val axis0 =
+      NeighborhoodSpec(
+        spatialAxes = 2,
+        offsets = Vector(Vector(-1, 0), Vector(0, 0), Vector(1, 0)),
+        border = BorderMode.Constant,
+        outputOrigin = Vector(0, 0),
+        outputSpatialShape = Vector(3, 3)
+      )
+    val axis1 =
+      NeighborhoodSpec(
+        spatialAxes = 2,
+        offsets = Vector(Vector(0, -1), Vector(0, 0), Vector(0, 1)),
+        border = BorderMode.Constant,
+        outputOrigin = Vector(0, 0),
+        outputSpatialShape = Vector(3, 3)
+      )
+    val reducer =
+      new FloatNeighborhoodReducer:
+        def zero: Float = 0.0f
+        def accumulate(acc: Float, value: Float, offsetIndex: Int): Float =
+          acc + value
+        def finish(acc: Float): Float = acc / 3.0f
+
+    val freezeA = MutableNDArray.zeros[Float, Rank[2]](Shape(3, 3))
+    val freezeB = MutableNDArray.zeros[Float, Rank[2]](Shape(3, 3))
+    val pass0 = DirectNeighborhoodExecutor.prepare(source, freezeA, axis0)
+    pass0.runFloat(source, freezeA, reducer, constant = 0.0f)
+    val mid = freezeA.freezeCopy()
+    val pass1 = DirectNeighborhoodExecutor.prepare(mid, freezeB, axis1)
+    pass1.runFloat(mid, freezeB, reducer, constant = 0.0f)
+
+    val workspaceA = MutableNDArray.zeros[Float, Rank[2]](Shape(3, 3))
+    val workspaceB = MutableNDArray.zeros[Float, Rank[2]](Shape(3, 3))
+    val mutablePass0 =
+      DirectNeighborhoodExecutor.prepare(source, workspaceA, axis0)
+    mutablePass0.runFloat(source, workspaceA, reducer, constant = 0.0f)
+    val mutablePass1 =
+      DirectNeighborhoodExecutor.prepare(workspaceA, workspaceB, axis1)
+    mutablePass1.runFloat(workspaceA, workspaceB, reducer, constant = 0.0f)
+
+    assert(workspaceB.freezeCopy().sameElements(freezeB.freezeCopy()))
+
+  test("prepared mutable source rejects aliased destination storage"):
+    val workspace = MutableNDArray.zeros[Double, Rank[2]](Shape(2, 2))
+    val spec =
+      NeighborhoodSpec(
+        spatialAxes = 2,
+        offsets = Vector(Vector(0, 0)),
+        border = BorderMode.Constant,
+        outputOrigin = Vector(0, 0),
+        outputSpatialShape = Vector(2, 2)
+      )
+    intercept[IllegalArgumentException]:
+      DirectNeighborhoodExecutor.prepare(workspace, workspace, spec)
+
+    val prepared =
+      DirectNeighborhoodExecutor.prepare(
+        NDArray.zeros[Double](2, 2),
+        MutableNDArray.zeros[Double, Rank[2]](Shape(2, 2)),
+        spec
+      )
+    val reducer =
+      new DoubleNeighborhoodReducer:
+        def zero: Double = 0.0
+        def accumulate(acc: Double, value: Double, offsetIndex: Int): Double =
+          value
+        def finish(acc: Double): Double = acc
+    intercept[IllegalArgumentException]:
+      prepared.runDouble(workspace, workspace, reducer, constant = 0.0)
 
   test("direct executor matches reference for cropped and broadcast source strides"):
     val base =

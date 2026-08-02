@@ -24,6 +24,22 @@ object DirectNeighborhoodExecutor extends NeighborhoodExecutor:
   ): PreparedDirectNeighborhoodExecutor =
     PreparedDirectNeighborhoodExecutor.prepare(source, destination, spec, policy)
 
+  /** Prepare a reusable workspace for mutable-to-mutable ping-pong passes. */
+  def prepare[A, B, R <: AnyRank](
+      source: MutableNDArray[A, R],
+      destination: MutableNDArray[B, R],
+      spec: NeighborhoodSpec
+  ): PreparedDirectNeighborhoodExecutor =
+    PreparedDirectNeighborhoodExecutor.prepare(source, destination, spec)
+
+  def prepare[A, B, R <: AnyRank](
+      source: MutableNDArray[A, R],
+      destination: MutableNDArray[B, R],
+      spec: NeighborhoodSpec,
+      policy: StencilExecutionPolicy
+  ): PreparedDirectNeighborhoodExecutor =
+    PreparedDirectNeighborhoodExecutor.prepare(source, destination, spec, policy)
+
   def run[A, Acc, B, R <: AnyRank](
       source: NDArray[A, R],
       destination: MutableNDArray[B, R],

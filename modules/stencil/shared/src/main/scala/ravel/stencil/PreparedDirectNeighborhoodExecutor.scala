@@ -3,12 +3,18 @@ package ravel.stencil
 import ravel.AnyRank
 import ravel.MutableNDArray
 import ravel.NDArray
+import ravel.Shape
+import ravel.internal.Layout
 
 /** Reusable schedule and workspace for direct primitive neighborhood passes.
   *
   * A plan is bound to the source and destination logical shapes used at preparation time, but not
   * to storage identities or layouts. It can therefore be reused across canonical, sliced, reversed,
   * permuted, and broadcast source views of that shape without exposing or aliasing their buffers.
+  *
+  * Mutable sources are supported for multi-pass ping-pong schedules. A mutable source and
+  * destination must not share storage; callers swap distinct workspaces between axes instead of
+  * freezing intermediate buffers.
   */
 final class PreparedDirectNeighborhoodExecutor private[stencil] (
     private val spec: NeighborhoodSpec,
@@ -24,14 +30,35 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       reducer: DoubleNeighborhoodReducer,
       constant: Double
   ): Unit =
-    validateCompatible(source, destination)
+    validateCompatible(source.rank, source.shape, destination)
     var linear = 0
     while linear < destination.size do
       unravel(linear, destination)
       var acc = reducer.zero
       var offsetIndex = 0
       while offsetIndex < spec.offsets.length do
-        val address = sourceAddress(source, spec.offsets(offsetIndex))
+        val address = sourceAddress(source.layout, spec.offsets(offsetIndex))
+        val value = if address < 0 then constant else source.readDouble(address)
+        acc = reducer.accumulate(acc, value, offsetIndex)
+        offsetIndex += 1
+      destination.writeDouble(destinationAddress(destination), reducer.finish(acc))
+      linear += 1
+
+  /** Run a primitive Double pass reading a mutable workspace source. */
+  def runDouble[R <: AnyRank](
+      source: MutableNDArray[Double, R],
+      destination: MutableNDArray[Double, R],
+      reducer: DoubleNeighborhoodReducer,
+      constant: Double
+  ): Unit =
+    validateCompatibleMutable(source, destination)
+    var linear = 0
+    while linear < destination.size do
+      unravel(linear, destination)
+      var acc = reducer.zero
+      var offsetIndex = 0
+      while offsetIndex < spec.offsets.length do
+        val address = sourceAddress(source.layout, spec.offsets(offsetIndex))
         val value = if address < 0 then constant else source.readDouble(address)
         acc = reducer.accumulate(acc, value, offsetIndex)
         offsetIndex += 1
@@ -45,14 +72,35 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       reducer: FloatNeighborhoodReducer,
       constant: Float
   ): Unit =
-    validateCompatible(source, destination)
+    validateCompatible(source.rank, source.shape, destination)
     var linear = 0
     while linear < destination.size do
       unravel(linear, destination)
       var acc = reducer.zero
       var offsetIndex = 0
       while offsetIndex < spec.offsets.length do
-        val address = sourceAddress(source, spec.offsets(offsetIndex))
+        val address = sourceAddress(source.layout, spec.offsets(offsetIndex))
+        val value = if address < 0 then constant else source.readFloat(address)
+        acc = reducer.accumulate(acc, value, offsetIndex)
+        offsetIndex += 1
+      destination.writeFloat(destinationAddress(destination), reducer.finish(acc))
+      linear += 1
+
+  /** Run a primitive Float pass reading a mutable workspace source. */
+  def runFloat[R <: AnyRank](
+      source: MutableNDArray[Float, R],
+      destination: MutableNDArray[Float, R],
+      reducer: FloatNeighborhoodReducer,
+      constant: Float
+  ): Unit =
+    validateCompatibleMutable(source, destination)
+    var linear = 0
+    while linear < destination.size do
+      unravel(linear, destination)
+      var acc = reducer.zero
+      var offsetIndex = 0
+      while offsetIndex < spec.offsets.length do
+        val address = sourceAddress(source.layout, spec.offsets(offsetIndex))
         val value = if address < 0 then constant else source.readFloat(address)
         acc = reducer.accumulate(acc, value, offsetIndex)
         offsetIndex += 1
@@ -66,14 +114,35 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       reducer: ByteNeighborhoodReducer,
       constant: Byte
   ): Unit =
-    validateCompatible(source, destination)
+    validateCompatible(source.rank, source.shape, destination)
     var linear = 0
     while linear < destination.size do
       unravel(linear, destination)
       var acc = reducer.zero
       var offsetIndex = 0
       while offsetIndex < spec.offsets.length do
-        val address = sourceAddress(source, spec.offsets(offsetIndex))
+        val address = sourceAddress(source.layout, spec.offsets(offsetIndex))
+        val value = if address < 0 then constant else source.readByte(address)
+        acc = reducer.accumulate(acc, value, offsetIndex)
+        offsetIndex += 1
+      destination.writeByte(destinationAddress(destination), reducer.finish(acc))
+      linear += 1
+
+  /** Run a primitive Byte pass reading a mutable workspace source. */
+  def runByte[R <: AnyRank](
+      source: MutableNDArray[Byte, R],
+      destination: MutableNDArray[Byte, R],
+      reducer: ByteNeighborhoodReducer,
+      constant: Byte
+  ): Unit =
+    validateCompatibleMutable(source, destination)
+    var linear = 0
+    while linear < destination.size do
+      unravel(linear, destination)
+      var acc = reducer.zero
+      var offsetIndex = 0
+      while offsetIndex < spec.offsets.length do
+        val address = sourceAddress(source.layout, spec.offsets(offsetIndex))
         val value = if address < 0 then constant else source.readByte(address)
         acc = reducer.accumulate(acc, value, offsetIndex)
         offsetIndex += 1
@@ -87,32 +156,64 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       reducer: ShortNeighborhoodReducer,
       constant: Short
   ): Unit =
-    validateCompatible(source, destination)
+    validateCompatible(source.rank, source.shape, destination)
     var linear = 0
     while linear < destination.size do
       unravel(linear, destination)
       var acc = reducer.zero
       var offsetIndex = 0
       while offsetIndex < spec.offsets.length do
-        val address = sourceAddress(source, spec.offsets(offsetIndex))
+        val address = sourceAddress(source.layout, spec.offsets(offsetIndex))
         val value = if address < 0 then constant else source.readShort(address)
         acc = reducer.accumulate(acc, value, offsetIndex)
         offsetIndex += 1
       destination.writeShort(destinationAddress(destination), reducer.finish(acc))
       linear += 1
 
-  private def validateCompatible[A, B, R <: AnyRank](
-      source: NDArray[A, R],
+  /** Run a primitive Short pass reading a mutable workspace source. */
+  def runShort[R <: AnyRank](
+      source: MutableNDArray[Short, R],
+      destination: MutableNDArray[Short, R],
+      reducer: ShortNeighborhoodReducer,
+      constant: Short
+  ): Unit =
+    validateCompatibleMutable(source, destination)
+    var linear = 0
+    while linear < destination.size do
+      unravel(linear, destination)
+      var acc = reducer.zero
+      var offsetIndex = 0
+      while offsetIndex < spec.offsets.length do
+        val address = sourceAddress(source.layout, spec.offsets(offsetIndex))
+        val value = if address < 0 then constant else source.readShort(address)
+        acc = reducer.accumulate(acc, value, offsetIndex)
+        offsetIndex += 1
+      destination.writeShort(destinationAddress(destination), reducer.finish(acc))
+      linear += 1
+
+  private def validateCompatibleMutable[A, B, R <: AnyRank](
+      source: MutableNDArray[A, R],
       destination: MutableNDArray[B, R]
   ): Unit =
-    if source.rank != rank || destination.rank != rank then
+    if source.storage eq destination.storage then
+      throw IllegalArgumentException(
+        "mutable source and destination must not share storage; use distinct ping-pong workspaces"
+      )
+    validateCompatible(source.rank, source.shape, destination)
+
+  private def validateCompatible[B, R <: AnyRank](
+      sourceRank: Int,
+      sourceShapeValue: Shape[R],
+      destination: MutableNDArray[B, R]
+  ): Unit =
+    if sourceRank != rank || destination.rank != rank then
       throw IllegalArgumentException(
         s"prepared rank $rank does not match source/destination ranks " +
-          s"${source.rank}/${destination.rank}"
+          s"$sourceRank/${destination.rank}"
       )
     var axis = 0
     while axis < rank do
-      if source.shape(axis) != sourceShape(axis) then
+      if sourceShapeValue(axis) != sourceShape(axis) then
         throw IllegalArgumentException(
           s"prepared source shape mismatch on axis $axis"
         )
@@ -122,11 +223,11 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
         )
       axis += 1
 
-  private def sourceAddress[A, R <: AnyRank](
-      source: NDArray[A, R],
+  private def sourceAddress(
+      sourceLayout: Layout,
       offset: Vector[Int]
   ): Int =
-    var address = source.layout.offset.toLong
+    var address = sourceLayout.offset.toLong
     var axis = 0
     while axis < spec.spatialAxes do
       val logical =
@@ -134,10 +235,10 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       val mapped =
         BorderIndex.direct(logical, sourceShape(axis), spec.border)
       if mapped < 0 then return -1
-      address += mapped.toLong * source.layout.strides(axis).toLong
+      address += mapped.toLong * sourceLayout.strides(axis).toLong
       axis += 1
     while axis < rank do
-      address += destinationIndices(axis).toLong * source.layout.strides(axis).toLong
+      address += destinationIndices(axis).toLong * sourceLayout.strides(axis).toLong
       axis += 1
     address.toInt
 
@@ -172,9 +273,38 @@ object PreparedDirectNeighborhoodExecutor:
       spec: NeighborhoodSpec,
       policy: StencilExecutionPolicy = StencilExecutionPolicy()
   ): PreparedDirectNeighborhoodExecutor =
+    prepareShapes(source.rank, source.shape, destination, spec, policy)
+
+  /** Validate a mutable-to-mutable direct pass and allocate reusable scheduling workspace. */
+  def prepare[A, B, R <: AnyRank](
+      source: MutableNDArray[A, R],
+      destination: MutableNDArray[B, R],
+      spec: NeighborhoodSpec
+  ): PreparedDirectNeighborhoodExecutor =
+    prepare(source, destination, spec, StencilExecutionPolicy())
+
+  def prepare[A, B, R <: AnyRank](
+      source: MutableNDArray[A, R],
+      destination: MutableNDArray[B, R],
+      spec: NeighborhoodSpec,
+      policy: StencilExecutionPolicy
+  ): PreparedDirectNeighborhoodExecutor =
+    if source.storage eq destination.storage then
+      throw IllegalArgumentException(
+        "mutable source and destination must not share storage; use distinct ping-pong workspaces"
+      )
+    prepareShapes(source.rank, source.shape, destination, spec, policy)
+
+  private def prepareShapes[B, R <: AnyRank](
+      sourceRank: Int,
+      sourceShapeValue: Shape[R],
+      destination: MutableNDArray[B, R],
+      spec: NeighborhoodSpec,
+      policy: StencilExecutionPolicy
+  ): PreparedDirectNeighborhoodExecutor =
     val _ = policy
     spec.validate()
-    val rank = source.rank
+    val rank = sourceRank
     if destination.rank != rank then
       throw IllegalArgumentException(
         s"source rank $rank != destination rank ${destination.rank}"
@@ -191,7 +321,7 @@ object PreparedDirectNeighborhoodExecutor:
         )
       axis += 1
     while axis < rank do
-      if destination.shape(axis) != source.shape(axis) then
+      if destination.shape(axis) != sourceShapeValue(axis) then
         throw IllegalArgumentException(
           s"batch axis $axis shape mismatch between source and destination"
         )
@@ -199,7 +329,7 @@ object PreparedDirectNeighborhoodExecutor:
     PreparedDirectNeighborhoodExecutor(
       spec,
       rank,
-      Array.tabulate(rank)(source.shape(_)),
+      Array.tabulate(rank)(sourceShapeValue(_)),
       Array.tabulate(rank)(destination.shape(_)),
       new Array[Int](rank)
     )
