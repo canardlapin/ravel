@@ -111,6 +111,61 @@ final class DirectNeighborhoodExecutorPerformanceSuite extends FunSuite:
         s"support=${spec.offsets.size}"
     )
 
+  test("prepared direct Boolean execution reuses all workspace"):
+    val nx = 192
+    val ny = 128
+    val source =
+      NDArray.tabulate[Boolean](nx, ny)((row, column) =>
+        (row + 3 * column) % 7 == 0
+      )
+    val destination =
+      MutableNDArray.zeros[Boolean, Rank[2]](Shape(nx, ny))
+    val spec =
+      NeighborhoodSpec(
+        spatialAxes = 2,
+        offsets = Vector(
+          Vector(-1, 0),
+          Vector(0, -1),
+          Vector(0, 0),
+          Vector(0, 1),
+          Vector(1, 0)
+        ),
+        border = BorderMode.Constant,
+        outputOrigin = Vector(0, 0),
+        outputSpatialShape = Vector(nx, ny)
+      )
+    val reducer =
+      new BooleanNeighborhoodReducer:
+        def zero: Boolean = false
+        def accumulate(
+            accumulator: Boolean,
+            value: Boolean,
+            offsetIndex: Int
+        ): Boolean =
+          accumulator || value
+        def finish(accumulator: Boolean): Boolean = accumulator
+    val plan =
+      DirectNeighborhoodExecutor.prepare(source, destination, spec)
+
+    var warmup = 0
+    while warmup < 20 do
+      plan.runBoolean(source, destination, reducer, constant = false)
+      warmup += 1
+
+    val allocated =
+      medianAllocation {
+        plan.runBoolean(source, destination, reducer, constant = false)
+      }
+
+    assert(
+      allocated <= 256L,
+      s"prepared Boolean run allocated $allocated B; expected reusable workspace"
+    )
+    println(
+      s"RAVEL-STENCIL JVM baseline: booleanAllocated=$allocated B, " +
+        s"samples=${nx * ny}, support=${spec.offsets.size}"
+    )
+
   private def medianAllocation(run: => Unit): Long =
     Vector
       .tabulate(7) { _ =>

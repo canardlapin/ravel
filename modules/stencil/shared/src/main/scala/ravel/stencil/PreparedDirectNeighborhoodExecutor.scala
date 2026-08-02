@@ -107,6 +107,48 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       destination.writeFloat(destinationAddress(destination), reducer.finish(acc))
       linear += 1
 
+  /** Run a primitive Boolean neighborhood pass without per-run workspace allocation. */
+  def runBoolean[R <: AnyRank](
+      source: NDArray[Boolean, R],
+      destination: MutableNDArray[Boolean, R],
+      reducer: BooleanNeighborhoodReducer,
+      constant: Boolean
+  ): Unit =
+    validateCompatible(source.rank, source.shape, destination)
+    var linear = 0
+    while linear < destination.size do
+      unravel(linear, destination)
+      var acc = reducer.zero
+      var offsetIndex = 0
+      while offsetIndex < spec.offsets.length do
+        val address = sourceAddress(source.layout, spec.offsets(offsetIndex))
+        val value = if address < 0 then constant else source.readBoolean(address)
+        acc = reducer.accumulate(acc, value, offsetIndex)
+        offsetIndex += 1
+      destination.writeBoolean(destinationAddress(destination), reducer.finish(acc))
+      linear += 1
+
+  /** Run a primitive Boolean pass reading a mutable workspace source. */
+  def runBoolean[R <: AnyRank](
+      source: MutableNDArray[Boolean, R],
+      destination: MutableNDArray[Boolean, R],
+      reducer: BooleanNeighborhoodReducer,
+      constant: Boolean
+  ): Unit =
+    validateCompatibleMutable(source, destination)
+    var linear = 0
+    while linear < destination.size do
+      unravel(linear, destination)
+      var acc = reducer.zero
+      var offsetIndex = 0
+      while offsetIndex < spec.offsets.length do
+        val address = sourceAddress(source.layout, spec.offsets(offsetIndex))
+        val value = if address < 0 then constant else source.readBoolean(address)
+        acc = reducer.accumulate(acc, value, offsetIndex)
+        offsetIndex += 1
+      destination.writeBoolean(destinationAddress(destination), reducer.finish(acc))
+      linear += 1
+
   /** Run a primitive Byte neighborhood pass without per-run workspace allocation. */
   def runByte[R <: AnyRank](
       source: NDArray[Byte, R],

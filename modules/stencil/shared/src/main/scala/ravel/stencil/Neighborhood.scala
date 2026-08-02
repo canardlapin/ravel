@@ -27,6 +27,12 @@ trait FloatNeighborhoodReducer:
   def accumulate(acc: Float, value: Float, offsetIndex: Int): Float
   def finish(acc: Float): Float
 
+/** Primitive-Boolean reducer used by direct binary morphology executors. */
+trait BooleanNeighborhoodReducer:
+  def zero: Boolean
+  def accumulate(acc: Boolean, value: Boolean, offsetIndex: Int): Boolean
+  def finish(acc: Boolean): Boolean
+
 /** Primitive-byte reducer used by direct morphology-style executors. */
 trait ByteNeighborhoodReducer:
   def zero: Byte

@@ -111,6 +111,42 @@ object DirectNeighborhoodExecutor extends NeighborhoodExecutor:
       )
       linear += 1
 
+  /** Primitive Boolean path for binary morphology. */
+  def runBoolean[R <: AnyRank](
+      source: NDArray[Boolean, R],
+      destination: MutableNDArray[Boolean, R],
+      spec: NeighborhoodSpec,
+      reducer: BooleanNeighborhoodReducer,
+      constant: Boolean,
+      policy: StencilExecutionPolicy = StencilExecutionPolicy()
+  ): Unit =
+    val context = Context.validate(source, destination, spec, policy)
+    val destinationIndices = new Array[Int](context.rank)
+    var linear = 0
+    while linear < destination.size do
+      Context.unravel(linear, destination, destinationIndices)
+      var acc = reducer.zero
+      var offsetIndex = 0
+      while offsetIndex < spec.offsets.length do
+        val sourceAddress =
+          Context.sourceAddress(
+            source,
+            destinationIndices,
+            spec,
+            context,
+            spec.offsets(offsetIndex)
+          )
+        val value =
+          if sourceAddress < 0 then constant
+          else source.readBoolean(sourceAddress)
+        acc = reducer.accumulate(acc, value, offsetIndex)
+        offsetIndex += 1
+      destination.writeBoolean(
+        Context.destinationAddress(destination, destinationIndices),
+        reducer.finish(acc)
+      )
+      linear += 1
+
   private final case class Context(
       rank: Int,
       sourceSpatialExtents: Array[Int]

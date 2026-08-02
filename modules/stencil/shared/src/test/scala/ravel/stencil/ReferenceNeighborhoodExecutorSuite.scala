@@ -323,6 +323,68 @@ final class ReferenceNeighborhoodExecutorSuite extends FunSuite:
       .runShort(shortSource, shortDirect, shortPrimitive, constant = 0.toShort)
     assert(shortDirect.freezeCopy().sameElements(shortReference.freezeCopy()))
 
+  test("prepared primitive Boolean path agrees with generic reference"):
+    val source =
+      NDArray.tabulate[Boolean](3, 3)((row, column) =>
+        (row == 1 && column == 1) || (row == 2 && column == 0)
+      )
+    val reference = MutableNDArray.zeros[Boolean, Rank[2]](Shape(3, 3))
+    val direct = MutableNDArray.zeros[Boolean, Rank[2]](Shape(3, 3))
+    val fromMutable = MutableNDArray.zeros[Boolean, Rank[2]](Shape(3, 3))
+    val spec =
+      NeighborhoodSpec(
+        spatialAxes = 2,
+        offsets = Vector(
+          Vector(-1, 0),
+          Vector(0, -1),
+          Vector(0, 0),
+          Vector(0, 1),
+          Vector(1, 0)
+        ),
+        border = BorderMode.Constant,
+        outputOrigin = Vector(0, 0),
+        outputSpatialShape = Vector(3, 3)
+      )
+    val generic =
+      new NeighborhoodReducer[Boolean, Boolean, Boolean]:
+        def zero: Boolean = false
+        def accumulate(
+            acc: Boolean,
+            value: Boolean,
+            offsetIndex: Int
+        ): Boolean =
+          acc || value
+        def finish(acc: Boolean): Boolean = acc
+    val primitive =
+      new BooleanNeighborhoodReducer:
+        def zero: Boolean = false
+        def accumulate(
+            acc: Boolean,
+            value: Boolean,
+            offsetIndex: Int
+        ): Boolean =
+          acc || value
+        def finish(acc: Boolean): Boolean = acc
+
+    ReferenceNeighborhoodExecutor.run(
+      source,
+      reference,
+      spec,
+      generic,
+      constant = false
+    )
+    val prepared = DirectNeighborhoodExecutor.prepare(source, direct, spec)
+    prepared.runBoolean(source, direct, primitive, constant = false)
+    prepared.runBoolean(
+      source.mutableCopy,
+      fromMutable,
+      primitive,
+      constant = false
+    )
+
+    assert(direct.freezeCopy().sameElements(reference.freezeCopy()))
+    assert(fromMutable.freezeCopy().sameElements(reference.freezeCopy()))
+
   test("prepared mutable Double source agrees with immutable source without freezeCopy"):
     val immutable =
       NDArray.tabulate[Double](4, 3)((i, j) => 10.0 * i + j)
