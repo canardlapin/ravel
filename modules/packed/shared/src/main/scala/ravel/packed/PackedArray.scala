@@ -9,6 +9,10 @@ package ravel.packed
   * construction. Unused bits in the final word of a canonical array are always
   * zero.
   *
+  * Storage is one shared `Array[Int]` implementation: the JVM uses a primitive
+  * int array and Scala.js compiles the same field to an `Int32Array`, so both
+  * platforms get flat word storage without platform-specific source.
+  *
   * Views created by [[slice]] and [[narrow]] share backing words and address
   * samples through logical sample strides; [[copy]] re-canonicalizes any view
   * into minimal zero-tailed storage.
