@@ -25,3 +25,8 @@ private[ravel] object KernelOp:
   val LessEqual: Byte = 23
   val IsNaN: Byte = 24
   val IsFinite: Byte = 25
+  // Ordering.compare semantics, including total ordering for floating NaNs
+  // and signed zero. The ordinary Less/LessEqual operations retain IEEE
+  // primitive comparison semantics.
+  val OrderedLess: Byte = 26
+  val OrderedLessEqual: Byte = 27

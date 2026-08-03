@@ -156,6 +156,14 @@ final class BroadcastKernelLawsSuite extends FunSuite:
     assertEquals(values(zipped), values(source).map(_ + 100))
   }
 
+  test("contiguous offset maps use the linear fast path without changing order") {
+    val source = NDArray.tabulate[Int](3, 4)((i, j) => i * 10 + j)
+    val view = source.slice(0, Slice(1, 3))
+    assert(view.isContiguous)
+    assert(!view.isWholeBuffer)
+    assertEquals(values(view.map(_ * 2)), List(20, 22, 24, 26, 40, 42, 44, 46))
+  }
+
   test("callback exceptions stop evaluation and empty callbacks are not invoked") {
     val source = NDArray.tabulate[Int](5)(identity)
     var calls = 0

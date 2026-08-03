@@ -30,6 +30,27 @@ final class ApiHardeningSuite extends FunSuite:
     assertEquals(values(left < 2), List(true, false, false))
   }
 
+  test("ordered comparisons preserve total floating ordering") {
+    val valuesToCompare =
+      NDArray.fromSeq(
+        Shape(5),
+        Seq(Double.NegativeInfinity, -0.0, 0.0, Double.NaN, 1.0)
+      )
+    assertEquals(
+      values(valuesToCompare.orderedGreaterOrEqual(0.0)),
+      List(false, false, true, true, true)
+    )
+    assertEquals(
+      values(valuesToCompare.orderedLessThan(0.0)),
+      List(true, true, false, false, false)
+    )
+    val strided = valuesToCompare.reverse(0)
+    assertEquals(
+      values(strided.orderedGreaterOrEqual(0.0)),
+      List(true, true, true, false, false)
+    )
+  }
+
   test("reshape triad distinguishes view copy and always-copy") {
     val source = NDArray.tabulate[Int](2, 3)((i, j) => i * 10 + j)
     val viewed = source.reshapeView(Shape(6))

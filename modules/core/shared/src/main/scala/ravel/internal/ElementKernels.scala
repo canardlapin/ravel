@@ -1053,6 +1053,55 @@ private[ravel] object ElementKernels:
         compareDouble(operation, plan, boolean, x, y)
       case _ => throw new IllegalArgumentException("comparison dtype mismatch")
 
+  /** Specialized contiguous scalar path for ordered Float/Double compares.
+    * Returns false when the storage type is not one of the specialized types;
+    * callers retain the general broadcast implementation in that case.
+    */
+  def orderedCompareContiguousScalar[A](
+      operation: Byte,
+      source: Storage[A],
+      scalar: A,
+      output: Storage[Boolean],
+      sourceOffset: Int,
+      size: Int,
+      scalarLeft: Boolean
+  ): Boolean =
+    val boolean = output.asInstanceOf[BooleanStorage]
+    source match
+      case x: FloatStorage =>
+        val value = scalar.asInstanceOf[Float]
+        var index = 0
+        while index < size do
+          val current = x.raw(sourceOffset + index)
+          val compared =
+            if scalarLeft then java.lang.Float.compare(value, current)
+            else java.lang.Float.compare(current, value)
+          PlatformBoolean.set(
+            boolean,
+            index,
+            if operation == KernelOp.OrderedLess then compared < 0
+            else compared <= 0
+          )
+          index += 1
+        true
+      case x: DoubleStorage =>
+        val value = scalar.asInstanceOf[Double]
+        var index = 0
+        while index < size do
+          val current = x.raw(sourceOffset + index)
+          val compared =
+            if scalarLeft then java.lang.Double.compare(value, current)
+            else java.lang.Double.compare(current, value)
+          PlatformBoolean.set(
+            boolean,
+            index,
+            if operation == KernelOp.OrderedLess then compared < 0
+            else compared <= 0
+          )
+          index += 1
+        true
+      case _ => false
+
   private def compareBoolean(
       operation: Byte,
       plan: LoopPlan,
@@ -1077,6 +1126,8 @@ private[ravel] object ElementKernels:
       case KernelOp.NotEqual => compareByteNotEqual(plan, output, x, y)
       case KernelOp.Less => compareByteLess(plan, output, x, y)
       case KernelOp.LessEqual => compareByteLessEqual(plan, output, x, y)
+      case KernelOp.OrderedLess => compareByteLess(plan, output, x, y)
+      case KernelOp.OrderedLessEqual => compareByteLessEqual(plan, output, x, y)
 
   private def compareUInt8(
       operation: Byte,
@@ -1094,6 +1145,10 @@ private[ravel] object ElementKernels:
         compareLoop(plan, output, x.getRaw, y.getRaw)((a, b) => (a & 0xff) < (b & 0xff))
       case KernelOp.LessEqual =>
         compareLoop(plan, output, x.getRaw, y.getRaw)((a, b) => (a & 0xff) <= (b & 0xff))
+      case KernelOp.OrderedLess =>
+        compareLoop(plan, output, x.getRaw, y.getRaw)((a, b) => (a & 0xff) < (b & 0xff))
+      case KernelOp.OrderedLessEqual =>
+        compareLoop(plan, output, x.getRaw, y.getRaw)((a, b) => (a & 0xff) <= (b & 0xff))
 
   private def compareShort(
       operation: Byte,
@@ -1107,6 +1162,8 @@ private[ravel] object ElementKernels:
       case KernelOp.NotEqual => compareShortNotEqual(plan, output, x, y)
       case KernelOp.Less => compareShortLess(plan, output, x, y)
       case KernelOp.LessEqual => compareShortLessEqual(plan, output, x, y)
+      case KernelOp.OrderedLess => compareShortLess(plan, output, x, y)
+      case KernelOp.OrderedLessEqual => compareShortLessEqual(plan, output, x, y)
 
   private def compareUInt16(
       operation: Byte,
@@ -1124,6 +1181,10 @@ private[ravel] object ElementKernels:
         compareLoop(plan, output, x.getRaw, y.getRaw)((a, b) => (a & 0xffff) < (b & 0xffff))
       case KernelOp.LessEqual =>
         compareLoop(plan, output, x.getRaw, y.getRaw)((a, b) => (a & 0xffff) <= (b & 0xffff))
+      case KernelOp.OrderedLess =>
+        compareLoop(plan, output, x.getRaw, y.getRaw)((a, b) => (a & 0xffff) < (b & 0xffff))
+      case KernelOp.OrderedLessEqual =>
+        compareLoop(plan, output, x.getRaw, y.getRaw)((a, b) => (a & 0xffff) <= (b & 0xffff))
 
   private def compareInt(
       operation: Byte,
@@ -1137,6 +1198,8 @@ private[ravel] object ElementKernels:
       case KernelOp.NotEqual => compareIntNotEqual(plan, output, x, y)
       case KernelOp.Less => compareIntLess(plan, output, x, y)
       case KernelOp.LessEqual => compareIntLessEqual(plan, output, x, y)
+      case KernelOp.OrderedLess => compareIntLess(plan, output, x, y)
+      case KernelOp.OrderedLessEqual => compareIntLessEqual(plan, output, x, y)
 
   private def compareLong(
       operation: Byte,
@@ -1150,6 +1213,8 @@ private[ravel] object ElementKernels:
       case KernelOp.NotEqual => compareLongNotEqual(plan, output, x, y)
       case KernelOp.Less => compareLongLess(plan, output, x, y)
       case KernelOp.LessEqual => compareLongLessEqual(plan, output, x, y)
+      case KernelOp.OrderedLess => compareLongLess(plan, output, x, y)
+      case KernelOp.OrderedLessEqual => compareLongLessEqual(plan, output, x, y)
 
   private def compareFloat(
       operation: Byte,
@@ -1163,6 +1228,8 @@ private[ravel] object ElementKernels:
       case KernelOp.NotEqual => compareFloatNotEqual(plan, output, x, y)
       case KernelOp.Less => compareFloatLess(plan, output, x, y)
       case KernelOp.LessEqual => compareFloatLessEqual(plan, output, x, y)
+      case KernelOp.OrderedLess => compareFloatOrderedLess(plan, output, x, y)
+      case KernelOp.OrderedLessEqual => compareFloatOrderedLessEqual(plan, output, x, y)
 
   private def compareDouble(
       operation: Byte,
@@ -1176,6 +1243,8 @@ private[ravel] object ElementKernels:
       case KernelOp.NotEqual => compareDoubleNotEqual(plan, output, x, y)
       case KernelOp.Less => compareDoubleLess(plan, output, x, y)
       case KernelOp.LessEqual => compareDoubleLessEqual(plan, output, x, y)
+      case KernelOp.OrderedLess => compareDoubleOrderedLess(plan, output, x, y)
+      case KernelOp.OrderedLessEqual => compareDoubleOrderedLessEqual(plan, output, x, y)
 
   private def compareBooleanEqual(
       plan: LoopPlan,
@@ -1353,6 +1422,26 @@ private[ravel] object ElementKernels:
   ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ <= _)
 
+  private def compareFloatOrderedLess(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: FloatStorage,
+      y: FloatStorage
+  ): Unit =
+    compareLoop(plan, output, x.raw.apply, y.raw.apply) { (left, right) =>
+      java.lang.Float.compare(left, right) < 0
+    }
+
+  private def compareFloatOrderedLessEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: FloatStorage,
+      y: FloatStorage
+  ): Unit =
+    compareLoop(plan, output, x.raw.apply, y.raw.apply) { (left, right) =>
+      java.lang.Float.compare(left, right) <= 0
+    }
+
   private def compareDoubleEqual(
       plan: LoopPlan,
       output: BooleanStorage,
@@ -1384,6 +1473,26 @@ private[ravel] object ElementKernels:
       y: DoubleStorage
   ): Unit =
     compareLoop(plan, output, x.raw.apply, y.raw.apply)(_ <= _)
+
+  private def compareDoubleOrderedLess(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: DoubleStorage,
+      y: DoubleStorage
+  ): Unit =
+    compareLoop(plan, output, x.raw.apply, y.raw.apply) { (left, right) =>
+      java.lang.Double.compare(left, right) < 0
+    }
+
+  private def compareDoubleOrderedLessEqual(
+      plan: LoopPlan,
+      output: BooleanStorage,
+      x: DoubleStorage,
+      y: DoubleStorage
+  ): Unit =
+    compareLoop(plan, output, x.raw.apply, y.raw.apply) { (left, right) =>
+      java.lang.Double.compare(left, right) <= 0
+    }
 
   def floatingPredicate[A](
       operation: Byte,

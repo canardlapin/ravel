@@ -9,8 +9,16 @@ sbt publishLocalSnapshot
 ```
 
 The second command publishes development-only `1.0.0-SNAPSHOT` artifacts to
-your local Ivy repository. A separate Scala 3 project can then depend on the
-JVM module:
+your local Ivy repository. Choose the smallest module that owns your task:
+
+| Module | Use it for |
+|---|---|
+| `ravel-core` | Dense arrays, views, computation, mutation, and platform interop |
+| `ravel-packed` | Compact one-, two-, and four-bit codes |
+| `ravel-stencil` | Neighborhood execution over core arrays |
+| `ravel-laws` | Reusable conformance laws in tests |
+
+A separate Scala 3 project can then depend on the JVM core module:
 
 ```scala
 libraryDependencies +=
@@ -21,7 +29,7 @@ For Scala.js, use the same `%%%` dependency syntax you use for other
 cross-published libraries. Do not publish or redistribute these local
 snapshots as a released Ravel version.
 
-## Create an array
+## Complete one array workflow
 
 Import the public package and construct a rank-two array. Dimension sizes are
 runtime values; the `Array2` alias records only the rank in the type.
@@ -31,7 +39,16 @@ import ravel.*
 
 val samples: Array2[Double] =
   NDArray.tabulate(3, 4)((row, column) => row * 10.0 + column)
+
+val columnMeans: Array1[Double] = samples.mean(axis = 0)
+val centered: Array2[Double] = samples - columnMeans.newAxis(0)
+
+centered.mean(axis = 0)
 ```
+
+`Array2` records the rank in the type while the dimensions remain runtime
+values. The subtraction broadcasts `columnMeans` across rows and returns a new
+owned array; it does not mutate `samples`.
 
 Inspect shape and elements with fixed-rank indexing:
 
@@ -61,15 +78,12 @@ transposed(3, 2)
 Call `copy` or `reshapeCopy` when you want materialization. The
 [copy/view table](reference/copy-view-table.md) lists the full contract.
 
-## Compute and reduce
+## Interpret the result
 
 Array/scalar arithmetic allocates one owned result. Array/array arithmetic
 uses NumPy-style trailing-axis broadcasting:
 
 ```scala mdoc
-val columnMeans: Array1[Double] = samples.mean(axis = 0)
-val centered: Array2[Double] = samples - columnMeans.newAxis(0)
-
 columnMeans
 centered.mean(axis = 0)
 ```
@@ -90,5 +104,6 @@ val checked: Either[RankMismatch, Array2[Double]] =
 checked.map(_(1, 2))
 ```
 
-Continue with [Core concepts](core-concepts.md), or go directly to
-[Indexing and views](guides/views.md).
+Continue with [Core concepts](core-concepts.md), go directly to
+[Indexing and views](guides/views.md), or choose a different module from the
+[guide index](guides/index.md).

@@ -93,6 +93,41 @@ private[ravel] object KernelApi:
     ElementKernels.compare(operation, left.storage, right.storage, output, plan)
     new NDArray(output, Layout.contiguous(shape, plan.size), DType.booleanDType)
 
+  def orderedCompareScalar[A, R <: AnyRank](
+      operation: Byte,
+      source: NDArray[A, R],
+      value: A,
+      scalarLeft: Boolean
+  ): NDArray[Boolean, R] =
+    val primitiveFloating =
+      source.layout.isCContiguous &&
+        (source.storage match
+          case _: FloatStorage  => true
+          case _: DoubleStorage => true
+          case _                => false)
+    if primitiveFloating then
+      val output = ProbeApi.allocate[Boolean](source.size)(using DType.booleanDType)
+      ElementKernels.orderedCompareContiguousScalar(
+        operation,
+        source.storage,
+        value,
+        output,
+        source.layout.offset,
+        source.size,
+        scalarLeft
+      )
+      new NDArray(
+        output,
+        Layout.contiguous(source.shape, source.size),
+        DType.booleanDType
+      )
+    else
+      val scalarArray = NDArray.scalar(value)(using source.dtype)
+      val result =
+        if scalarLeft then compare(operation, scalarArray, source)
+        else compare(operation, source, scalarArray)
+      result.asInstanceOf[NDArray[Boolean, R]]
+
   def floatingPredicate[A, R <: AnyRank](
       operation: Byte,
       source: NDArray[A, R]
@@ -111,12 +146,21 @@ private[ravel] object KernelApi:
       f: A => B
   )(using target: DType[B]): NDArray[B, R] =
     val output = ProbeApi.allocate[B](source.size)
-    var write = 0
-    source.layout.foreachPhysicalIndex { physical =>
-      val value = f(ProbeApi.get(source.storage, physical))
-      ProbeApi.set(output, write, value)
-      write += 1
-    }
+    if source.layout.isCContiguous then
+      var read = source.layout.offset
+      var write = 0
+      while write < source.size do
+        val value = f(ProbeApi.get(source.storage, read))
+        ProbeApi.set(output, write, value)
+        read += 1
+        write += 1
+    else
+      var write = 0
+      source.layout.foreachPhysicalIndex { physical =>
+        val value = f(ProbeApi.get(source.storage, physical))
+        ProbeApi.set(output, write, value)
+        write += 1
+      }
     new NDArray(
       output,
       Layout.contiguous(source.shape, source.size),
