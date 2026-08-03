@@ -205,14 +205,14 @@ lazy val browserTests = project
   )
 
 lazy val docsBundle = taskKey[File](
-  "Build the executable guide and bundle JVM Scaladoc under the site /api path."
+  "Build the executable guide and bundle JVM module Scaladoc under the site /api path."
 )
 
 // Public guide inputs live under docs/user. The other docs/ files are internal
 // design, benchmark, audit, and release records and must not be rendered.
 lazy val docs = project
   .in(file("site"))
-  .dependsOn(core.jvm)
+  .dependsOn(core.jvm, stencil.jvm, packed.jvm)
   .enablePlugins(TypelevelSitePlugin)
   .settings(
     name := "ravel-docs",
@@ -225,10 +225,18 @@ lazy val docs = project
     docsBundle := {
       val siteOutput = (laikaSite / target).value
       tlSite.value
-      val apiOutput = (core.jvm / Compile / doc).value
+      val coreApi = (core.jvm / Compile / doc).value
+      val moduleApis = Seq(
+        "laws" -> (laws.jvm / Compile / doc).value,
+        "stencil" -> (stencil.jvm / Compile / doc).value,
+        "packed" -> (packed.jvm / Compile / doc).value
+      )
       val bundledApi = siteOutput / "api"
       IO.delete(bundledApi)
-      IO.copyDirectory(apiOutput, bundledApi)
+      IO.copyDirectory(coreApi, bundledApi)
+      moduleApis.foreach { case (module, apiOutput) =>
+        IO.copyDirectory(apiOutput, bundledApi / module)
+      }
       siteOutput
     }
   )
@@ -285,7 +293,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "publishLocalSnapshot",
-  """;set ThisBuild / version := "1.0.0-SNAPSHOT"; coreJVM/publishLocal; coreJS/publishLocal; lawsJVM/publishLocal; lawsJS/publishLocal"""
+  """;set ThisBuild / version := "1.0.0-SNAPSHOT"; coreJVM/publishLocal; coreJS/publishLocal; lawsJVM/publishLocal; lawsJS/publishLocal; stencilJVM/publishLocal; stencilJS/publishLocal; packedJVM/publishLocal; packedJS/publishLocal"""
 )
 addCommandAlias(
   "releaseEngineeringGate",
@@ -296,5 +304,8 @@ addCommandAlias(
   """;representationProbeJVM/runMain ravel.bench.AccessPatternParity --out target/access-patterns/parity/ravel-signatures.json --side 32,64;representationProbeJVM/runMain ravel.bench.OperationMatrixParity --out target/operation-matrix/parity/ravel-signatures.json --side 32,64"""
 )
 // Compile both platform API surfaces, execute every mdoc example, render Laika,
-// validate guide links, and place the JVM API reference in the deployable site.
-addCommandAlias("docsCheck", ";coreJS/doc;docs/docsBundle")
+// validate guide links, and place the JVM API references in the deployable site.
+addCommandAlias(
+  "docsCheck",
+  ";coreJS/doc;lawsJS/doc;stencilJS/doc;packedJS/doc;docs/docsBundle"
+)

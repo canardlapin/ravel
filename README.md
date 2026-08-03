@@ -1,75 +1,99 @@
 # Ravel
 
 [User guide](https://canardlapin.github.io/ravel/) ·
-[API reference](https://canardlapin.github.io/ravel/api/) ·
+[Core API](https://canardlapin.github.io/ravel/api/) ·
 [Source](https://github.com/canardlapin/ravel)
 
-> [!WARNING]
-> **Ravel is an early 0.1-level GitHub project, not a 1.0 release candidate.**
-> No Maven Central artifacts are published. The API and numerical contract may
-> change without source or binary compatibility. Use the current code only for
-> development and experimentation.
->
-> The critical development gate is **semantic and performance parity against
-> NumPy** on the public access-pattern suite
-> ([docs/numpy-benchmarks.md](docs/numpy-benchmarks.md)). Run
-> `bash scripts/numpy-parity-gate.sh` locally; CI runs the same correctness
-> check. Timing reports are diagnostic until same-host baselines stabilize.
+Ravel is a Scala 3 library for eager, dense multidimensional arrays on the JVM
+and Scala.js. It gives numerical and scientific libraries dtype-specific
+storage, checked shapes, allocation-visible views, and explicit ownership
+boundaries without taking on matrix algebra, image meaning, or I/O.
 
-Ravel provides dense, rectangular multidimensional arrays for Scala 3 on the
-JVM and Scala.js. Use it when data has a runtime shape and numerical operations
-should run over primitive platform storage.
+> **Status:** Early, pre-release, and source-only. No Maven Central artifacts
+> are published, and the API and numerical contract may change.
+
+## Quick start
 
 ```scala
 import ravel.*
 
-val x: Array2[Double] =
+val samples: Array2[Double] =
   NDArray.tabulate(3, 4)((row, column) => row * 10.0 + column)
 
-val everyOtherColumn = x.slice(axis = 1, Slice.every(2))
-val columnMeans = x.mean(axis = 0)
-val centered = x - columnMeans.newAxis(0)
+val columnMeans: Array1[Double] = samples.mean(axis = 0)
+val centered: Array2[Double] = samples - columnMeans.newAxis(0)
+
+centered.mean(axis = 0)
 ```
 
-The array value consists of one flat primitive buffer plus a shape, strides,
-and an offset. Slicing, reversal, transposition, axis insertion, and
-broadcasting create views. Numerical operations and reductions execute eagerly.
-Ravel does not implement image semantics, matrix multiplication, decompositions,
-sparse arrays, automatic differentiation, chunked storage, or I/O. Those
-features belong in [Gale](https://github.com/canardlapin/gale) or another
-layer.
+`Array2` records the rank in the type while the dimensions remain runtime
+values. The subtraction broadcasts `columnMeans` across rows and returns a new
+owned array; it does not mutate `samples`.
 
-## Neighborhood execution
+Ravel is not released yet. To run this example from another project, clone this
+repository and publish development snapshots locally:
 
-`ravel-stencil` is a generic N-dimensional neighborhood substrate for sibling
-libraries. It owns offset traversal, border-index mapping, and reference/direct
-execution over `NDArray` views; it deliberately does not know image roles,
-physical units, geometry, colour, or display.
+```sh
+sbt testAll
+sbt publishLocalSnapshot
+```
+
+Then add the JVM dependency:
 
 ```scala
-import ravel.stencil.*
-
-val spec = NeighborhoodSpec(
-  spatialAxes = 2,
-  offsets = Vector(Vector(-1, 0), Vector(0, 0), Vector(1, 0)),
-  border = BorderMode.ReflectWithoutEdge,
-  outputOrigin = Vector(0, 0),
-  outputSpatialShape = Vector(width, height)
-)
+libraryDependencies +=
+  "io.github.canardlapin" %% "ravel-core" % "1.0.0-SNAPSHOT"
 ```
 
-Trailing axes are batch axes: a spatial neighborhood keeps their coordinates
-fixed. `ReferenceNeighborhoodExecutor` is the clarity-first conformance oracle.
-`DirectNeighborhoodExecutor` supports arbitrary Ravel source views without
-per-sample index-array allocation. Prepare a
-`PreparedDirectNeighborhoodExecutor` when repeating a pass over the same
-logical shape: its `runByte`, `runShort`, `runFloat`, and `runDouble` methods
-reuse private workspace and keep their reads, writes, and accumulators
-primitive.
+Use `%%%` for a Scala.js project. The version above is a local integration
+coordinate, not a public release.
 
-## Types and storage
+## What Ravel covers
 
-Dimension sizes are runtime `Int` values. Rank can remain dynamic as
+- Build rank-aware arrays from values or functions, then inspect them through
+  fixed-rank or dynamic-rank indexing.
+- Slice, reverse, transpose, reshape, and broadcast with explicit copy/view
+  behavior.
+- Run eager elementwise operations, comparisons, checked conversions, and
+  deterministic reductions over supported primitive dtypes.
+- Cross JVM-array and Scala.js typed-array boundaries by copying or by
+  returning an explicitly borrowed value.
+- Reuse mutable destinations and low-level kernels when measured code needs to
+  control output allocation.
+
+Two narrower modules serve library authors:
+
+- `ravel-packed` stores one-, two-, or four-bit codes and performs wordwise
+  set algebra over one-bit arrays. It is parallel to `NDArray`, not another
+  `DType`.
+- `ravel-stencil` runs generic N-dimensional neighborhoods over Ravel arrays.
+  It owns offset traversal and border mapping, not image geometry, units,
+  colour, or display.
+
+See [Store compact codes](https://canardlapin.github.io/ravel/guides/packed-codes.html)
+and [Run neighborhood computations](https://canardlapin.github.io/ravel/guides/neighborhoods.html)
+for executable workflows.
+
+## Choose a module
+
+| Module | Use it for | Relationship |
+|---|---|---|
+| `ravel-core` | Dense arrays, views, computation, mutation, and platform interop | Ordinary entry point |
+| `ravel-packed` | Compact one-, two-, and four-bit codes | Independent packed representation |
+| `ravel-stencil` | Neighborhood traversal over `NDArray` values | Depends on `ravel-core` |
+| `ravel-laws` | Reusable MUnit and ScalaCheck laws for Ravel implementations | Test-support module depending on `ravel-core` |
+
+All four are cross-built for the JVM and Scala.js in the current source tree.
+Their names describe intended future artifacts; none is currently available
+from Maven Central.
+
+## Mental model
+
+An `NDArray` is a flat primitive buffer plus a shape, strides, and an offset.
+Logical traversal is always C-style row-major order, even when a view uses
+negative, permuted, stepped, or broadcast strides.
+
+Dimension sizes are runtime `Int` values. Rank may remain dynamic as
 `AnyNDArray[A]` or be refined:
 
 ```scala
@@ -78,26 +102,14 @@ val dynamic: AnyNDArray[Double] = matrix
 val checked: Either[RankMismatch, Array2[Double]] = dynamic.requireRank[2]
 ```
 
-The current development code supports `Boolean`, `Byte`, `UInt8`, `Short`,
-`UInt16`, `Int`, `Long`, `Float`, and `Double`. Arithmetic is available for
-`Int`, `Long`, `Float`, and `Double`. `Byte`, `UInt8`, `Short`, and `UInt16`
-support storage, casts, comparisons, minimum, and maximum, but not same-dtype
-arithmetic. Prefer `UInt8`/`UInt16` for image and NIfTI-style unsigned buffers
-instead of signed `Byte`/`Short` plus a separate encoding flag. On Scala.js,
-`Long` uses a Scala `Array[Long]` fallback and is outside the native typed-array
-fast path; `UInt8`/`UInt16` use `Uint8Array`/`Uint16Array`.
+The supported `NDArray` dtypes are `Boolean`, `Byte`, `UInt8`, `Short`,
+`UInt16`, `Int`, `Long`, `Float`, and `Double`. Same-dtype arithmetic is
+available for `Int`, `Long`, `Float`, and `Double`; the narrower integral
+types support storage, ordering, comparisons, casts, minimum, and maximum.
 
-`NDArray.cast` exposes the host's direct primitive conversion behavior.
-Scientific code should use `NDArray.convert`, whose default policy is
-nearest-even rounding with rejected overflow. `ConversionPolicy` can instead
-request toward-zero, floor, or ceiling rounding and reject, clamp, or explicit
-low-level wrap behavior. Checked conversion validates before allocating an
-output buffer and never creates an output-sized boxed intermediate.
-
-Owned `NDArray` values do not expose mutable backing storage. Use
-`mutableCopy` for explicit mutation and `freezeCopy` to obtain another owned
-value. Platform zero-copy input returns `BorrowedNDArray`, which is a separate
-type because later external mutation remains observable.
+`NDArray` owns immutable storage, `MutableNDArray` owns explicitly mutable
+storage, and `BorrowedNDArray` records that an external owner can still mutate
+the backing buffer. Numerical operations return new owned arrays.
 
 ## Copy and view rules
 
@@ -107,26 +119,44 @@ type because later external mutation remains observable.
 | `swapAxes`, `permuteAxes`, `transpose` | view |
 | `newAxis`, `squeeze`, `broadcastTo` | view |
 | `reshapeView` | view or `NonContiguousLayout` |
-| `contiguous` on an owned contiguous array | same value |
-| `copy`, `flattenCopy` | owned copy |
-| `map`, arithmetic, comparisons | owned allocation |
-| array-valued reductions | owned allocation |
+| `reshape` | view when legal, otherwise owned copy |
+| owned `contiguous` | same value or owned copy |
+| `copy`, `reshapeCopy`, `flattenCopy` | owned copy |
+| `map`, arithmetic, comparisons, array reductions | owned allocation |
 | `BorrowedNDArray.contiguous` | owned copy |
 
-Start with the [user guide](https://canardlapin.github.io/ravel/), then use its
-[copy/view table](https://canardlapin.github.io/ravel/reference/copy-view-table.html)
-and [NumPy mapping](https://canardlapin.github.io/ravel/reference/numpy-map.html)
-for quick lookups. The proposed 1.0 guarantees remain an engineering contract
-in [docs/release-contract.md](docs/release-contract.md).
+The guide’s [copy/view table](https://canardlapin.github.io/ravel/reference/copy-view-table.html)
+covers mutation, builders, and platform boundaries as well.
 
-## Availability
+## Fit and boundaries
 
-Ravel is currently available only as source code. There is no released version
-to add to an sbt build. Artifact names `ravel-core`, `ravel-laws`, and
-`ravel-stencil` are the intended modules when a first tagged release eventually
-happens; treat that as future packaging work, not current project maturity.
+Ravel is the dense rectangular storage and elementwise-computation layer. It
+does not implement matrix multiplication, decompositions, sparse arrays,
+automatic differentiation, chunked storage, random-number policy, GPU
+execution, or file formats. Mathematical vectors, matrices, and decompositions
+belong in [Gale](https://github.com/canardlapin/gale); image geometry and value
+meaning belong in an image layer.
 
-## Developer commands
+On Scala.js, `Boolean`, the fixed-width integers other than `Long`, `Float`, and
+`Double` use matching typed-array representations. `Long` uses a Scala
+`Array[Long]` fallback and has no typed-array borrowing API.
+
+## Documentation
+
+- [Getting started](https://canardlapin.github.io/ravel/getting-started.html) —
+  local installation and the first complete array workflow.
+- [Core concepts](https://canardlapin.github.io/ravel/core-concepts.html) —
+  dtype, rank, layout, ownership, and eager execution.
+- [Guides](https://canardlapin.github.io/ravel/guides/) — computation, views,
+  mutation, packed codes, neighborhoods, and platform interop.
+- [Failure reference](https://canardlapin.github.io/ravel/reference/failures.html) —
+  thrown exceptions, `Either` results, and recovery choices.
+- [Core API](https://canardlapin.github.io/ravel/api/) — generated Scaladoc;
+  the guide’s reference index links the other module APIs.
+- [Performance methodology](docs/numpy-benchmarks.md) — parity fixtures,
+  benchmark scope, and why timing receipts are not a release claim.
+
+## Verify the source
 
 ```sh
 sbt compileAll
@@ -134,24 +164,22 @@ sbt testAll
 sbt browserTests/test
 sbt testAllFull
 sbt representationProof
-bash scripts/numpy-parity-gate.sh   # critical: Ravel vs NumPy correctness
-sbt docsCheck                       # Scaladoc + executable mdoc/Laika guide
+bash scripts/numpy-parity-gate.sh
+sbt docsCheck
 sbt fmtCheck
-sbt mimaCheck
-sbt verifyPublishArtifacts
-sbt coverageReportJvm               # diagnostic; no threshold
 ```
 
-`testAll` runs the core, reusable laws, and stencil suites on the JVM and Node.
-`browserTests/test` runs the browser-specific Scala.js suite in headless
-Chromium. `scripts/numpy-parity-gate.sh` compares public access-pattern
-signatures to NumPy without JMH timings. Full timed comparisons are documented
-in [NumPy benchmarks](docs/numpy-benchmarks.md). The current build uses
-Scala 3.7.4. Continuous integration runs on Temurin JDK 21 and Node 22; other
-compiler and runtime combinations are not yet part of any compatibility
-contract. Formatting, MiMa scaffolding, and publishable-coordinate checks are
-documented in [release engineering](docs/release-engineering.md).
+`testAll` runs core, laws, stencil, and packed suites on the JVM and Node.
+`browserTests/test` exercises Scala.js interop in headless Chromium.
+`docsCheck` compiles all module Scaladoc surfaces, executes the JVM mdoc
+examples, validates Laika navigation and links, and assembles the local site.
+These local gates do not establish artifact publication or a stable
+compatibility promise.
 
-The public guide source is isolated under `docs/user/`; benchmark receipts,
-audits, and release evidence elsewhere in `docs/` are intentionally excluded
-from the published site.
+The current build uses Scala 3.7.4. CI is configured for Temurin JDK 21 and
+Node 22; other compiler and runtime combinations are outside the current
+compatibility evidence.
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE).

@@ -4,6 +4,12 @@ Ravel keeps five concerns separate: element dtype, runtime shape, optional
 static rank, physical layout, and ownership. Most API behavior follows from
 those boundaries.
 
+These concepts describe `ravel-core`. `ravel-packed` uses a separate
+`PackedArray` representation for one-, two-, and four-bit storage codes; those
+codes are not members of the `DType` family. `ravel-stencil` consumes core
+arrays and explicit mutable destinations without adding image or matrix
+semantics.
+
 ## Dtype
 
 The closed `DType[A]` family supports `Boolean`, `Byte`, `UInt8`, `Short`,
@@ -66,4 +72,6 @@ output element in row-major order. Ravel does not promise fusion, laziness, or
 an unboxed generic callback.
 
 Next, see [Numerical computation](guides/computation.md) or the
-[copy/view table](reference/copy-view-table.md).
+[copy/view table](reference/copy-view-table.md). For the other representations,
+continue with [Packed codes](guides/packed-codes.md) or
+[Neighborhood computations](guides/neighborhoods.md).
