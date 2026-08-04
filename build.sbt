@@ -42,8 +42,14 @@ ThisBuild / Test / parallelExecution := false
 ThisBuild / tlSitePublishBranch := None
 
 // MiMa: no previous artifact until 1.0.0 is published to Central.
-// After that release, set previous to "1.0.0" (and later 1.x releases) on core only.
+// The first commit after the 1.0.0 tag receives a dynver 1.0.0+N version, which
+// automatically turns the published 1.0.0 artifact into a required baseline.
 ThisBuild / mimaFailOnNoPrevious := false
+
+def requiresCore10MimaBaseline(currentVersion: String): Boolean =
+  currentVersion.matches(raw"1\.0\.0\+[0-9]+.*") ||
+    currentVersion.matches(raw"1\.0\.[1-9][0-9]*(?:[-+].*)?") ||
+    currentVersion.matches(raw"1\.[1-9][0-9]*\.[0-9]+(?:[-+].*)?")
 
 lazy val commonSettings = Seq(
   libraryDependencies ++= Seq(
@@ -55,7 +61,12 @@ lazy val commonSettings = Seq(
 
 lazy val coreReleaseSettings = Seq(
   publish / skip := false,
-  mimaPreviousArtifacts := Set.empty
+  mimaPreviousArtifacts := {
+    if (requiresCore10MimaBaseline(version.value)) {
+      Set(projectID.value.withRevision("1.0.0"))
+    } else Set.empty
+  },
+  mimaFailOnNoPrevious := requiresCore10MimaBaseline(version.value)
 )
 
 // These modules remain source-visible and cross-tested, but they are not part
@@ -219,6 +230,19 @@ lazy val verifyCoreReleaseMatrix = taskKey[Unit](
   "Fail unless only ravel-core is publishable for the 1.0 release line."
 )
 
+lazy val releaseModuleMatrix =
+  taskKey[Seq[(String, String, Boolean, ModuleID, File, File)]](
+    "Single source of module, platform, publication, coordinates, artifact, and target state."
+  )
+
+lazy val writePublishedArtifactsManifest = taskKey[File](
+  "Write every release-module coordinate and expected artifact target for shell verification."
+)
+
+lazy val verifyMimaBaselinePolicy = taskKey[Unit](
+  "Verify that the 1.0.0 tag has no predecessor and every later 1.x build requires it."
+)
+
 // Public guide inputs live under docs/user. The other docs/ files are internal
 // design, benchmark, audit, and release records and must not be rendered.
 lazy val docs = project
@@ -270,39 +294,182 @@ lazy val root = project
   .settings(
     name := "ravel",
     publish / skip := true,
-    verifyCoreReleaseMatrix := {
-      val expected = Seq(
-        "coreJVM" -> (core.jvm / publish / skip).value -> false,
-        "coreJS" -> (core.js / publish / skip).value -> false,
-        "lawsJVM" -> (laws.jvm / publish / skip).value -> true,
-        "lawsJS" -> (laws.js / publish / skip).value -> true,
-        "stencilJVM" -> (stencil.jvm / publish / skip).value -> true,
-        "stencilJS" -> (stencil.js / publish / skip).value -> true,
-        "packedJVM" -> (packed.jvm / publish / skip).value -> true,
-        "packedJS" -> (packed.js / publish / skip).value -> true
+    releaseModuleMatrix := Seq(
+      (
+        "coreJVM",
+        "jvm",
+        (core.jvm / publish / skip).value,
+        (core.jvm / projectID).value,
+        (core.jvm / Compile / packageBin / artifactPath).value,
+        (core.jvm / crossTarget).value
+      ),
+      (
+        "coreJS",
+        "js",
+        (core.js / publish / skip).value,
+        (core.js / projectID).value,
+        (core.js / Compile / packageBin / artifactPath).value,
+        (core.js / crossTarget).value
+      ),
+      (
+        "lawsJVM",
+        "jvm",
+        (laws.jvm / publish / skip).value,
+        (laws.jvm / projectID).value,
+        (laws.jvm / Compile / packageBin / artifactPath).value,
+        (laws.jvm / crossTarget).value
+      ),
+      (
+        "lawsJS",
+        "js",
+        (laws.js / publish / skip).value,
+        (laws.js / projectID).value,
+        (laws.js / Compile / packageBin / artifactPath).value,
+        (laws.js / crossTarget).value
+      ),
+      (
+        "stencilJVM",
+        "jvm",
+        (stencil.jvm / publish / skip).value,
+        (stencil.jvm / projectID).value,
+        (stencil.jvm / Compile / packageBin / artifactPath).value,
+        (stencil.jvm / crossTarget).value
+      ),
+      (
+        "stencilJS",
+        "js",
+        (stencil.js / publish / skip).value,
+        (stencil.js / projectID).value,
+        (stencil.js / Compile / packageBin / artifactPath).value,
+        (stencil.js / crossTarget).value
+      ),
+      (
+        "packedJVM",
+        "jvm",
+        (packed.jvm / publish / skip).value,
+        (packed.jvm / projectID).value,
+        (packed.jvm / Compile / packageBin / artifactPath).value,
+        (packed.jvm / crossTarget).value
+      ),
+      (
+        "packedJS",
+        "js",
+        (packed.js / publish / skip).value,
+        (packed.js / projectID).value,
+        (packed.js / Compile / packageBin / artifactPath).value,
+        (packed.js / crossTarget).value
       )
-      val mismatches = expected.collect {
-        case ((module, actual), required) if actual != required =>
-          s"$module publish / skip was $actual, required $required"
+    ),
+    verifyCoreReleaseMatrix := {
+      val matrix = releaseModuleMatrix.value
+      val requiredSkip = Map(
+        "coreJVM" -> false,
+        "coreJS" -> false,
+        "lawsJVM" -> true,
+        "lawsJS" -> true,
+        "stencilJVM" -> true,
+        "stencilJS" -> true,
+        "packedJVM" -> true,
+        "packedJS" -> true
+      )
+      val actualModules = matrix.map(_._1).toSet
+      if (actualModules != requiredSkip.keySet) {
+        sys.error(
+          "Release module matrix did not match the required 1.0 module set: " +
+            s"actual=${actualModules.toSeq.sorted.mkString(",")}, " +
+            s"required=${requiredSkip.keySet.toSeq.sorted.mkString(",")}"
+        )
+      }
+      val mismatches = matrix.collect {
+        case (module, _, actual, _, _, _) if actual != requiredSkip(module) =>
+          s"$module publish / skip was $actual, required ${requiredSkip(module)}"
       }
       if (mismatches.nonEmpty) {
         sys.error(
           "Invalid ravel-core 1.0 publication matrix:\n" + mismatches.mkString("\n")
         )
       }
-      val coreNames = Seq(
-        "coreJVM" -> (core.jvm / name).value,
-        "coreJS" -> (core.js / name).value
-      )
+      val coreNames = matrix.collect {
+        case (module, _, _, coordinates, binaryArtifact, _)
+            if module == "coreJVM" || module == "coreJS" =>
+          val suffix = s"-${coordinates.revision}.jar"
+          val filename = binaryArtifact.getName
+          if (!filename.endsWith(suffix)) {
+            sys.error(s"Unexpected binary artifact filename for $module: $filename")
+          }
+          module -> filename.stripSuffix(suffix)
+      }
       val invalidNames = coreNames.collect {
-        case (module, artifactName) if artifactName != "ravel-core" =>
-          s"$module name was $artifactName, required ravel-core"
+        case ("coreJVM", artifactName) if artifactName != "ravel-core_3" =>
+          s"coreJVM artifact was $artifactName, required ravel-core_3"
+        case ("coreJS", artifactName) if artifactName != "ravel-core_sjs1_3" =>
+          s"coreJS artifact was $artifactName, required ravel-core_sjs1_3"
       }
       if (invalidNames.nonEmpty) {
         sys.error("Invalid core artifact names:\n" + invalidNames.mkString("\n"))
       }
       streams.value.log.info(
         "verified core-only 1.0 publication matrix: ravel-core JVM and Scala.js"
+      )
+    },
+    writePublishedArtifactsManifest := {
+      verifyCoreReleaseMatrix.value
+      val base = (ThisBuild / baseDirectory).value
+      val output = target.value / "release" / "publication-manifest.tsv"
+      val header = "module\tplatform\tpublished\torganization\tartifact\tversion\ttarget"
+      val matrix = releaseModuleMatrix.value
+      val rows =
+        matrix.map { case (module, platform, skip, coordinates, binaryArtifact, artifactTarget) =>
+          val relativeTarget = IO
+            .relativize(base, artifactTarget)
+            .getOrElse(
+              sys.error(s"Artifact target $artifactTarget is outside repository $base")
+            )
+          val suffix = s"-${coordinates.revision}.jar"
+          val filename = binaryArtifact.getName
+          if (!filename.endsWith(suffix)) {
+            sys.error(s"Unexpected binary artifact filename for $module: $filename")
+          }
+          val artifactId = filename.stripSuffix(suffix)
+          Seq(
+            module,
+            platform,
+            (!skip).toString,
+            coordinates.organization,
+            artifactId,
+            coordinates.revision,
+            relativeTarget
+          ).mkString("\t")
+        }
+      val metadata = Seq(
+        "# schema=1",
+        s"# release_modules=${matrix.size}",
+        s"# published_platform_artifacts=${matrix.count(module => !module._3)}"
+      )
+      IO.writeLines(output, metadata ++ (header +: rows))
+      streams.value.log.info(s"wrote release publication manifest to $output")
+      output
+    },
+    verifyMimaBaselinePolicy := {
+      val cases = Seq(
+        "0.1.0-SNAPSHOT" -> false,
+        "1.0.0-M1" -> false,
+        "1.0.0-RC2" -> false,
+        "1.0.0" -> false,
+        "1.0.0+1-next-SNAPSHOT" -> true,
+        "1.0.1" -> true,
+        "1.1.0-RC1" -> true,
+        "2.0.0" -> false
+      )
+      val failures = cases.collect {
+        case (candidate, required) if requiresCore10MimaBaseline(candidate) != required =>
+          s"$candidate baseline policy was ${requiresCore10MimaBaseline(candidate)}, required $required"
+      }
+      if (failures.nonEmpty) {
+        sys.error("Invalid ravel-core 1.0 MiMa policy:\n" + failures.mkString("\n"))
+      }
+      streams.value.log.info(
+        "verified MiMa policy: 1.0.0 becomes the required baseline after its exact tag"
       )
     }
   )
@@ -335,7 +502,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "verifyPublishArtifacts",
-  ";verifyCoreReleaseMatrix;coreJVM/makePom;coreJS/makePom;coreJVM/packageBin"
+  ";verifyCoreReleaseMatrix;coreJVM/makePom;coreJS/makePom;coreJVM/packageBin;coreJS/packageBin;coreJVM/Compile/packageSrc;coreJS/Compile/packageSrc;coreJVM/Compile/packageDoc;coreJS/Compile/packageDoc;writePublishedArtifactsManifest"
 )
 addCommandAlias(
   "publishLocalSnapshot",
@@ -343,7 +510,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "releaseEngineeringGate",
-  ";verifyCoreReleaseMatrix;fmtCheck;compileAll;mimaCheck;testAllFull;representationProof;docsCheck;verifyPublishArtifacts"
+  ";verifyCoreReleaseMatrix;fmtCheck;compileAll;mimaCheck;verifyMimaBaselinePolicy;testAllFull;representationProof;docsCheck;verifyPublishArtifacts"
 )
 addCommandAlias(
   "numpyParitySignatures",

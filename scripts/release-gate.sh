@@ -60,19 +60,26 @@ run_phase sbt \
     fmtCheck \
     compileAll \
     mimaCheck \
+    verifyMimaBaselinePolicy \
     testAllFull \
     representationProof \
     docsCheck \
     verifyPublishArtifacts \
     "set ThisBuild / version := \"$candidate_version\"" \
     coreJVM/publishLocal \
-    coreJS/publishLocal
+    coreJS/publishLocal \
+    writePublishedArtifactsManifest
 
 run_phase numpy-parity bash scripts/numpy-parity-gate.sh
 run_phase numpy-helper-tests run_numpy_helper_tests
 run_phase artifact-inspection \
-  env RAVEL_CANDIDATE_VERSION="$candidate_version" \
+  env \
+  RAVEL_CANDIDATE_VERSION="$candidate_version" \
+  RAVEL_PUBLICATION_MANIFEST="target/release/publication-manifest.tsv" \
   bash scripts/verify-publish-artifacts.sh
+run_phase artifact-verifier-tests \
+  env RAVEL_CANDIDATE_VERSION="$candidate_version" \
+  bash scripts/test-verify-publish-artifacts.sh
 run_phase consumer-jvm \
   env RAVEL_SKIP_PUBLISH=1 RAVEL_CANDIDATE_VERSION="$candidate_version" \
   bash scripts/verify-external-kernel-consumer.sh

@@ -51,8 +51,11 @@ Central release exists, `mimaPreviousArtifacts` is empty and
 `mimaFailOnNoPrevious` is false, so `sbt mimaCheck` is a no-op scaffolding
 gate.
 
-After a first tagged publication someday, set previous artifacts before cutting
-follow-on releases.
+The exact `1.0.0` tag has no predecessor. The first dynver build after that tag
+(`1.0.0+N...`) and every later 1.x build automatically select the JVM and
+Scala.js `1.0.0` artifacts as `mimaPreviousArtifacts` and set
+`mimaFailOnNoPrevious := true`. `verifyMimaBaselinePolicy` tests this transition
+without claiming that the still-unpublished baseline can already be resolved.
 
 ## Coverage diagnostics
 
@@ -74,11 +77,14 @@ sbt verifyPublishArtifacts
 bash scripts/verify-publish-artifacts.sh
 ```
 
-The build first verifies that only `ravel-core` is publishable, then generates
-its JVM and `_sjs1` POMs. The script checks the `io.github.canardlapin`
-coordinates, Apache-2.0 metadata, and that core does not compile-depend on
-MUnit or ship Gale packages. `ravel-laws`, `ravel-packed`, and
-`ravel-stencil` have `publish / skip := true` and are not 1.0 artifacts.
+The build first verifies its eight-row module/platform matrix and writes that
+same matrix to `target/release/publication-manifest.tsv`. The script derives
+its expected set from the published rows, then checks exact-version JVM and
+Scala.js POMs, binaries, source jars, and API jars; coordinates; Apache-2.0
+metadata; test dependency scopes; and core package boundaries. Negative tests
+prove that omitting a selected platform or its files cannot pass.
+`ravel-laws`, `ravel-packed`, and `ravel-stencil` have
+`publish / skip := true` and are not 1.0 artifacts.
 The current laws helpers remain cross-tested source code, but their two
 constant Discipline properties are not presented as a downstream conformance
 kit and receive no MiMa baseline.
@@ -93,7 +99,9 @@ sbt interopRavelTest
 
 `publishLocalSnapshot` forces `1.0.0-SNAPSHOT` for core only, matching Gale's
 current `ravelVersion`. It cannot publish experimental modules under that
-version.
+version. The authoritative gate's fresh JVM and Scala.js consumers resolve in
+offline mode after local publication, so they cannot substitute a remote
+artifact for the generated candidate coordinate.
 
 ## Component diagnostics
 

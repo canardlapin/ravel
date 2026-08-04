@@ -25,6 +25,7 @@ EOF
 
 cat >"$consumer_root/build.sbt" <<EOF
 scalaVersion := "3.7.4"
+ThisBuild / offline := true
 
 libraryDependencies +=
   "io.github.canardlapin" %% "ravel-core" % "$candidate_version"

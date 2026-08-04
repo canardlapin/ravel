@@ -82,8 +82,13 @@ Generated POM inspection found:
   Scala.js 1.22.0. MUnit-ScalaCheck selects ScalaCheck 1.19.0 over Discipline's
   older compatible declaration.
 
-The inspected core JVM jar was about 392 KiB. It contains no Gale, Breeze,
-storage-format, I/O, autodiff, GPU, or sparse-array package.
+The inspected core binary jars contain no Gale, Breeze, storage-format, I/O,
+autodiff, GPU, or sparse-array package.
+
+The current artifact verifier consumes the build-emitted eight-row publication
+manifest. Both published core platforms must provide exact-version POM,
+binary, source, and API jars; negative tests remove one platform row and one
+artifact target to prove those omissions fail rather than false-green.
 
 ## Performance gate
 

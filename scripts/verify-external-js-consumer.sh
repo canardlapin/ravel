@@ -33,6 +33,7 @@ import org.scalajs.linker.interface.ModuleKind
 enablePlugins(ScalaJSPlugin)
 
 scalaVersion := "3.7.4"
+ThisBuild / offline := true
 scalaJSUseMainModuleInitializer := true
 scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule))
 
