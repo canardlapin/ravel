@@ -162,22 +162,13 @@ On Scala.js, `Boolean`, the fixed-width integers other than `Long`, `Float`, and
 ## Verify the source
 
 ```sh
-sbt compileAll
-sbt testAll
-sbt browserTests/test
-sbt testAllFull
-sbt representationProof
-bash scripts/numpy-parity-gate.sh
-sbt docsCheck
-sbt fmtCheck
+bash scripts/release-gate.sh
 ```
 
-`testAll` runs core, laws, stencil, and packed suites on the JVM and Node.
-`browserTests/test` exercises Scala.js interop in headless Chromium.
-`docsCheck` compiles all module Scaladoc surfaces, executes the JVM mdoc
-examples, validates Laika navigation and links, and assembles the local site.
-These local gates do not establish artifact publication or a stable
-compatibility promise.
+The release gate is the same entry point used by CI and tag publication. It
+checks all source modules and both core platforms, then verifies NumPy parity,
+documentation, artifact contents, and fresh JVM and Scala.js consumers. It
+writes receipts under `target/release-gate/<commit>/`.
 
 The current build uses Scala 3.7.4. CI is configured for Temurin JDK 21 and
 Node 22; other compiler and runtime combinations are outside the current

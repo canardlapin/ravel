@@ -1,9 +1,36 @@
 # Release engineering gates
 
-Ravel is an early 0.1-level project. The tooling below is useful scaffolding,
-not evidence that a 1.0 freeze or Maven Central publication is imminent. The
-critical product gate remains NumPy semantic parity
-([numpy-benchmarks.md](numpy-benchmarks.md)).
+The stable release scope is `ravel-core` for the JVM and Scala.js. The laws,
+packed, and stencil modules remain cross-tested source modules and are not
+published under the 1.0 compatibility promise.
+
+## Authoritative gate
+
+Run the same command used by protected-branch CI and tag publication:
+
+```sh
+bash scripts/release-gate.sh
+```
+
+The command fails on candidate worktree changes (ignoring Mote's append-only
+operation receipts) and records phase logs, runtime versions, the exact
+candidate commit, completion status, and checksums under
+`target/release-gate/<commit>/`. On an exact `v*` tag it tests that tag's
+version; otherwise it uses `1.0.0-SNAPSHOT`. It verifies:
+
+- the core-only publication matrix;
+- formatting, all-module compilation, and core MiMa;
+- JVM, Node, real-Chromium, full-link, and representation tests;
+- executable documentation and generated API docs;
+- exact NumPy semantic parity and the comparison-helper unit tests;
+- publishable POM and JVM jar contents;
+- local publication of both core platforms; and
+- fresh external JVM and Scala.js projects resolved only from those local
+  artifacts.
+
+Tag publication invokes this exact entry point before `ci-release`, so any
+failure prevents signing or publication. CI uploads its receipt directory even
+when a phase fails.
 
 ## Formatting
 
@@ -68,13 +95,12 @@ sbt interopRavelTest
 current `ravelVersion`. It cannot publish experimental modules under that
 version.
 
-## Combined local gate
+## Component diagnostics
 
 ```sh
 sbt releaseEngineeringGate
-bash scripts/numpy-parity-gate.sh
 ```
 
-`releaseEngineeringGate` runs formatting, MiMa scaffolding, POM packaging, and
-`testAll`. Always also run the NumPy parity script before treating numerical
-work as done.
+`releaseEngineeringGate` is the sbt-only subset. The shell entry point is
+authoritative because NumPy parity, artifact inspection, and fresh consumer
+projects cannot be expressed honestly as sbt-only checks.

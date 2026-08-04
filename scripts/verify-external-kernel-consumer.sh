@@ -2,11 +2,20 @@
 set -euo pipefail
 
 project_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+candidate_version="${RAVEL_CANDIDATE_VERSION:-1.0.0-SNAPSHOT}"
+if [[ ! "$candidate_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
+  echo "invalid RAVEL_CANDIDATE_VERSION: $candidate_version" >&2
+  exit 1
+fi
 consumer_root="$(mktemp -d "${TMPDIR:-/tmp}/ravel-kernel-consumer.XXXXXX")"
 trap 'rm -rf "$consumer_root"' EXIT
 
-cd "$project_root"
-sbt 'set ThisBuild / version := "1.0.0-SNAPSHOT"' 'coreJVM/publishLocal'
+if [[ "${RAVEL_SKIP_PUBLISH:-0}" != "1" ]]; then
+  cd "$project_root"
+  sbt "set ThisBuild / version := \"$candidate_version\"" \
+    verifyCoreReleaseMatrix \
+    coreJVM/publishLocal
+fi
 
 mkdir -p "$consumer_root/project" "$consumer_root/src/main/scala"
 
@@ -14,11 +23,11 @@ cat >"$consumer_root/project/build.properties" <<'EOF'
 sbt.version=1.11.7
 EOF
 
-cat >"$consumer_root/build.sbt" <<'EOF'
+cat >"$consumer_root/build.sbt" <<EOF
 scalaVersion := "3.7.4"
 
 libraryDependencies +=
-  "io.github.canardlapin" %% "ravel-core" % "1.0.0-SNAPSHOT"
+  "io.github.canardlapin" %% "ravel-core" % "$candidate_version"
 EOF
 
 cat >"$consumer_root/src/main/scala/KernelProbe.scala" <<'EOF'

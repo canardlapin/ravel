@@ -8,16 +8,18 @@ sbt 1.11.7, Node 24.1.0, and OpenJDK 25.0.1.
 On 2026-08-03, `sbt fmt` mechanically reformatted every source reported by the
 repository-wide gate across core, packed, stencil, JVM, and Scala.js source
 sets. `sbt fmtCheck` is the exact verification command and is required by both
-protected-branch CI and the tag workflow. This worktree is based on commit
-`d0f7bac`; record the final candidate commit here before tagging so the receipt
-does not confuse a base revision with the release candidate.
+protected-branch CI and the tag workflow. The ownership and API hardening
+milestone was committed as `ef04c32`. Each subsequent candidate gate records
+its exact commit and runtime environment in
+`target/release-gate/<commit>/manifest.txt`; this document is not a substitute
+for that receipt.
 
 ## Semantic and platform gates
 
-`sbt testAllFull` passed:
+The pre-gate hardening run of `sbt testAllFull` passed:
 
-- 75 core tests on the JVM;
-- 77 core tests on Node;
+- 187 core tests on the JVM;
+- 182 core tests on Node;
 - 2 reusable laws tests on each platform;
 - 3 browser tests in headless Chromium;
 - full-optimized links for the core and laws Scala.js test bundles.

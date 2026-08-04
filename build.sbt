@@ -343,7 +343,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "releaseEngineeringGate",
-  ";fmtCheck;mimaCheck;verifyPublishArtifacts;testAll"
+  ";verifyCoreReleaseMatrix;fmtCheck;compileAll;mimaCheck;testAllFull;representationProof;docsCheck;verifyPublishArtifacts"
 )
 addCommandAlias(
   "numpyParitySignatures",

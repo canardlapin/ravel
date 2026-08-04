@@ -106,20 +106,17 @@ matrix. Gale owns matrix and vector semantics.
 
 ## Verification
 
-While Ravel is a 0.1-level project, the critical numerical gate is NumPy
-semantic parity. The full local checklist is:
+The complete local candidate gate is:
 
 ```sh
-bash scripts/numpy-parity-gate.sh
-sbt fmtCheck
-sbt mimaCheck
-sbt testAll
-sbt browserTests/test
-sbt testAllFull
-sbt representationProof
-sbt verifyPublishArtifacts
-bash scripts/verify-publish-artifacts.sh
+bash scripts/release-gate.sh
 ```
+
+Protected-branch CI and tag publication invoke that same command. It includes
+formatting, compilation, core MiMa, all JVM/Node/Chromium tests, optimized
+Scala.js links, representation proof, NumPy parity, documentation, artifact
+inspection, and fresh JVM and Scala.js consumer builds. A tag cannot reach
+`ci-release` unless the command succeeds.
 
 Diagnostic JVM coverage (`sbt coverageReportJvm`) and the Gale sibling
 `interopRavelTest` gate are documented in
