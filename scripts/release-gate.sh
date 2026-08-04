@@ -48,7 +48,7 @@ run_numpy_helper_tests() {
   echo "candidate_sha=$candidate_sha"
   echo "candidate_version=$candidate_version"
   echo "started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  echo "java=$(java -version 2>&1 | head -n 1)"
+  echo "shell_java=$(java -version 2>&1 | head -n 1)"
   echo "node=$(node --version)"
   echo "python=$(python3 --version 2>&1)"
   echo "sbt=$(sbt --script-version)"
@@ -70,7 +70,9 @@ run_phase sbt \
 
 run_phase numpy-parity bash scripts/numpy-parity-gate.sh
 run_phase numpy-helper-tests run_numpy_helper_tests
-run_phase artifact-inspection bash scripts/verify-publish-artifacts.sh
+run_phase artifact-inspection \
+  env RAVEL_CANDIDATE_VERSION="$candidate_version" \
+  bash scripts/verify-publish-artifacts.sh
 run_phase consumer-jvm \
   env RAVEL_SKIP_PUBLISH=1 RAVEL_CANDIDATE_VERSION="$candidate_version" \
   bash scripts/verify-external-kernel-consumer.sh

@@ -14,6 +14,23 @@ require_file() {
   [[ -f "$1" ]] || fail "missing $1"
 }
 
+jar_contains() {
+  local archive="$1"
+  local entry="$2"
+  jar tf "$archive" | awk -v entry="$entry" '
+    $0 == entry { found = 1 }
+    END { exit(found ? 0 : 1) }
+  '
+}
+
+jar_contains_forbidden_package() {
+  local archive="$1"
+  jar tf "$archive" | awk '
+    /(^|\/)(gale|breeze)\// { found = 1 }
+    END { exit(found ? 0 : 1) }
+  '
+}
+
 pom_contains() {
   local pom="$1"
   local needle="$2"
@@ -26,8 +43,23 @@ newest() {
   ls -t $pattern 2>/dev/null | head -n 1 || true
 }
 
-core_jvm_pom="$(newest 'modules/core/jvm/target/scala-3*/ravel-core_3-*.pom')"
-core_js_pom="$(newest 'modules/core/js/target/scala-3*/ravel-core_sjs1_3-*.pom')"
+candidate_version="${RAVEL_CANDIDATE_VERSION:-}"
+if [[ -n "$candidate_version" ]] &&
+  [[ ! "$candidate_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
+  fail "invalid RAVEL_CANDIDATE_VERSION: $candidate_version"
+fi
+
+if [[ -n "$candidate_version" ]]; then
+  core_jvm_pom="$(newest "modules/core/jvm/target/scala-3*/ravel-core_3-$candidate_version.pom")"
+  core_js_pom="$(newest "modules/core/js/target/scala-3*/ravel-core_sjs1_3-$candidate_version.pom")"
+else
+  core_jvm_pom="$(newest 'modules/core/jvm/target/scala-3*/ravel-core_3-*.pom')"
+  [[ -n "$core_jvm_pom" ]] || fail "no core JVM POM; run sbt verifyPublishArtifacts first"
+  candidate_version="$(basename "$core_jvm_pom")"
+  candidate_version="${candidate_version#ravel-core_3-}"
+  candidate_version="${candidate_version%.pom}"
+  core_js_pom="$(newest "modules/core/js/target/scala-3*/ravel-core_sjs1_3-$candidate_version.pom")"
+fi
 [[ -n "$core_jvm_pom" ]] || fail "no core JVM POM; run sbt verifyPublishArtifacts first"
 [[ -n "$core_js_pom" ]] || fail "no core JS POM; run sbt verifyPublishArtifacts first"
 
@@ -54,15 +86,43 @@ if grep -qi '<artifactId>munit' "$core_jvm_pom"; then
   ' "$core_jvm_pom" || fail "ravel-core JVM POM has non-test MUnit dependency"
 fi
 
-core_jar="$(ls -t modules/core/jvm/target/scala-3*/ravel-core_3-*.jar 2>/dev/null \
-  | grep -vE 'sources|javadoc|tests' | head -n 1 || true)"
-[[ -n "$core_jar" ]] || fail "missing ravel-core JVM jar"
+core_jvm_dir="$(dirname "$core_jvm_pom")"
+core_js_dir="$(dirname "$core_js_pom")"
+core_jar="$core_jvm_dir/ravel-core_3-$candidate_version.jar"
+core_sources="$core_jvm_dir/ravel-core_3-$candidate_version-sources.jar"
+core_api="$core_jvm_dir/ravel-core_3-$candidate_version-javadoc.jar"
+core_js_jar="$core_js_dir/ravel-core_sjs1_3-$candidate_version.jar"
+core_js_sources="$core_js_dir/ravel-core_sjs1_3-$candidate_version-sources.jar"
+core_js_api="$core_js_dir/ravel-core_sjs1_3-$candidate_version-javadoc.jar"
 
-if jar tf "$core_jar" | grep -E 'gale/|breeze/' >/dev/null; then
-  fail "ravel-core jar must not contain gale or breeze packages"
-fi
+for artifact in \
+  "$core_jar" \
+  "$core_sources" \
+  "$core_api" \
+  "$core_js_jar" \
+  "$core_js_sources" \
+  "$core_js_api"; do
+  require_file "$artifact"
+done
+
+for binary_jar in "$core_jar" "$core_js_jar"; do
+  if jar_contains_forbidden_package "$binary_jar"; then
+    fail "$binary_jar must not contain gale or breeze packages"
+  fi
+done
+
+jar_contains "$core_sources" 'ravel/NDArray.scala' ||
+  fail "JVM sources jar is missing ravel/NDArray.scala"
+jar_contains "$core_js_sources" 'ravel/js/JsInterop.scala' ||
+  fail "Scala.js sources jar is missing ravel/js/JsInterop.scala"
+jar_contains "$core_api" 'ravel/NDArray.html' ||
+  fail "JVM API jar is missing ravel/NDArray.html"
+jar_contains "$core_js_api" 'ravel/js/JsInterop$.html' ||
+  fail "Scala.js API jar is missing ravel/js/JsInterop$.html"
 
 echo "verify-publish-artifacts: OK"
+echo "  version $candidate_version"
 echo "  $core_jvm_pom"
 echo "  $core_js_pom"
 echo "  $core_jar"
+echo "  $core_js_jar"

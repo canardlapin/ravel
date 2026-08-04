@@ -23,7 +23,7 @@ version; otherwise it uses `1.0.0-SNAPSHOT`. It verifies:
 - JVM, Node, real-Chromium, full-link, and representation tests;
 - executable documentation and generated API docs;
 - exact NumPy semantic parity and the comparison-helper unit tests;
-- publishable POM and JVM jar contents;
+- exact-version JVM and Scala.js POM, binary, source, and API jar contents;
 - local publication of both core platforms; and
 - fresh external JVM and Scala.js projects resolved only from those local
   artifacts.
