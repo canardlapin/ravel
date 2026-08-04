@@ -86,10 +86,13 @@ the boundary. `InvalidNarrowException.error` and
 
 ## Account for module-specific failures
 
-`ravel-packed` returns `Either[PackedError, ...]` from constructors, views, and
-set algebra. Its direct indexing methods use `require` and therefore throw
-`IllegalArgumentException` for bad indices. Keep packed construction in the
-typed `Either` path and validate indices before hot loops.
+`ravel-packed` reuses core `Shape`, `Slice`, negative-axis/index normalization,
+`InvalidNarrow`, and `PermutationError`. Dynamic code and word constructors and
+one-bit set algebra return `Either[PackedError, ...]`. Structural views follow
+the core split: `narrowChecked` and `permuteAxesChecked` return pure errors;
+their convenience forms and direct indexing throw the corresponding typed core
+exceptions. A mutable packed workspace throws
+`PackedWorkspaceConsumedException` after ownership-transferring `freeze`.
 
 `ravel-stencil` validates `NeighborhoodSpec`, ranks, destination shapes, and
 prepared-executor compatibility by throwing `IllegalArgumentException`. It

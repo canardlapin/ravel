@@ -4,6 +4,7 @@ import java.lang.management.ManagementFactory
 
 import com.sun.management.ThreadMXBean
 import munit.FunSuite
+import ravel.Shape
 
 final class PackedPerformanceSuite extends FunSuite:
   private var retainedLong: Long = 0L
@@ -13,11 +14,11 @@ final class PackedPerformanceSuite extends FunSuite:
     val samples = 1 << 20
     val oneBit =
       packedRight(
-        PackedArray.tabulate(Vector(samples), PackedBits.B1)(index => (index * 5) % 7 & 1)
+        PackedArray.tabulate(Shape(samples), PackedBits.B1)(index => (index * 5) % 7 & 1)
       )
     val fourBit =
       packedRight(
-        PackedArray.tabulate(Vector(samples), PackedBits.B4)(index => (index * 11) % 16)
+        PackedArray.tabulate(Shape(samples), PackedBits.B4)(index => (index * 11) % 16)
       )
 
     Vector(("1-bit", oneBit), ("4-bit", fourBit)).foreach { (name, packed) =>
@@ -45,13 +46,13 @@ final class PackedPerformanceSuite extends FunSuite:
     val samples = 1 << 20
     val leftPacked =
       packedRight(
-        PackedArray.tabulate(Vector(samples), PackedBits.B1)(index =>
+        PackedArray.tabulate(Shape(samples), PackedBits.B1)(index =>
           if (index * 5) % 7 < 3 then 1 else 0
         )
       )
     val rightPacked =
       packedRight(
-        PackedArray.tabulate(Vector(samples), PackedBits.B1)(index =>
+        PackedArray.tabulate(Shape(samples), PackedBits.B1)(index =>
           if (index * 3) % 5 < 2 then 1 else 0
         )
       )

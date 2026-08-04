@@ -1,22 +1,24 @@
 package ravel.packed
 
+import ravel.*
+import ravel.internal.Layout
+
 /** Mutable canonical packed workspace.
   *
-  * Always dense row-major with a zeroed tail; there are no mutable views. [[freeze]] transfers
-  * ownership of the backing words to an immutable [[PackedArray]] without copying and consumes this
-  * workspace. Every subsequent data read, write, copying freeze, or ownership-transferring freeze
-  * fails with [[PackedWorkspaceConsumedException]]. [[freezeCopy]] leaves the workspace reusable.
+  * [[freeze]] transfers its backing words to an immutable [[PackedArray]] and consumes the
+  * workspace. Every later data operation fails with [[PackedWorkspaceConsumedException]].
+  * [[freezeCopy]] leaves the workspace reusable.
   */
-final class MutablePackedArray private (
-    private[packed] val layout: PackedLayoutPlan,
+final class MutablePackedArray[R <: AnyRank] private (
+    private[packed] val layout: Layout,
     val bits: PackedBits,
     initialWords: Array[Int]
 ):
   private var openBacking: Option[Array[Int]] =
     Some(initialWords)
 
-  val shape: Vector[Int] =
-    layout.shape
+  val shape: Shape[R] =
+    Shape.retag[R](layout.shapeValue)
 
   val size: Int =
     layout.size
@@ -24,52 +26,70 @@ final class MutablePackedArray private (
   def codeAt(linear: Int): Int =
     this.synchronized {
       val words = requireOpenBacking()
-      require(linear >= 0 && linear < size, s"linear index $linear outside $size")
+      checkedLinearIndex(linear)
       readCode(words, linear)
     }
+
+  def apply(i: Int)(using R <:< Rank[1]): Int =
+    readPhysical(layout.physicalIndex1(i))
+
+  def apply(i: Int, j: Int)(using R <:< Rank[2]): Int =
+    readPhysical(layout.physicalIndex2(i, j))
+
+  def apply(i: Int, j: Int, k: Int)(using R <:< Rank[3]): Int =
+    readPhysical(layout.physicalIndex3(i, j, k))
+
+  def apply(i: Int, j: Int, k: Int, l: Int)(using R <:< Rank[4]): Int =
+    readPhysical(layout.physicalIndex4(i, j, k, l))
+
+  def at(indices: IArray[Int]): Int =
+    readPhysical(layout.physicalIndex(indices))
 
   def setCode(linear: Int, code: Int): Unit =
     this.synchronized {
       val words = requireOpenBacking()
-      validateCode(linear, code)
+      checkedLinearIndex(linear)
+      validateCode(code)
       writeCode(words, linear, code)
     }
 
+  def updateAt(indices: IArray[Int], code: Int): Unit =
+    this.synchronized {
+      val words = requireOpenBacking()
+      validateCode(code)
+      writeCode(words, layout.physicalIndex(indices), code)
+    }
+
+  private def readPhysical(index: Int): Int =
+    this.synchronized {
+      readCode(requireOpenBacking(), index)
+    }
+
   /** Ownership-transferring freeze. This workspace is consumed atomically. */
-  def freeze: PackedArray =
+  def freeze: PackedArray[R] =
     this.synchronized {
       val transferred = requireOpenBacking()
       openBacking = None
-      new PackedArray(
-        layout,
-        bits,
-        transferred,
-        layout.rowMajorStrides,
-        sampleOffset = 0
-      )
+      new PackedArray[R](layout, bits, transferred, size)
     }
 
   /** Copying freeze; the workspace stays writable. */
-  def freezeCopy: PackedArray =
+  def freezeCopy: PackedArray[R] =
     this.synchronized {
-      val copied = requireOpenBacking().clone()
-      new PackedArray(
-        layout,
-        bits,
-        copied,
-        layout.rowMajorStrides,
-        sampleOffset = 0
-      )
+      new PackedArray[R](layout, bits, requireOpenBacking().clone(), size)
     }
 
-  /** Lock-free write for a freshly allocated workspace that has not escaped its builder. */
+  /** Lock-free write for a fresh workspace that has not escaped its builder. */
   private[packed] def setCodeDuringBuild(linear: Int, code: Int): Unit =
     val words = requireOpenBacking()
-    validateCode(linear, code)
+    checkedLinearIndex(linear)
+    validateCode(code)
     writeCode(words, linear, code)
 
-  private def validateCode(linear: Int, code: Int): Unit =
-    require(linear >= 0 && linear < size, s"linear index $linear outside $size")
+  private def checkedLinearIndex(linear: Int): Unit =
+    if linear < 0 || linear >= size then throw InvalidIndex.LinearOutOfBounds(linear, size)
+
+  private def validateCode(code: Int): Unit =
     require(
       code >= 0 && code <= bits.maxCode,
       s"code $code exceeds maximum ${bits.maxCode}"
@@ -92,24 +112,20 @@ final class MutablePackedArray private (
       case Some(words) => words
       case None => throw new PackedWorkspaceConsumedException()
 
-/** Raised when a data operation is attempted after [[MutablePackedArray.freeze]]. */
 final class PackedWorkspaceConsumedException()
     extends IllegalStateException("mutable packed workspace was consumed by freeze")
 
 object MutablePackedArray:
-  /** Zeroed canonical workspace. Shape must already be validated. */
-  private[packed] def zeros(
-      layout: PackedLayoutPlan,
+  private[packed] def zeros[R <: AnyRank](
+      shape: Shape[R],
       bits: PackedBits
-  ): MutablePackedArray =
-    new MutablePackedArray(
+  ): MutablePackedArray[R] =
+    val layout = Layout.contiguous(shape, shape.size)
+    new MutablePackedArray[R](
       layout,
       bits,
-      new Array[Int](PackedArray.wordCount(layout.size, bits))
+      new Array[Int](PackedArray.wordCount(shape.size, bits))
     )
 
-  def allocate(
-      shape: Vector[Int],
-      bits: PackedBits
-  ): Either[PackedError, MutablePackedArray] =
-    PackedLayoutPlan.from(shape).map(layout => zeros(layout, bits))
+  def allocate[R <: AnyRank](shape: Shape[R], bits: PackedBits): MutablePackedArray[R] =
+    zeros(shape, bits)

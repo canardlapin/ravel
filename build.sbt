@@ -151,6 +151,7 @@ lazy val packed = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Full)
   .in(file("modules/packed"))
   .enablePlugins(MimaPlugin)
+  .dependsOn(core)
   .settings(commonSettings)
   .settings(experimentalModuleSettings)
   .settings(

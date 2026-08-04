@@ -16,11 +16,12 @@ have their own shape, error, view, mutation, and serialization contracts.
 Choose `B1` for `0`–`1`, `B2` for `0`–`3`, or `B4` for `0`–`15`:
 
 ```scala mdoc:silent
+import ravel.*
 import ravel.packed.*
 
 val labels =
   PackedArray.fromCodes(
-    shape = Vector(2, 4),
+    shape = Shape(2, 4),
     bits = PackedBits.B2,
     codes = Vector(0, 1, 2, 3, 3, 2, 1, 0)
   ) match
@@ -35,10 +36,13 @@ labels(1, 2)
 labels.sumCodes
 ```
 
-`fromCodes` returns `Either[PackedError, PackedArray]`. It rejects an empty
-shape, non-positive extents, the wrong number of codes, and values outside the
-selected width. Packed arrays currently require at least one non-empty axis;
-unlike core `Shape`, they do not represent scalars or zero-length dimensions.
+`fromCodes` returns `Either[PackedError, PackedArray]`. The supplied core
+`Shape` has already checked negative dimensions and portable element-count
+overflow. The packed constructor checks the number and range of codes.
+
+Packed arrays use the same scalar and empty shapes as core. `Shape.scalar`
+contains one code and has rank zero; shapes such as `Shape(2, 0, 3)` contain no
+codes and preserve their zero extent through views.
 
 `tabulate` has a different contract: it masks each generated value to the
 selected width. Use `fromCodes` when an out-of-range value should be reported
@@ -46,28 +50,30 @@ rather than truncated.
 
 ## Take a view, then materialize deliberately
 
-`slice(axis, index)` fixes one axis and drops it. `narrow` preserves rank and
-restricts an axis to a half-open range:
+`select(axis, index)` fixes one axis and drops it. `slice(axis, Slice)` and
+`narrow` preserve rank:
 
 ```scala mdoc
-val secondRow = labels.slice(axis = 0, index = 1)
-secondRow.map(row => (row.shape, row.isCanonical, row.codeVector))
+val secondRow = labels.select(axis = 0, index = 1)
+(secondRow.shape, secondRow.isCanonical, secondRow.codeVector)
 
-val middleColumns = labels.narrow(axis = 1, start = 1, length = 2)
-middleColumns.map(_.codeVector)
+val middleColumns = labels.slice(axis = 1, Slice.between(1, 3))
+middleColumns.codeVector
+
+val finalColumn = labels.select(axis = -1, index = -1)
+finalColumn.codeVector
 ```
 
-Both operations return `Either` and, on success, share the original words.
-Packed indexing is non-negative. Call `copy` to re-pack a view into minimal
-canonical storage with zeroed unused tail bits:
+Structural views share the original words. Axes and element coordinates accept
+the same negative normalization as core. `narrowChecked` returns
+`Either[InvalidNarrow, ...]`; the `narrow` convenience throws
+`InvalidNarrowException`. `permuteAxesChecked` and `permuteAxes` use the same
+checked/throwing split for permutation errors. Call `copy` to re-pack a view
+into minimal canonical storage with zeroed unused tail bits:
 
 ```scala mdoc
-secondRow.map(row => (row.copy.isCanonical, row.copy.wordVector))
+(secondRow.copy.isCanonical, secondRow.copy.wordVector)
 ```
-
-The name `slice` here differs from core `NDArray.slice`, which preserves rank;
-the packed operation behaves like core `select`. Keep that difference visible
-when code uses both representations.
 
 ## Round-trip canonical words
 
@@ -95,12 +101,12 @@ complement, and population count over `B1` arrays:
 
 ```scala mdoc:silent
 val selected = PackedArray.fromCodes(
-  Vector(8),
+  Shape(8),
   PackedBits.B1,
   Vector(1, 0, 1, 0, 1, 0, 0, 0)
 )
 val reviewed = PackedArray.fromCodes(
-  Vector(8),
+  Shape(8),
   PackedBits.B1,
   Vector(0, 1, 1, 0, 0, 0, 0, 1)
 )
@@ -127,17 +133,16 @@ the result.
 | Operation | Storage consequence | Failure surface |
 |---|---|---|
 | `fromCodes`, `fromWords`, `zeros` | new canonical immutable storage | `Either[PackedError, ...]` |
-| `slice`, `narrow` | shared immutable view | `Either[PackedError, ...]` |
+| `select`, `slice`, `reverse` | shared immutable view | typed core exception for invalid programmer input |
+| `narrowChecked`, `permuteAxesChecked` | shared immutable view | checked core error value |
 | `copy` | new canonical immutable storage | none after a valid source exists |
 | `wordVector`, `codeVector` | copied Scala collection | none after a valid source exists |
 | `PackedBitOps.*` | new canonical result; views may first be copied | `Either[PackedError, ...]` |
 | `MutablePackedArray.freezeCopy` | immutable copy; workspace remains writable | none |
-| `MutablePackedArray.freeze` | transfers the backing words without copying | caller must retire the workspace |
+| `MutablePackedArray.freeze` | transfers the backing words without copying and consumes the workspace | later data access throws `PackedWorkspaceConsumedException` |
 
-`freeze` does not enforce retirement at runtime. Reading or writing the mutable
-workspace after the transfer can violate the immutable result's ownership
-assumption. Use `freezeCopy` unless the producer can make the transfer final by
-construction.
+`freeze` enforces retirement at runtime. `freezeCopy` is the alternative when
+the producer must keep reading or writing the workspace.
 
 Continue with [Failures and recovery](../reference/failures.md), or use the
 [Packed API](https://canardlapin.github.io/ravel/api/packed/) for signatures.

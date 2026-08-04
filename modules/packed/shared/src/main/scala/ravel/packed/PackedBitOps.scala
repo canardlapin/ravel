@@ -7,32 +7,34 @@ package ravel.packed
   * combined without any per-sample work.
   */
 object PackedBitOps:
-  def union(
-      left: PackedArray,
-      right: PackedArray
-  ): Either[PackedError, PackedArray] =
+  def union[R <: ravel.AnyRank](
+      left: PackedArray[R],
+      right: PackedArray[?]
+  ): Either[PackedError, PackedArray[R]] =
     combine(left, right)((a, b) => a | b)
 
-  def intersection(
-      left: PackedArray,
-      right: PackedArray
-  ): Either[PackedError, PackedArray] =
+  def intersection[R <: ravel.AnyRank](
+      left: PackedArray[R],
+      right: PackedArray[?]
+  ): Either[PackedError, PackedArray[R]] =
     combine(left, right)((a, b) => a & b)
 
   /** Samples present in `left` and absent from `right`. */
-  def difference(
-      left: PackedArray,
-      right: PackedArray
-  ): Either[PackedError, PackedArray] =
+  def difference[R <: ravel.AnyRank](
+      left: PackedArray[R],
+      right: PackedArray[?]
+  ): Either[PackedError, PackedArray[R]] =
     combine(left, right)((a, b) => a & ~b)
 
-  def symmetricDifference(
-      left: PackedArray,
-      right: PackedArray
-  ): Either[PackedError, PackedArray] =
+  def symmetricDifference[R <: ravel.AnyRank](
+      left: PackedArray[R],
+      right: PackedArray[?]
+  ): Either[PackedError, PackedArray[R]] =
     combine(left, right)((a, b) => a ^ b)
 
-  def complement(input: PackedArray): Either[PackedError, PackedArray] =
+  def complement[R <: ravel.AnyRank](
+      input: PackedArray[R]
+  ): Either[PackedError, PackedArray[R]] =
     requireOneBit(input).map { canonical =>
       val output = new Array[Int](canonical.words.length)
       var index = 0
@@ -40,11 +42,11 @@ object PackedBitOps:
         output(index) = ~canonical.words(index)
         index += 1
       zeroTail(output, canonical.size)
-      fromCanonicalWords(canonical.layout, output)
+      PackedArray.canonical(canonical.shape, PackedBits.B1, output)
     }
 
   /** Number of set samples, thirty-two samples per popcount. */
-  def countTrue(input: PackedArray): Either[PackedError, Long] =
+  def countTrue(input: PackedArray[?]): Either[PackedError, Long] =
     requireOneBit(input).map { canonical =>
       var total = 0L
       var index = 0
@@ -54,10 +56,10 @@ object PackedBitOps:
       total
     }
 
-  private def combine(
-      left: PackedArray,
-      right: PackedArray
-  )(op: (Int, Int) => Int): Either[PackedError, PackedArray] =
+  private def combine[R <: ravel.AnyRank](
+      left: PackedArray[R],
+      right: PackedArray[?]
+  )(op: (Int, Int) => Int): Either[PackedError, PackedArray[R]] =
     if left.bits != right.bits then Left(PackedError.BitsMismatch(left.bits, right.bits))
     else if left.shape != right.shape then Left(PackedError.ShapeMismatch(left.shape, right.shape))
     else
@@ -71,11 +73,11 @@ object PackedBitOps:
           output(index) = op(leftCanonical.words(index), rightCanonical.words(index))
           index += 1
         zeroTail(output, leftCanonical.size)
-        fromCanonicalWords(leftCanonical.layout, output)
+        PackedArray.canonical(leftCanonical.shape, PackedBits.B1, output)
 
-  private def requireOneBit(
-      input: PackedArray
-  ): Either[PackedError, PackedArray] =
+  private def requireOneBit[R <: ravel.AnyRank](
+      input: PackedArray[R]
+  ): Either[PackedError, PackedArray[R]] =
     if input.bits != PackedBits.B1 then Left(PackedError.NotOneBit(input.bits))
     else if input.isCanonical then Right(input)
     else Right(input.copy)
@@ -83,15 +85,3 @@ object PackedBitOps:
   private def zeroTail(words: Array[Int], samples: Int): Unit =
     val tail = samples & 31
     if tail != 0 then words(words.length - 1) &= ~(-1 << tail)
-
-  private def fromCanonicalWords(
-      layout: PackedLayoutPlan,
-      words: Array[Int]
-  ): PackedArray =
-    new PackedArray(
-      layout,
-      PackedBits.B1,
-      words,
-      layout.rowMajorStrides,
-      sampleOffset = 0
-    )

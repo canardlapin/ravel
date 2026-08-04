@@ -1,6 +1,7 @@
 package ravel.packed
 
 import munit.FunSuite
+import ravel.Shape
 
 final class PackedBitOpsSuite extends FunSuite:
   private val sizes = Vector(31, 32, 33, 100)
@@ -49,7 +50,7 @@ final class PackedBitOpsSuite extends FunSuite:
     val everything =
       packedRight(
         PackedBitOps.complement(
-          packedRight(PackedArray.zeros(Vector(size), PackedBits.B1))
+          PackedArray.zeros(Shape(size), PackedBits.B1)
         )
       )
 
@@ -57,23 +58,23 @@ final class PackedBitOpsSuite extends FunSuite:
     assertEquals(everything.wordVector(1), 1)
     assertEquals(packedRight(PackedBitOps.countTrue(everything)), size.toLong)
     val roundTrip =
-      PackedArray.fromWords(Vector(size), PackedBits.B1, everything.wordVector)
+      PackedArray.fromWords(Shape(size), PackedBits.B1, everything.wordVector)
     assert(roundTrip.isRight, "complement output must stay serializable")
 
   test("views are canonicalized before wordwise combination"):
     val base =
       packedRight(
         PackedArray.fromCodes(
-          Vector(4, 10),
+          Shape(4, 10),
           PackedBits.B1,
           Vector.tabulate(40)(index => index % 3 == 0).map(if _ then 1 else 0)
         )
       )
-    val view = packedRight(base.narrow(0, 1, 2))
+    val view = base.narrow(0, 1, 2)
     val other =
       packedRight(
         PackedArray.fromCodes(
-          Vector(2, 10),
+          Shape(2, 10),
           PackedBits.B1,
           Vector.tabulate(20)(index => index % 2)
         )
@@ -86,9 +87,9 @@ final class PackedBitOpsSuite extends FunSuite:
     )
 
   test("set algebra rejects incompatible operands"):
-    val oneBit = packedRight(PackedArray.zeros(Vector(8), PackedBits.B1))
-    val twoBit = packedRight(PackedArray.zeros(Vector(8), PackedBits.B2))
-    val shorter = packedRight(PackedArray.zeros(Vector(4), PackedBits.B1))
+    val oneBit = PackedArray.zeros(Shape(8), PackedBits.B1)
+    val twoBit = PackedArray.zeros(Shape(8), PackedBits.B2)
+    val shorter = PackedArray.zeros(Shape(4), PackedBits.B1)
 
     PackedBitOps.union(oneBit, twoBit) match
       case Left(PackedError.BitsMismatch(_, _)) => ()
@@ -100,16 +101,16 @@ final class PackedBitOpsSuite extends FunSuite:
       case Left(PackedError.NotOneBit(PackedBits.B2)) => ()
       case other => fail(s"expected NotOneBit, got $other")
 
-  private def mask(size: Int, values: Vector[Boolean]): PackedArray =
+  private def mask(size: Int, values: Vector[Boolean]): PackedArray[?] =
     packedRight(
       PackedArray.fromCodes(
-        Vector(size),
+        Shape(size),
         PackedBits.B1,
         values.map(if _ then 1 else 0)
       )
     )
 
-  private def codes(packed: PackedArray): Vector[Boolean] =
+  private def codes(packed: PackedArray[?]): Vector[Boolean] =
     packed.codeVector.map(_ == 1)
 
   private def packedRight[A](value: Either[PackedError, A]): A =

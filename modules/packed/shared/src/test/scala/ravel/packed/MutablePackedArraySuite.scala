@@ -1,6 +1,7 @@
 package ravel.packed
 
 import munit.FunSuite
+import ravel.Shape
 
 final class MutablePackedArraySuite extends FunSuite:
   private val widths = Vector(PackedBits.B1, PackedBits.B2, PackedBits.B4)
@@ -8,10 +9,10 @@ final class MutablePackedArraySuite extends FunSuite:
   test("generated lifecycle sequences enforce consuming freeze and snapshot isolation"):
     widths.foreach { bits =>
       lifecycleSequences(bits).zipWithIndex.foreach { (actions, scenario) =>
-        val workspace = packedRight(MutablePackedArray.allocate(Vector(9), bits))
+        val workspace = MutablePackedArray.allocate(Shape(9), bits)
         var expected = Vector.fill(9)(0)
         var open = true
-        var snapshots = Vector.empty[(PackedArray, Vector[Int])]
+        var snapshots = Vector.empty[(PackedArray[?], Vector[Int])]
 
         actions.foreach { action =>
           action match
@@ -74,11 +75,6 @@ final class MutablePackedArraySuite extends FunSuite:
 
   private def assertConsumed[A](operation: => A): Unit =
     val _ = intercept[PackedWorkspaceConsumedException](operation)
-
-  private def packedRight[A](value: Either[PackedError, A]): A =
-    value match
-      case Right(result) => result
-      case Left(error) => fail(error.message)
 
   private enum Action derives CanEqual:
     case Set(index: Int, code: Int)
