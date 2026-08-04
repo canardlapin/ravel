@@ -1,7 +1,5 @@
 package ravel
 
-import scala.util.control.NonFatal
-
 final class Shape[+R <: AnyRank] private[ravel] (
     private[ravel] val unsafeDimensions: IArray[Int],
     val size: Int
@@ -47,18 +45,11 @@ object Shape:
   def apply(d0: Int, d1: Int, d2: Int, d3: Int): Shape[Rank[4]] =
     checked[Rank[4]](IArray(d0, d1, d2, d3))
 
-  def from(dimensions: IArray[Int]): Either[InvalidShape, Shape[AnyRank]] =
-    try
-      Right(
-        checked[AnyRank](
-          IArray.unsafeFromArray(IArray.genericWrapArray(dimensions).toArray)
-        )
-      )
-    catch
-      case error: InvalidShape => Left(error)
-      case NonFatal(error) => Left(InvalidShape(error.getMessage))
+  def from(dimensions: IArray[Int]): Either[ShapeError, Shape[AnyRank]] =
+    val owned = IArray.unsafeFromArray(IArray.genericWrapArray(dimensions).toArray)
+    validatedSize(owned).map(size => new Shape(owned, size))
 
-  def from(dimensions: Seq[Int]): Either[InvalidShape, Shape[AnyRank]] =
+  def from(dimensions: Seq[Int]): Either[ShapeError, Shape[AnyRank]] =
     from(IArray.unsafeFromArray(dimensions.toArray))
 
   private[ravel] def unsafeRanked[R <: AnyRank](
@@ -86,20 +77,26 @@ object Shape:
     shape.asInstanceOf[Shape[R]]
 
   private def checked[R <: AnyRank](dimensions: IArray[Int]): Shape[R] =
+    validatedSize(dimensions).fold(
+      error => throw InvalidShape(error.reason),
+      size => new Shape(dimensions, size)
+    )
+
+  private def validatedSize(dimensions: IArray[Int]): Either[ShapeError, Int] =
     var product = 1L
     var axis = 0
     while axis < dimensions.length do
       val dimension = dimensions(axis)
-      if dimension < 0 then throw InvalidShape(s"axis $axis has negative dimension $dimension")
+      if dimension < 0 then return Left(ShapeError(s"axis $axis has negative dimension $dimension"))
       product =
         try Math.multiplyExact(product, dimension.toLong)
         catch
           case _: ArithmeticException =>
-            throw InvalidShape(s"dimension product exceeds Long at axis $axis")
+            return Left(ShapeError(s"dimension product exceeds Long at axis $axis"))
       if product > Int.MaxValue.toLong then
-        throw InvalidShape(s"element count $product exceeds portable Int buffer limit")
+        return Left(ShapeError(s"element count $product exceeds portable Int buffer limit"))
       axis += 1
-    new Shape(dimensions, product.toInt)
+    Right(product.toInt)
 
   private[ravel] def normalizeAxis(axis: Int, rank: Int): Int =
     val normalized = if axis < 0 then axis + rank else axis

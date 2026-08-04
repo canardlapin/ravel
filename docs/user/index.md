@@ -32,6 +32,10 @@ site, orders its navigation, and rejects broken internal links.
 | N-dimensional neighborhood traversal | `ravel-stencil` | Stencil execution operates over core arrays but leaves image meaning to higher layers. |
 | Reusable conformance checks | `ravel-laws` | This module is for library and adapter test suites. |
 
+Only `ravel-core` is slated for 1.0 publication. Packed, stencil, and laws are
+experimental source modules even though the repository cross-builds and tests
+them on both platforms.
+
 ## Choose a path
 
 - **Create and compute:** [Numerical computation](guides/computation.md)

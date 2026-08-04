@@ -40,6 +40,9 @@ private[ravel] object ReductionKernels:
   private def doubleScratch2(n: Int): Array[Double] =
     doubleScratchPads.get().ensureSecondary(math.max(n, 1))
 
+  private inline def pairwiseBlockCount(length: Int): Int =
+    if length == 0 then 0 else 1 + (length - 1) / PairwiseBlockSize
+
   def sum[A](source: Storage[A], layout: Layout): A =
     (source match
       case x: IntStorage => sumIntStorage(x, layout)
@@ -204,6 +207,81 @@ private[ravel] object ReductionKernels:
         axisPairwiseMeanFloat(plan, x.raw.apply, z.raw.update)
       case (x: DoubleStorage, z: DoubleStorage) =>
         axisPairwiseMeanDoubleStorage(x, z, plan)
+      case _ => throw new UnsupportedOperationException("mean requires matching floating storage")
+
+  def sumAxes[A](source: Storage[A], output: Storage[A], plan: MultiReductionPlan): Unit =
+    (source, output) match
+      case (x: IntStorage, z: IntStorage) =>
+        multiAxisFold(plan, x.raw.apply, z.raw.update, 0)(_ + _)
+      case (x: LongStorage, z: LongStorage) =>
+        multiAxisFold(plan, x.raw.apply, z.raw.update, 0L)(_ + _)
+      case (x: FloatStorage, z: FloatStorage) =>
+        multiAxisPairwiseFloat(plan, x.raw.apply, z.raw.update)
+      case (x: DoubleStorage, z: DoubleStorage) =>
+        multiAxisPairwiseDouble(plan, x.raw.apply, z.raw.update)
+      case _ => throw new UnsupportedOperationException("sum requires matching arithmetic storage")
+
+  def productAxes[A](source: Storage[A], output: Storage[A], plan: MultiReductionPlan): Unit =
+    (source, output) match
+      case (x: IntStorage, z: IntStorage) =>
+        multiAxisFold(plan, x.raw.apply, z.raw.update, 1)(_ * _)
+      case (x: LongStorage, z: LongStorage) =>
+        multiAxisFold(plan, x.raw.apply, z.raw.update, 1L)(_ * _)
+      case (x: FloatStorage, z: FloatStorage) =>
+        multiAxisFold(plan, x.raw.apply, z.raw.update, 1.0f)((a, b) => (a * b).toFloat)
+      case (x: DoubleStorage, z: DoubleStorage) =>
+        multiAxisFold(plan, x.raw.apply, z.raw.update, 1.0)(_ * _)
+      case _ =>
+        throw new UnsupportedOperationException("product requires matching arithmetic storage")
+
+  def minimumAxes[A](source: Storage[A], output: Storage[A], plan: MultiReductionPlan): Unit =
+    if plan.reducedLength == 0 && plan.outputSize > 0 then throw EmptyReduction("min")
+    (source, output) match
+      case (x: ByteStorage, z: ByteStorage) =>
+        multiAxisExtremum(plan, x.raw.apply, z.raw.update)(math.min(_, _).toByte)
+      case (x: UInt8Storage, z: UInt8Storage) =>
+        multiAxisExtremum(plan, x.getRaw, z.setRaw)(minUInt8)
+      case (x: ShortStorage, z: ShortStorage) =>
+        multiAxisExtremum(plan, x.raw.apply, z.raw.update)(math.min(_, _).toShort)
+      case (x: UInt16Storage, z: UInt16Storage) =>
+        multiAxisExtremum(plan, x.getRaw, z.setRaw)(minUInt16)
+      case (x: IntStorage, z: IntStorage) =>
+        multiAxisExtremum(plan, x.raw.apply, z.raw.update)(math.min)
+      case (x: LongStorage, z: LongStorage) =>
+        multiAxisExtremum(plan, x.raw.apply, z.raw.update)(math.min)
+      case (x: FloatStorage, z: FloatStorage) =>
+        multiAxisExtremum(plan, x.raw.apply, z.raw.update)((a, b) => math.min(a, b).toFloat)
+      case (x: DoubleStorage, z: DoubleStorage) =>
+        multiAxisExtremum(plan, x.raw.apply, z.raw.update)(math.min)
+      case _ => throw new UnsupportedOperationException("min requires matching ordered storage")
+
+  def maximumAxes[A](source: Storage[A], output: Storage[A], plan: MultiReductionPlan): Unit =
+    if plan.reducedLength == 0 && plan.outputSize > 0 then throw EmptyReduction("max")
+    (source, output) match
+      case (x: ByteStorage, z: ByteStorage) =>
+        multiAxisExtremum(plan, x.raw.apply, z.raw.update)(math.max(_, _).toByte)
+      case (x: UInt8Storage, z: UInt8Storage) =>
+        multiAxisExtremum(plan, x.getRaw, z.setRaw)(maxUInt8)
+      case (x: ShortStorage, z: ShortStorage) =>
+        multiAxisExtremum(plan, x.raw.apply, z.raw.update)(math.max(_, _).toShort)
+      case (x: UInt16Storage, z: UInt16Storage) =>
+        multiAxisExtremum(plan, x.getRaw, z.setRaw)(maxUInt16)
+      case (x: IntStorage, z: IntStorage) =>
+        multiAxisExtremum(plan, x.raw.apply, z.raw.update)(math.max)
+      case (x: LongStorage, z: LongStorage) =>
+        multiAxisExtremum(plan, x.raw.apply, z.raw.update)(math.max)
+      case (x: FloatStorage, z: FloatStorage) =>
+        multiAxisExtremum(plan, x.raw.apply, z.raw.update)((a, b) => math.max(a, b).toFloat)
+      case (x: DoubleStorage, z: DoubleStorage) =>
+        multiAxisExtremum(plan, x.raw.apply, z.raw.update)(math.max)
+      case _ => throw new UnsupportedOperationException("max requires matching ordered storage")
+
+  def meanAxes[A](source: Storage[A], output: Storage[A], plan: MultiReductionPlan): Unit =
+    (source, output) match
+      case (x: FloatStorage, z: FloatStorage) =>
+        multiAxisPairwiseMeanFloat(plan, x.raw.apply, z.raw.update)
+      case (x: DoubleStorage, z: DoubleStorage) =>
+        multiAxisPairwiseMeanDouble(plan, x.raw.apply, z.raw.update)
       case _ => throw new UnsupportedOperationException("mean requires matching floating storage")
 
   def argMinimumAxis[A](
@@ -772,7 +850,7 @@ private[ravel] object ReductionKernels:
         storage,
         layout.offset,
         layout.size,
-        floatScratch((layout.size + PairwiseBlockSize - 1) / PairwiseBlockSize)
+        floatScratch(pairwiseBlockCount(layout.size))
       )
     else pairwiseFloat(layout, storage.raw.apply)
 
@@ -783,7 +861,7 @@ private[ravel] object ReductionKernels:
         storage,
         layout.offset,
         layout.size,
-        doubleScratch((layout.size + PairwiseBlockSize - 1) / PairwiseBlockSize)
+        doubleScratch(pairwiseBlockCount(layout.size))
       )
     else pairwiseDouble(layout, storage.raw.apply)
 
@@ -794,7 +872,7 @@ private[ravel] object ReductionKernels:
         storage,
         layout.offset,
         layout.size,
-        doubleScratch((layout.size + PairwiseBlockSize - 1) / PairwiseBlockSize)
+        doubleScratch(pairwiseBlockCount(layout.size))
       )
     else pairwiseDoubleFromFloat(layout, storage.raw.apply)
 
@@ -830,7 +908,7 @@ private[ravel] object ReductionKernels:
       size: Int,
       inline read: Int => Float
   ): Float =
-    val blocks = floatScratch((size + PairwiseBlockSize - 1) / PairwiseBlockSize)
+    val blocks = floatScratch(pairwiseBlockCount(size))
     var block = 0
     var index = 0
     var physical = offset
@@ -850,7 +928,7 @@ private[ravel] object ReductionKernels:
       size: Int,
       inline read: Int => Double
   ): Double =
-    val blocks = doubleScratch((size + PairwiseBlockSize - 1) / PairwiseBlockSize)
+    val blocks = doubleScratch(pairwiseBlockCount(size))
     var block = 0
     var index = 0
     var physical = offset
@@ -870,7 +948,7 @@ private[ravel] object ReductionKernels:
       size: Int,
       inline read: Int => Float
   ): Double =
-    val blocks = doubleScratch((size + PairwiseBlockSize - 1) / PairwiseBlockSize)
+    val blocks = doubleScratch(pairwiseBlockCount(size))
     var block = 0
     var index = 0
     var physical = offset
@@ -891,7 +969,7 @@ private[ravel] object ReductionKernels:
       length: Int,
       inline read: Int => Float
   ): Float =
-    val blockCount = (length + PairwiseBlockSize - 1) / PairwiseBlockSize
+    val blockCount = pairwiseBlockCount(length)
     val blocks = floatScratch(blockCount)
     fillFloatStridedBlocks(offset, stride, length, blocks, read)
     mergeFloatBlocks(blocks, blockCount)
@@ -902,7 +980,7 @@ private[ravel] object ReductionKernels:
       length: Int,
       inline read: Int => Double
   ): Double =
-    val blockCount = (length + PairwiseBlockSize - 1) / PairwiseBlockSize
+    val blockCount = pairwiseBlockCount(length)
     val blocks = doubleScratch(blockCount)
     fillDoubleStridedBlocks(offset, stride, length, blocks, read)
     mergeDoubleBlocks(blocks, blockCount)
@@ -913,7 +991,7 @@ private[ravel] object ReductionKernels:
       length: Int,
       inline read: Int => Float
   ): Double =
-    val blockCount = (length + PairwiseBlockSize - 1) / PairwiseBlockSize
+    val blockCount = pairwiseBlockCount(length)
     val blocks = doubleScratch(blockCount)
     fillDoubleStridedBlocksFromFloat(offset, stride, length, blocks, read)
     mergeDoubleBlocks(blocks, blockCount)
@@ -988,7 +1066,7 @@ private[ravel] object ReductionKernels:
     val colStride = layout.strides(1)
     val offset = layout.offset
     val size = layout.size
-    val blocks = doubleScratch((size + PairwiseBlockSize - 1) / PairwiseBlockSize)
+    val blocks = doubleScratch(pairwiseBlockCount(size))
     var block = 0
     var within = 0
     var sum = 0.0
@@ -1022,7 +1100,7 @@ private[ravel] object ReductionKernels:
     val colStride = layout.strides(1)
     val offset = layout.offset
     val size = layout.size
-    val blocks = doubleScratch((size + PairwiseBlockSize - 1) / PairwiseBlockSize)
+    val blocks = doubleScratch(pairwiseBlockCount(size))
     var block = 0
     var within = 0
     var sum = 0.0
@@ -1047,7 +1125,7 @@ private[ravel] object ReductionKernels:
     mergeDoubleBlocks(blocks, block)
 
   private inline def pairwiseFloatGeneral(layout: Layout, inline read: Int => Float): Float =
-    val blocks = floatScratch((layout.size + PairwiseBlockSize - 1) / PairwiseBlockSize)
+    val blocks = floatScratch(pairwiseBlockCount(layout.size))
     var block = 0
     var within = 0
     var sum = 0.0f
@@ -1066,7 +1144,7 @@ private[ravel] object ReductionKernels:
     mergeFloatBlocks(blocks, block)
 
   private inline def pairwiseDoubleGeneral(layout: Layout, inline read: Int => Double): Double =
-    val blocks = doubleScratch((layout.size + PairwiseBlockSize - 1) / PairwiseBlockSize)
+    val blocks = doubleScratch(pairwiseBlockCount(layout.size))
     var block = 0
     var within = 0
     var sum = 0.0
@@ -1088,7 +1166,7 @@ private[ravel] object ReductionKernels:
       layout: Layout,
       inline read: Int => Float
   ): Double =
-    val blocks = doubleScratch((layout.size + PairwiseBlockSize - 1) / PairwiseBlockSize)
+    val blocks = doubleScratch(pairwiseBlockCount(layout.size))
     var block = 0
     var within = 0
     var sum = 0.0
@@ -1141,6 +1219,204 @@ private[ravel] object ReductionKernels:
         write += 1
       count = write
     if initialCount == 0 then 0.0 else blocks(offset)
+
+  private inline def multiAxisFold[T](
+      plan: MultiReductionPlan,
+      inline read: Int => T,
+      inline write: (Int, T) => Unit,
+      identity: T
+  )(inline combine: (T, T) => T): Unit =
+    val reducedCounters = new Array[Int](plan.reducedShape.length)
+    foreachMultiAxisBase(plan) { (base, output) =>
+      var result = identity
+      foreachReducedPhysical(plan, base, reducedCounters) { physical =>
+        result = combine(result, read(physical))
+      }
+      write(output, result)
+    }
+
+  private inline def multiAxisExtremum[T](
+      plan: MultiReductionPlan,
+      inline read: Int => T,
+      inline write: (Int, T) => Unit
+  )(inline combine: (T, T) => T): Unit =
+    val reducedCounters = new Array[Int](plan.reducedShape.length)
+    foreachMultiAxisBase(plan) { (base, output) =>
+      var initialized = false
+      var result: T = null.asInstanceOf[T]
+      foreachReducedPhysical(plan, base, reducedCounters) { physical =>
+        val value = read(physical)
+        if initialized then result = combine(result, value)
+        else
+          result = value
+          initialized = true
+      }
+      if initialized then write(output, result)
+    }
+
+  private inline def multiAxisPairwiseFloat(
+      plan: MultiReductionPlan,
+      inline read: Int => Float,
+      inline write: (Int, Float) => Unit
+  ): Unit =
+    val blockCount = pairwiseBlockCount(plan.reducedLength)
+    val blocks = floatScratch(blockCount)
+    val reducedCounters = new Array[Int](plan.reducedShape.length)
+    foreachMultiAxisBase(plan) { (base, output) =>
+      var block = 0
+      var within = 0
+      var sum = 0.0f
+      foreachReducedPhysical(plan, base, reducedCounters) { physical =>
+        sum = (sum + read(physical)).toFloat
+        within += 1
+        if within == PairwiseBlockSize then
+          blocks(block) = sum
+          block += 1
+          within = 0
+          sum = 0.0f
+      }
+      if within > 0 then
+        blocks(block) = sum
+        block += 1
+      write(output, mergeFloatBlocks(blocks, block))
+    }
+
+  private inline def multiAxisPairwiseDouble(
+      plan: MultiReductionPlan,
+      inline read: Int => Double,
+      inline write: (Int, Double) => Unit
+  ): Unit =
+    val blockCount = pairwiseBlockCount(plan.reducedLength)
+    val blocks = doubleScratch(blockCount)
+    val reducedCounters = new Array[Int](plan.reducedShape.length)
+    foreachMultiAxisBase(plan) { (base, output) =>
+      var block = 0
+      var within = 0
+      var sum = 0.0
+      foreachReducedPhysical(plan, base, reducedCounters) { physical =>
+        sum += read(physical)
+        within += 1
+        if within == PairwiseBlockSize then
+          blocks(block) = sum
+          block += 1
+          within = 0
+          sum = 0.0
+      }
+      if within > 0 then
+        blocks(block) = sum
+        block += 1
+      write(output, mergeDoubleBlocks(blocks, block))
+    }
+
+  private inline def multiAxisPairwiseMeanFloat(
+      plan: MultiReductionPlan,
+      inline read: Int => Float,
+      inline write: (Int, Float) => Unit
+  ): Unit =
+    val blockCount = pairwiseBlockCount(plan.reducedLength)
+    val blocks = doubleScratch(blockCount)
+    val reducedCounters = new Array[Int](plan.reducedShape.length)
+    foreachMultiAxisBase(plan) { (base, output) =>
+      if plan.reducedLength == 0 then write(output, Float.NaN)
+      else
+        var block = 0
+        var within = 0
+        var sum = 0.0
+        foreachReducedPhysical(plan, base, reducedCounters) { physical =>
+          sum += read(physical).toDouble
+          within += 1
+          if within == PairwiseBlockSize then
+            blocks(block) = sum
+            block += 1
+            within = 0
+            sum = 0.0
+        }
+        if within > 0 then
+          blocks(block) = sum
+          block += 1
+        write(
+          output,
+          (mergeDoubleBlocks(blocks, block) / plan.reducedLength.toDouble).toFloat
+        )
+    }
+
+  private inline def multiAxisPairwiseMeanDouble(
+      plan: MultiReductionPlan,
+      inline read: Int => Double,
+      inline write: (Int, Double) => Unit
+  ): Unit =
+    val blockCount = pairwiseBlockCount(plan.reducedLength)
+    val blocks = doubleScratch(blockCount)
+    val reducedCounters = new Array[Int](plan.reducedShape.length)
+    foreachMultiAxisBase(plan) { (base, output) =>
+      if plan.reducedLength == 0 then write(output, Double.NaN)
+      else
+        var block = 0
+        var within = 0
+        var sum = 0.0
+        foreachReducedPhysical(plan, base, reducedCounters) { physical =>
+          sum += read(physical)
+          within += 1
+          if within == PairwiseBlockSize then
+            blocks(block) = sum
+            block += 1
+            within = 0
+            sum = 0.0
+        }
+        if within > 0 then
+          blocks(block) = sum
+          block += 1
+        write(output, mergeDoubleBlocks(blocks, block) / plan.reducedLength.toDouble)
+    }
+
+  private inline def foreachReducedPhysical(
+      plan: MultiReductionPlan,
+      base: Int,
+      counters: Array[Int]
+  )(inline body: Int => Unit): Unit =
+    java.util.Arrays.fill(counters, 0)
+    var physical = base
+    var visited = 0
+    while visited < plan.reducedLength do
+      body(physical)
+      visited += 1
+      if visited < plan.reducedLength then
+        var axis = plan.reducedShape.length - 1
+        var advanced = false
+        while axis >= 0 && !advanced do
+          if counters(axis) + 1 < plan.reducedShape(axis) then
+            counters(axis) += 1
+            physical += plan.reducedStrides(axis)
+            advanced = true
+          else
+            physical -= counters(axis) * plan.reducedStrides(axis)
+            counters(axis) = 0
+            axis -= 1
+
+  private inline def foreachMultiAxisBase(
+      plan: MultiReductionPlan
+  )(inline body: (Int, Int) => Unit): Unit =
+    if plan.outputSize > 0 then
+      if plan.outerShape.isEmpty then body(plan.source.offset, 0)
+      else
+        val counters = new Array[Int](plan.outerShape.length)
+        var base = plan.source.offset
+        var output = 0
+        while output < plan.outputSize do
+          body(base, output)
+          output += 1
+          if output < plan.outputSize then
+            var axis = plan.outerShape.length - 1
+            var advanced = false
+            while axis >= 0 && !advanced do
+              if counters(axis) + 1 < plan.outerShape(axis) then
+                counters(axis) += 1
+                base += plan.outerStrides(axis)
+                advanced = true
+              else
+                base -= counters(axis) * plan.outerStrides(axis)
+                counters(axis) = 0
+                axis -= 1
 
   private inline def axisFold[T](
       plan: ReductionPlan,
@@ -1278,7 +1554,7 @@ private[ravel] object ReductionKernels:
   ): Unit =
     val rows = plan.source.shape(0)
     val cols = plan.source.shape(1)
-    val blockCount = (rows + PairwiseBlockSize - 1) / PairwiseBlockSize
+    val blockCount = pairwiseBlockCount(rows)
     PlatformReduction.axis0PairwiseFloat(
       source,
       output,
@@ -1294,7 +1570,7 @@ private[ravel] object ReductionKernels:
   ): Unit =
     val rows = plan.source.shape(0)
     val cols = plan.source.shape(1)
-    val blockCount = (rows + PairwiseBlockSize - 1) / PairwiseBlockSize
+    val blockCount = pairwiseBlockCount(rows)
     PlatformReduction.axis0PairwiseDouble(
       source,
       output,
@@ -1312,7 +1588,7 @@ private[ravel] object ReductionKernels:
       if plan.axis == 0 then axis0PairwiseFloatRank2(plan, read, write)
       else axis1PairwiseFloatRank2(plan, read, write)
     else
-      val blockCount = (plan.reducedLength + PairwiseBlockSize - 1) / PairwiseBlockSize
+      val blockCount = pairwiseBlockCount(plan.reducedLength)
       val blocks = floatScratch(blockCount)
       foreachAxisBase(plan) { (base, out) =>
         fillFloatStridedBlocks(base, plan.reducedStride, plan.reducedLength, blocks, read)
@@ -1328,7 +1604,7 @@ private[ravel] object ReductionKernels:
       if plan.axis == 0 then axis0PairwiseDoubleRank2(plan, read, write)
       else axis1PairwiseDoubleRank2(plan, read, write)
     else
-      val blockCount = (plan.reducedLength + PairwiseBlockSize - 1) / PairwiseBlockSize
+      val blockCount = pairwiseBlockCount(plan.reducedLength)
       val blocks = doubleScratch(blockCount)
       foreachAxisBase(plan) { (base, out) =>
         fillDoubleStridedBlocks(base, plan.reducedStride, plan.reducedLength, blocks, read)
@@ -1352,7 +1628,7 @@ private[ravel] object ReductionKernels:
         write(col, 0.0)
         col += 1
     else
-      val blockCount = (rows + PairwiseBlockSize - 1) / PairwiseBlockSize
+      val blockCount = pairwiseBlockCount(rows)
       // Primary holds row-major block tiles (hot write path); secondary holds per-column merge vector.
       val blockValues = doubleScratch(blockCount * cols)
       val partials = doubleScratch2(cols)
@@ -1403,7 +1679,7 @@ private[ravel] object ReductionKernels:
     val rowStride = layout.strides(0)
     val colStride = layout.strides(1)
     val offset = layout.offset
-    val blockCount = (cols + PairwiseBlockSize - 1) / PairwiseBlockSize
+    val blockCount = pairwiseBlockCount(cols)
     val blocks = doubleScratch(blockCount)
     var row = 0
     while row < rows do
@@ -1430,7 +1706,7 @@ private[ravel] object ReductionKernels:
         write(col, 0.0f)
         col += 1
     else
-      val blockCount = (rows + PairwiseBlockSize - 1) / PairwiseBlockSize
+      val blockCount = pairwiseBlockCount(rows)
       val blockValues = floatScratch(blockCount * cols)
       val partials = floatScratch2(cols)
       var block = 0
@@ -1479,7 +1755,7 @@ private[ravel] object ReductionKernels:
     val rowStride = layout.strides(0)
     val colStride = layout.strides(1)
     val offset = layout.offset
-    val blockCount = (cols + PairwiseBlockSize - 1) / PairwiseBlockSize
+    val blockCount = pairwiseBlockCount(cols)
     val blocks = floatScratch(blockCount)
     var row = 0
     while row < rows do
@@ -1494,7 +1770,7 @@ private[ravel] object ReductionKernels:
       inline read: Int => Float,
       inline write: (Int, Float) => Unit
   ): Unit =
-    val blockCount = (plan.reducedLength + PairwiseBlockSize - 1) / PairwiseBlockSize
+    val blockCount = pairwiseBlockCount(plan.reducedLength)
     val blocks = doubleScratch(blockCount)
     foreachAxisBase(plan) { (base, out) =>
       if plan.reducedLength == 0 then write(out, Float.NaN)
@@ -1514,7 +1790,7 @@ private[ravel] object ReductionKernels:
       inline read: Int => Double,
       inline write: (Int, Double) => Unit
   ): Unit =
-    val blockCount = (plan.reducedLength + PairwiseBlockSize - 1) / PairwiseBlockSize
+    val blockCount = pairwiseBlockCount(plan.reducedLength)
     val blocks = doubleScratch(blockCount)
     foreachAxisBase(plan) { (base, out) =>
       if plan.reducedLength == 0 then write(out, Double.NaN)

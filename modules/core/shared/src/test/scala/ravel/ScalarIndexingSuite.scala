@@ -92,23 +92,23 @@ final class ScalarIndexingSuite extends FunSuite:
     assertEquals(broadcast(1, 2, 3, 4), 1030)
   }
 
-  test("rank-specific reads preserve wrong-rank and bounds failures") {
+  test("rank-specific reads preserve precise bounds failures") {
     val vector = NDArray.tabulate[Int](2)(identity)
     val matrix = NDArray.tabulate[Int](2, 3)((i, j) => i * 10 + j)
     val cube = NDArray.zeros[Int](2, 3, 4)
     val hypercube = NDArray.zeros[Int](2, 3, 4, 5)
     val empty = NDArray.zeros[Int](0)
 
-    assertSameFailure(vector(0, 0), vector.at(IArray(0, 0)))
-    assertSameFailure(matrix(0), matrix.at(IArray(0)))
-    assertSameFailure(cube(0, 0), cube.at(IArray(0, 0)))
-    assertSameFailure(hypercube(0, 0, 0), hypercube.at(IArray(0, 0, 0)))
     assertSameFailure(vector(2), vector.at(IArray(2)))
     assertSameFailure(matrix(2, 0), matrix.at(IArray(2, 0)))
     assertSameFailure(matrix(0, 3), matrix.at(IArray(0, 3)))
     assertSameFailure(cube(0, 0, 4), cube.at(IArray(0, 0, 4)))
     assertSameFailure(hypercube(0, 3, 0, 0), hypercube.at(IArray(0, 3, 0, 0)))
     assertSameFailure(empty(0), empty.at(IArray(0)))
+
+    val dynamic: AnyNDArray[Int] = matrix
+    val arity = intercept[InvalidIndex.ArityMismatch](dynamic.at(IArray(0)))
+    assertEquals(arity, InvalidIndex.ArityMismatch(2, 1))
   }
 
   test("negative element indices normalize like axes") {
@@ -156,13 +156,15 @@ final class ScalarIndexingSuite extends FunSuite:
     assertEquals(hypercube(1, 2, 3, 4), 666)
   }
 
-  test("rank-specific mutable updates preserve wrong-rank and bounds failures") {
-    val vector = NDArray.zeros[Int](2).mutableCopy
+  test("rank-specific mutable updates preserve precise bounds failures") {
     val matrix = NDArray.zeros[Int](2, 3).mutableCopy
 
-    assertSameFailure(vector(0, 0) = 1, vector.updateAt(IArray(0, 0), 1))
     assertSameFailure(matrix(2, 0) = 1, matrix.updateAt(IArray(2, 0), 1))
     assertSameFailure(matrix(0, 3) = 1, matrix.updateAt(IArray(0, 3), 1))
+
+    val dynamic = matrix.asInstanceOf[MutableNDArray[Int, AnyRank]]
+    val arity = intercept[InvalidIndex.ArityMismatch](dynamic.updateAt(IArray(0), 1))
+    assertEquals(arity, InvalidIndex.ArityMismatch(2, 1))
   }
 
   private def assertSameFailure(direct: => Any, generic: => Any): Unit =

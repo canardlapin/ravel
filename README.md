@@ -31,7 +31,7 @@ values. The subtraction broadcasts `columnMeans` across rows and returns a new
 owned array; it does not mutate `samples`.
 
 Ravel is not released yet. To run this example from another project, clone this
-repository and publish development snapshots locally:
+repository and publish the core development snapshots locally:
 
 ```sh
 sbt testAll
@@ -61,7 +61,7 @@ coordinate, not a public release.
 - Reuse mutable destinations and low-level kernels when measured code needs to
   control output allocation.
 
-Two narrower modules serve library authors:
+Two experimental source modules serve library authors:
 
 - `ravel-packed` stores one-, two-, or four-bit codes and performs wordwise
   set algebra over one-bit arrays. It is parallel to `NDArray`, not another
@@ -81,11 +81,14 @@ for executable workflows.
 | `ravel-core` | Dense arrays, views, computation, mutation, and platform interop | Ordinary entry point |
 | `ravel-packed` | Compact one-, two-, and four-bit codes | Independent packed representation |
 | `ravel-stencil` | Neighborhood traversal over `NDArray` values | Depends on `ravel-core` |
-| `ravel-laws` | Reusable MUnit and ScalaCheck laws for Ravel implementations | Test-support module depending on `ravel-core` |
+| `ravel-laws` | Incubating assertion helpers and two preliminary Discipline checks | Experimental test-support source depending on `ravel-core`; not yet a conformance kit |
 
 All four are cross-built for the JVM and Scala.js in the current source tree.
-Their names describe intended future artifacts; none is currently available
-from Maven Central.
+The 1.0 publication matrix contains only `ravel-core` for the JVM and
+Scala.js. `ravel-packed`, `ravel-stencil`, and `ravel-laws` remain unpublished
+experimental source modules until their contracts are ready for separate
+stabilization. In particular, the current `ravel-laws` constant properties do
+not carry a binary-compatibility or downstream conformance promise.
 
 ## Mental model
 

@@ -115,9 +115,7 @@ final class DirectNeighborhoodExecutorPerformanceSuite extends FunSuite:
     val nx = 192
     val ny = 128
     val source =
-      NDArray.tabulate[Boolean](nx, ny)((row, column) =>
-        (row + 3 * column) % 7 == 0
-      )
+      NDArray.tabulate[Boolean](nx, ny)((row, column) => (row + 3 * column) % 7 == 0)
     val destination =
       MutableNDArray.zeros[Boolean, Rank[2]](Shape(nx, ny))
     val spec =

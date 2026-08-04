@@ -387,8 +387,8 @@ private[ravel] object PolicyCastKernels:
 
   private def isIntegral[B](dtype: NumericDType[B]): Boolean =
     dtype.tag match
-      case DType.ByteTag | DType.UInt8Tag | DType.ShortTag |
-          DType.UInt16Tag | DType.IntTag | DType.LongTag =>
+      case DType.ByteTag | DType.UInt8Tag | DType.ShortTag | DType.UInt16Tag | DType.IntTag |
+          DType.LongTag =>
         true
       case _ =>
         false

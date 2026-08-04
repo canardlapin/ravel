@@ -2,6 +2,14 @@
 
 This page separates public guarantees from current implementation details.
 
+## 1.0 artifact boundary
+
+The 1.0 compatibility and publication promise applies only to `ravel-core`,
+cross-published for the JVM and Scala.js. `ravel-laws`, `ravel-packed`, and
+`ravel-stencil` remain tested, documented source modules, but their builds set
+`publish / skip := true`; a core 1.0 tag cannot publish them. Their APIs remain
+experimental and may stabilize later on an explicitly separate release line.
+
 ## Public guarantees
 
 - Shapes contain nonnegative `Int` dimensions. Size products, canonical
@@ -10,13 +18,31 @@ This page separates public guarantees from current implementation details.
 - A rank-zero shape contains one scalar. A shape with any zero dimension
   contains no elements.
 - Negative axes are accepted and normalized against the current rank.
+- Static ranks one through four expose only their matching coordinate arity;
+  rank-two arrays expose `transpose`. Dynamic rank uses `at`, `updateAt`, and
+  the checked `transpose2D` refinement. `RankMismatch` is pure error data, not
+  an exception.
+- Checked shape, slice, canonical-layout, exact-narrow, and axis-permutation
+  boundaries return `RavelError` values. Throwing view conveniences use typed
+  Ravel exceptions and never report a duplicate permutation or rank mismatch
+  as `InvalidAxis`.
 - Structural operations document whether they return a view or a copy.
   `reshapeView` never copies silently.
 - Owned arrays do not leak their mutable backing buffer.
 - Borrowed external storage remains visible as `BorrowedNDArray` through every
-  structural view.
+  structural view. Borrowed arrays expose `reshapeView` and `reshapeCopy`, but
+  no convenience `reshape` whose ownership would depend on layout.
 - Built-in numerical operations execute eagerly and allocate one contiguous
-  owned output.
+  owned output. Array-valued reductions allocate even when an empty axis list
+  leaves the logical values unchanged.
+- `Axes` normalizes and validates a multi-axis reduction once. Sum, product,
+  min, max, and mean plan the full axis set without sequential intermediates;
+  keep-dimensions variants replace every selected extent by one. Multi-axis arg
+  reductions are not part of the 1.0 contract.
+- Owned, borrowed, and mutable arrays may all be read operands. Reusable-output
+  kernels reject destination/input storage aliasing before mutation. Mutable
+  copying reshape paths allocate one output buffer rather than freezing into an
+  output-sized intermediate.
 - Generic callbacks execute once per logical output element in logical
   row-major order. Ravel does not fuse, reorder, or promise unboxed callback
   execution.
@@ -33,6 +59,9 @@ This page separates public guarantees from current implementation details.
   `Int` to `Long` and `Float` to `Double`.
 - Floating sum and mean use logical row-major blocks of 128 values and a fixed
   adjacent-pair merge schedule on both platforms.
+  Within a multi-axis output fiber, selected source axes are traversed in
+  ascending source-axis order with the final selected axis varying fastest;
+  caller axis order cannot change the result bits.
 - Empty sum is positive zero and empty product is one. Empty floating mean is
   NaN. Empty minimum, maximum, and arg reductions throw `EmptyReduction`.
 - NaNs propagate through minimum, maximum, sum, and mean. Arg reductions choose

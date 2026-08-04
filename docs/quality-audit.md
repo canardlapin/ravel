@@ -10,7 +10,8 @@ formatting, coverage diagnostics, and post-1.0 compatibility enforcement.
 ## Context and applicability
 
 Ravel is a pure, eager numerical library for Scala 3.7.4 on the JVM and
-Scala.js. It publishes `ravel-core` and `ravel-laws`. It has no effect API,
+Scala.js. The 1.0 matrix publishes only `ravel-core`; laws, packed, and stencil
+remain cross-tested experimental source modules. It has no effect API,
 provider registry, concurrent resource lifecycle, Scala Native target, or
 matrix algorithm, so Cats Effect laws, backend conformance, convergence tests,
 and Scala Native CI are not applicable.
@@ -23,7 +24,7 @@ become the required compatibility baseline for later 1.x releases.
 | Assurance dimension | Rating | Evidence | Gap or rationale |
 |---|---|---|---|
 | ScalaCheck use and generator quality | Strong | Four cross-platform properties run 250 cases each with one worker over zero, singleton, ordinary shapes, composed views, broadcasting, and mutable locality. Failures retain ScalaCheck seed and shrinking. | Add specialized overflow generators if the layout algebra expands. |
-| Reusable law-test module | Strong | `ravel-laws` cross-publishes public shape, layout, view, broadcast, dtype, cast, kernel, mutable, and interop laws without internal API access. | None for 1.0. |
+| Reusable law-test module | Experimental | `ravel-laws` contains useful public helpers, but its Discipline surface is not yet a generated downstream conformance kit. | Keep it unpublished for 1.0; parameterize real laws over a downstream adapter before stabilization. |
 | Test framework and Discipline integration | Strong | MUnit and MUnit-ScalaCheck run on both platforms. `RavelDiscipline` exposes a `RuleSet`, and the suite executes every property with deterministic single-worker parameters. | No standard typeclass hierarchy requires Cats law suites. |
 | Typeclass lawfulness and coherence | Strong | The closed dtype capability givens live in `DType`; compile tests reject unsupported arithmetic and rank evidence. Cast and identity behavior is tested. | The capabilities are closed witnesses, not user-extensible algebra instances. |
 | Backend or provider conformance | Not applicable | Ravel has one platform implementation per target and no public backend/provider registry. | Gale owns numerical backend selection. |
@@ -34,7 +35,7 @@ become the required compatibility baseline for later 1.x releases.
 | Work and allocation accounting | Strong | JMH separates setup, raw reusable-output loops, public allocating operations, and representative strided work. GC-normalized allocation and output size are recorded. | Node allocation is structurally inspected rather than reported as a stable byte counter. |
 | Compiler discipline | Strong | `-deprecation`, `-feature`, `-unchecked`, `-Wunused:all`, `-Wvalue-discard`, and `-Werror` apply to all projects. | None for the current compiler. |
 | Formatting and semantic rewrites | Present | `.scalafmt.conf`, `sbt fmtCheck`, and a CI formatting step. | Keep formatting-only failures separate from semantic failures. |
-| Binary and source compatibility | Scaffolded | MiMa enabled on `ravel-core` / `ravel-laws` with empty previous artifacts until Central `1.0.0`. | Point `mimaPreviousArtifacts` at published `1.0.0` before `1.0.1` / `1.1`. |
+| Binary and source compatibility | Scaffolded | MiMa covers the publishable `ravel-core` JVM and Scala.js artifacts with empty previous artifacts until Central `1.0.0`. | Point `mimaPreviousArtifacts` at published `1.0.0` before `1.0.1` / `1.1`. |
 | Coverage and mutation signal | Diagnostic | `sbt coverageReportJvm` with no fail threshold. | Review exclusions before adopting a minimum. |
 | Benchmark and performance evidence | Strong | JMH and optimized Node probes disclose fixtures, runtime versions, throughput, allocations, regression budgets, and the oversized-dispatcher failure. NumPy compute geomean budgets are recorded. | CI currently runs structural proof, not timing thresholds on a dedicated stable runner. |
 | Documentation and release evidence | Strong | Copy/view, ownership, casting, reduction, NumPy migration, Gale boundary, artifact POMs, local gates, remote CI, and performance evidence are versioned. POM verify script and release-engineering page landed. | Maven Central publication remains unverified until the signed release succeeds. |

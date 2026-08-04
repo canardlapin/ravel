@@ -9,8 +9,11 @@ changes only shape, strides, and offset. The exceptions are deliberately named:
 `Slice.reverse`) normalize endpoints against the axis length when applied.
 Negative element indices are accepted on indexing and `select`. Fully specified
 negative-step slices still treat stop `-1` as “before the first element”.
-`narrow` remains the strict exact-bounds operation. Scala `Range` is convenience
-syntax converted through checked exclusive-end arithmetic.
+`narrow(axis, from, length)` remains the strict exact-bounds operation. It
+normalizes a negative `from` as an element index, requires a nonnegative
+`length`, and rejects an interval that extends past the axis. A zero-length
+narrow may begin at the axis end. Scala `Range` is convenience syntax converted
+through checked exclusive-end arithmetic.
 
 All existing-axis APIs accept axes in `[-rank, rank)`. `newAxis` accepts
 insertion positions from `-(rank + 1)` through `rank`.

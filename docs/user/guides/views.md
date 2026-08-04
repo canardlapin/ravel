@@ -16,9 +16,10 @@ cube(1, 2, 3)
 cube(-1, -1, -1)
 ```
 
-Use `at(IArray(...))` when rank is dynamic or greater than four. Wrong arity,
-out-of-bounds coordinates, and invalid axes produce Ravel's typed exception
-classes rather than silently clipping.
+Use `at(IArray(...))` when rank is dynamic or greater than four. A wrong
+fixed-rank arity is rejected at compile time. Dynamic arity, out-of-bounds
+coordinates, and invalid axes produce Ravel's typed exception classes rather
+than silently clipping.
 
 ## Select and slice
 
@@ -36,7 +37,18 @@ reversed(0, 0, 0)
 
 Helpers include `Slice.all`, `from`, `until`, `between`, `every`, and
 `reverse`. Scala `Range` is accepted as convenience syntax. `narrow` is the
-strict exact-bounds operation.
+strict exact-bounds operation: negative starts are normalized as element
+indices, lengths must be nonnegative, and intervals never clip. A zero-length
+narrow may start at the axis end.
+
+```scala mdoc
+val lastColumn = plane.narrow(axis = -1, from = -1, length = 1)
+lastColumn.shape
+```
+
+When axis, start, or length comes from external input, `narrowChecked` returns
+a pure `InvalidNarrow` value. The throwing `narrow` convenience wraps the same
+value in `InvalidNarrowException`.
 
 ## Move and insert axes
 
@@ -50,6 +62,12 @@ batched.shape
 
 `swapAxes` and `permuteAxes` cover general reordering. Existing-axis APIs
 accept negative axes; `newAxis` accepts every insertion position.
+`permuteAxesChecked` distinguishes a wrong number of axes, an out-of-range
+axis, and a duplicate axis without throwing.
+
+`transpose` is available only when the static rank is two. Dynamic-rank code
+uses `transpose2D`, which returns `Either[RankMismatch, Array2[A]]` and never
+misreports a wrong rank as an axis failure.
 
 ## Reshape deliberately
 

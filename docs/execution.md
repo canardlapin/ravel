@@ -5,6 +5,12 @@ allocate one contiguous output. A compound expression such as `x * y + b`
 therefore may allocate an intermediate in 1.0. There is no expression graph,
 JIT, autodiff tape, or backend registry in `ravel-core`.
 
+Array-valued reductions follow the same rule. An `Axes` value plans every
+selected source axis in one pass; it does not create a sequential intermediate
+per axis. An empty axis set returns an owned logical-order copy rather than an
+identity alias. Multi-axis floating fibers use selected source axes in ascending
+source-axis order, regardless of the order supplied to `Axes.from`.
+
 Broadcasting aligns trailing axes. Equal dimensions remain unchanged; a
 dimension of one expands to the other dimension. In particular, dimensions
 zero and one produce zero. This is not implemented as `max(left, right)`.

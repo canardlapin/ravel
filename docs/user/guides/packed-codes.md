@@ -1,5 +1,8 @@
 # Store compact codes
 
+> `ravel-packed` is an experimental source module and is not part of the core
+> 1.0 artifact or compatibility promise.
+
 Use `ravel-packed` when every sample is a small non-negative code and an
 `NDArray[Byte]` would spend more storage than the values require. The module
 stores one-, two-, or four-bit codes in 32-bit words on both the JVM and

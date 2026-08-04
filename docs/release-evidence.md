@@ -3,6 +3,15 @@
 Evidence was collected on 2026-07-27 with Scala 3.7.4, Scala.js 1.22.0,
 sbt 1.11.7, Node 24.1.0, and OpenJDK 25.0.1.
 
+## Formatting restoration receipt
+
+On 2026-08-03, `sbt fmt` mechanically reformatted every source reported by the
+repository-wide gate across core, packed, stencil, JVM, and Scala.js source
+sets. `sbt fmtCheck` is the exact verification command and is required by both
+protected-branch CI and the tag workflow. This worktree is based on commit
+`d0f7bac`; record the final candidate commit here before tagging so the receipt
+does not confuse a base revision with the release candidate.
+
 ## Semantic and platform gates
 
 `sbt testAllFull` passed:
@@ -57,24 +66,22 @@ Gale pins `ravelVersion = "1.0.0-SNAPSHOT"` until the Central `1.0.0` release;
 
 ## Artifact scope
 
-The publishable artifacts are `ravel-core` and `ravel-laws` for JVM and
-Scala.js. The root, benchmarks, and browser-test projects have publishing
-disabled.
+The current enforced 1.0 matrix publishes only `ravel-core` for JVM and
+Scala.js. `ravel-laws`, `ravel-packed`, and `ravel-stencil` remain cross-tested
+source modules with publishing disabled. This supersedes the earlier candidate
+inspection in this document, which also treated `ravel-laws` as publishable.
 
 Generated POM inspection found:
 
 - `ravel-core` has only the Scala runtime and, on Scala.js, the Scala.js
   runtime as compile dependencies; test libraries remain test-scoped.
-- `ravel-laws` has compile dependencies on `ravel-core`, MUnit,
-  MUnit-ScalaCheck, and Discipline, as required for reusable law bundles.
 - Dependency eviction reports contain no conflicting Ravel runtime library.
   Scala.js selects the linker-compatible standard library supplied by
   Scala.js 1.22.0. MUnit-ScalaCheck selects ScalaCheck 1.19.0 over Discipline's
   older compatible declaration.
 
-The built JVM jars were about 392 KiB for `ravel-core` and 76 KiB for
-`ravel-laws`. The core jar contains no Gale, Breeze, storage-format, I/O,
-autodiff, GPU, or sparse-array package.
+The inspected core JVM jar was about 392 KiB. It contains no Gale, Breeze,
+storage-format, I/O, autodiff, GPU, or sparse-array package.
 
 ## Performance gate
 

@@ -2,8 +2,8 @@ package ravel.packed
 
 /** Closed family of supported sub-byte code widths.
   *
-  * Thirty-two is divisible by every member, so a code never straddles a word
-  * boundary and every read is one shift and one mask.
+  * Thirty-two is divisible by every member, so a code never straddles a word boundary and every
+  * read is one shift and one mask.
   */
 enum PackedBits(val bits: Int) derives CanEqual:
   case B1 extends PackedBits(1)

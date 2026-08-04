@@ -13,15 +13,11 @@ final class PackedPerformanceSuite extends FunSuite:
     val samples = 1 << 20
     val oneBit =
       packedRight(
-        PackedArray.tabulate(Vector(samples), PackedBits.B1)(index =>
-          (index * 5) % 7 & 1
-        )
+        PackedArray.tabulate(Vector(samples), PackedBits.B1)(index => (index * 5) % 7 & 1)
       )
     val fourBit =
       packedRight(
-        PackedArray.tabulate(Vector(samples), PackedBits.B4)(index =>
-          (index * 11) % 16
-        )
+        PackedArray.tabulate(Vector(samples), PackedBits.B4)(index => (index * 11) % 16)
       )
 
     Vector(("1-bit", oneBit), ("4-bit", fourBit)).foreach { (name, packed) =>
@@ -30,7 +26,9 @@ final class PackedPerformanceSuite extends FunSuite:
         retainedLong = packed.sumCodes
         warmup += 1
       val allocated =
-        Vector.fill(7)(allocatedBytes { retainedLong = packed.sumCodes }).sorted
+        Vector
+          .fill(7)(allocatedBytes { retainedLong = packed.sumCodes })
+          .sorted
           .apply(3)
 
       assert(
@@ -107,8 +105,7 @@ final class PackedPerformanceSuite extends FunSuite:
     val bean =
       ManagementFactory.getThreadMXBean match
         case value: ThreadMXBean if value.isThreadAllocatedMemorySupported =>
-          if !value.isThreadAllocatedMemoryEnabled then
-            value.setThreadAllocatedMemoryEnabled(true)
+          if !value.isThreadAllocatedMemoryEnabled then value.setThreadAllocatedMemoryEnabled(true)
           value
         case _ =>
           fail("thread allocation accounting is unavailable")
@@ -120,4 +117,4 @@ final class PackedPerformanceSuite extends FunSuite:
   private def packedRight[A](value: Either[PackedError, A]): A =
     value match
       case Right(result) => result
-      case Left(error)   => fail(error.message)
+      case Left(error) => fail(error.message)

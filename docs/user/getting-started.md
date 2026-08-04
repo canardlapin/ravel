@@ -8,8 +8,10 @@ sbt testAll
 sbt publishLocalSnapshot
 ```
 
-The second command publishes development-only `1.0.0-SNAPSHOT` artifacts to
-your local Ivy repository. Choose the smallest module that owns your task:
+The second command publishes development-only `ravel-core`
+`1.0.0-SNAPSHOT` artifacts to your local Ivy repository. The other source
+modules remain experimental and are deliberately not published under the core
+version. Choose the smallest source surface that owns your task:
 
 | Module | Use it for |
 |---|---|
@@ -17,6 +19,9 @@ your local Ivy repository. Choose the smallest module that owns your task:
 | `ravel-packed` | Compact one-, two-, and four-bit codes |
 | `ravel-stencil` | Neighborhood execution over core arrays |
 | `ravel-laws` | Reusable conformance laws in tests |
+
+Only `ravel-core` is in the 1.0 artifact matrix. The other rows describe APIs
+available when working from this repository.
 
 A separate Scala 3 project can then depend on the JVM core module:
 

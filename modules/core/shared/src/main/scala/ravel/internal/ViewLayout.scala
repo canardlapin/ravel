@@ -53,7 +53,7 @@ private[ravel] object ViewLayout:
       s"slice stride at axis $slicedAxis"
     )
     val offset =
-      if length == 0 then 0
+      if layout.size == 0 || length == 0 then 0
       else
         Layout.checkedInt(
           Layout.checkedAdd(
@@ -70,6 +70,31 @@ private[ravel] object ViewLayout:
     Layout.view(
       IArray.unsafeFromArray(shape),
       IArray.unsafeFromArray(strides),
+      offset,
+      bufferLength
+    )
+
+  def narrow(layout: Layout, plan: NarrowPlan, bufferLength: Int): Layout =
+    val shape = IArray.genericWrapArray(layout.shape).toArray
+    shape(plan.axis) = plan.length
+    val offset =
+      if layout.size == 0 || plan.length == 0 then 0
+      else
+        Layout.checkedInt(
+          Layout.checkedAdd(
+            layout.offset.toLong,
+            Layout.checkedMultiply(
+              plan.start.toLong,
+              layout.strides(plan.axis).toLong,
+              s"narrow offset at axis ${plan.axis}"
+            ),
+            s"narrow offset at axis ${plan.axis}"
+          ),
+          s"narrow offset at axis ${plan.axis}"
+        )
+    Layout.view(
+      IArray.unsafeFromArray(shape),
+      layout.strides,
       offset,
       bufferLength
     )
@@ -97,23 +122,14 @@ private[ravel] object ViewLayout:
         bufferLength
       )
 
-  def permute(layout: Layout, order: Seq[Int], bufferLength: Int): Layout =
-    if order.size != layout.rank then throw InvalidAxis(order.size, layout.rank)
-    val normalized = new Array[Int](layout.rank)
-    val seen = new Array[Boolean](layout.rank)
-    var i = 0
-    while i < layout.rank do
-      val axis = layout.normalizedAxis(order(i))
-      if seen(axis) then throw InvalidAxis(order(i), layout.rank)
-      normalized(i) = axis
-      seen(axis) = true
-      i += 1
+  def permute(layout: Layout, plan: PermutationPlan, bufferLength: Int): Layout =
     val shape = new Array[Int](layout.rank)
     val strides = new Array[Int](layout.rank)
-    i = 0
+    var i = 0
     while i < layout.rank do
-      shape(i) = layout.shape(normalized(i))
-      strides(i) = layout.strides(normalized(i))
+      val sourceAxis = plan.normalizedAxes(i)
+      shape(i) = layout.shape(sourceAxis)
+      strides(i) = layout.strides(sourceAxis)
       i += 1
     Layout.view(
       IArray.unsafeFromArray(shape),

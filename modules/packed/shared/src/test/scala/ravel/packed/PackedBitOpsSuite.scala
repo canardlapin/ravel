@@ -115,4 +115,4 @@ final class PackedBitOpsSuite extends FunSuite:
   private def packedRight[A](value: Either[PackedError, A]): A =
     value match
       case Right(result) => result
-      case Left(error)   => fail(error.message)
+      case Left(error) => fail(error.message)

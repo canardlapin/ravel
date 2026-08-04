@@ -1,5 +1,8 @@
 # Run neighborhood computations
 
+> `ravel-stencil` is an experimental source module and is not part of the core
+> 1.0 artifact or compatibility promise.
+
 Use `ravel-stencil` when a library needs to visit a fixed set of offsets around
 every destination sample. The module handles N-dimensional traversal, border
 mapping, strided Ravel views, and explicit output storage. It does not assign

@@ -3,9 +3,18 @@ package ravel.internal
 import ravel.*
 
 private[ravel] object KernelApi:
+  def copy[A, R <: AnyRank](source: ArraySource[A, R]): NDArray[A, R] =
+    val output = ProbeApi.allocate[A](source.size)(using source.dtype)
+    CopyKernels.logical(source.storage, source.layout, output)
+    new NDArray(
+      output,
+      Layout.contiguous(source.shape, source.size),
+      source.dtype
+    )
+
   def unary[A, R <: AnyRank](
       operation: Byte,
-      source: NDArray[A, R]
+      source: ArraySource[A, R]
   ): NDArray[A, R] =
     val plan = LoopPlan.unary(source.layout)
     val output = ProbeApi.allocate[A](source.size)(using source.dtype)
@@ -18,7 +27,7 @@ private[ravel] object KernelApi:
 
   def scalar[A, R <: AnyRank](
       operation: Byte,
-      source: NDArray[A, R],
+      source: ArraySource[A, R],
       value: A
   ): NDArray[A, R] =
     val plan = LoopPlan.unary(source.layout)
@@ -31,7 +40,7 @@ private[ravel] object KernelApi:
     )
 
   def clip[A, R <: AnyRank](
-      source: NDArray[A, R],
+      source: ArraySource[A, R],
       lower: A,
       upper: A
   ): NDArray[A, R] =
@@ -46,8 +55,8 @@ private[ravel] object KernelApi:
 
   def binary[A, RX <: AnyRank, RY <: AnyRank](
       operation: Byte,
-      left: NDArray[A, RX],
-      right: NDArray[A, RY]
+      left: ArraySource[A, RX],
+      right: ArraySource[A, RY]
   ): NDArray[A, BroadcastRank[RX, RY]] =
     if left.layout.isCContiguous &&
       right.layout.isCContiguous &&
@@ -84,8 +93,8 @@ private[ravel] object KernelApi:
 
   def compare[A, RX <: AnyRank, RY <: AnyRank](
       operation: Byte,
-      left: NDArray[A, RX],
-      right: NDArray[A, RY]
+      left: ArraySource[A, RX],
+      right: ArraySource[A, RY]
   ): NDArray[Boolean, BroadcastRank[RX, RY]] =
     val plan = LoopPlan.broadcast(left.layout, right.layout)
     val shape = Shape.validated[BroadcastRank[RX, RY]](plan.resultShape)
@@ -95,16 +104,16 @@ private[ravel] object KernelApi:
 
   def orderedCompareScalar[A, R <: AnyRank](
       operation: Byte,
-      source: NDArray[A, R],
+      source: ArraySource[A, R],
       value: A,
       scalarLeft: Boolean
   ): NDArray[Boolean, R] =
     val primitiveFloating =
       source.layout.isCContiguous &&
         (source.storage match
-          case _: FloatStorage  => true
+          case _: FloatStorage => true
           case _: DoubleStorage => true
-          case _                => false)
+          case _ => false)
     if primitiveFloating then
       val output = ProbeApi.allocate[Boolean](source.size)(using DType.booleanDType)
       ElementKernels.orderedCompareContiguousScalar(
@@ -130,7 +139,7 @@ private[ravel] object KernelApi:
 
   def floatingPredicate[A, R <: AnyRank](
       operation: Byte,
-      source: NDArray[A, R]
+      source: ArraySource[A, R]
   ): NDArray[Boolean, R] =
     val plan = LoopPlan.unary(source.layout)
     val output = ProbeApi.allocate[Boolean](source.size)(using DType.booleanDType)
@@ -142,7 +151,7 @@ private[ravel] object KernelApi:
     )
 
   def map[A, B, R <: AnyRank](
-      source: NDArray[A, R],
+      source: ArraySource[A, R],
       f: A => B
   )(using target: DType[B]): NDArray[B, R] =
     val output = ProbeApi.allocate[B](source.size)
@@ -168,8 +177,8 @@ private[ravel] object KernelApi:
     )
 
   def zipMap[A, B, RX <: AnyRank, RY <: AnyRank](
-      left: NDArray[A, RX],
-      right: NDArray[A, RY],
+      left: ArraySource[A, RX],
+      right: ArraySource[A, RY],
       exact: Boolean,
       f: (A, A) => B
   )(using target: DType[B]): NDArray[B, BroadcastRank[RX, RY]] =

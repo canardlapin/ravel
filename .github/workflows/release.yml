@@ -23,9 +23,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Verify JVM, Node, laws, browser, and optimized links
-        run: sbt testAllFull representationProof
-      - name: Publish signed artifacts to Maven Central
+      - name: Verify core-only publication matrix and all source modules
+        run: sbt fmtCheck verifyCoreReleaseMatrix testAllFull representationProof
+      - name: Publish signed ravel-core artifacts to Maven Central
         run: sbt ci-release
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}

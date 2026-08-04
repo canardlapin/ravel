@@ -18,18 +18,16 @@ final class NDArray[A, +R <: AnyRank] private[ravel] (
   def isCanonicalLayout: Boolean = layout.isCanonicalLayout
   def isWholeBuffer: Boolean = layout.isWholeBuffer(storage.length)
 
-  private[ravel] def toNDArray: NDArray[A, R] = this
-
-  inline def apply(i: Int): A =
+  inline def apply(i: Int)(using R <:< Rank[1]): A =
     readPrimitive(physicalIndex1(i))
 
-  inline def apply(i: Int, j: Int): A =
+  inline def apply(i: Int, j: Int)(using R <:< Rank[2]): A =
     readPrimitive(physicalIndex2(i, j))
 
-  inline def apply(i: Int, j: Int, k: Int): A =
+  inline def apply(i: Int, j: Int, k: Int)(using R <:< Rank[3]): A =
     readPrimitive(physicalIndex3(i, j, k))
 
-  inline def apply(i: Int, j: Int, k: Int, l: Int): A =
+  inline def apply(i: Int, j: Int, k: Int, l: Int)(using R <:< Rank[4]): A =
     readPrimitive(physicalIndex4(i, j, k, l))
 
   def at(indices: IArray[Int]): A =
@@ -104,16 +102,33 @@ final class NDArray[A, +R <: AnyRank] private[ravel] (
     )
 
   def slice(axis: Int, range: Range): NDArray[A, R] =
-    val slice = Slice.from(range).fold(throw _, identity)
+    val slice = Slice
+      .from(range)
+      .fold(
+        error => throw InvalidSlice(error.reason),
+        identity
+      )
     this.slice(axis, slice)
 
+  /** Checked exact, non-clipping narrow with negative-start normalization. */
+  def narrowChecked(
+      axis: Int,
+      from: Int,
+      length: Int
+  ): Either[InvalidNarrow, NDArray[A, R]] =
+    NarrowPlan.from(layout.shape, axis, from, length).map { plan =>
+      new NDArray[A, R](
+        storage,
+        ViewLayout.narrow(layout, plan, storage.length),
+        dtype
+      )
+    }
+
   def narrow(axis: Int, from: Int, length: Int): NDArray[A, R] =
-    if length < 0 then throw InvalidSlice(s"negative narrow length $length")
-    val stop = Layout.checkedInt(
-      Layout.checkedAdd(from.toLong, length.toLong, "narrow endpoint"),
-      "narrow endpoint"
+    narrowChecked(axis, from, length).fold(
+      error => throw InvalidNarrowException(error),
+      identity
     )
-    slice(axis, Slice(from, stop, 1))
 
   def reverse(axis: Int): NDArray[A, R] =
     new NDArray[A, R](
@@ -131,16 +146,29 @@ final class NDArray[A, +R <: AnyRank] private[ravel] (
     order(right) = temporary
     permuteAxes(order.toSeq*)
 
+  /** Checked rank-preserving axis permutation. */
+  def permuteAxesChecked(order: Int*): Either[PermutationError, NDArray[A, R]] =
+    PermutationPlan.from(rank, order).map { plan =>
+      new NDArray[A, R](
+        storage,
+        ViewLayout.permute(layout, plan, storage.length),
+        dtype
+      )
+    }
+
   def permuteAxes(order: Int*): NDArray[A, R] =
-    new NDArray[A, R](
-      storage,
-      ViewLayout.permute(layout, order, storage.length),
-      dtype
+    permuteAxesChecked(order*).fold(
+      error => throw InvalidPermutationException(error),
+      identity
     )
 
-  def transpose: NDArray[A, R] =
-    if rank != 2 then throw InvalidAxis(2, rank)
-    swapAxes(0, 1)
+  def transpose(using R <:< Rank[2]): NDArray[A, Rank[2]] =
+    swapAxes(0, 1).asInstanceOf[NDArray[A, Rank[2]]]
+
+  /** Checked rank-two transpose for arrays whose rank is not statically refined. */
+  def transpose2D: Either[RankMismatch, NDArray[A, Rank[2]]] =
+    if rank == 2 then Right(swapAxes(0, 1).asInstanceOf[NDArray[A, Rank[2]]])
+    else Left(RankMismatch(2, rank))
 
   /** Single element when `size == 1`; otherwise throws [[InvalidShape]]. */
   def item: A =
@@ -286,10 +314,10 @@ final class NDArray[A, +R <: AnyRank] private[ravel] (
       }
 
   def sameElements(other: ReadableArray[A, ?]): Boolean =
-    EqualityApi.sameElements(this, other.toNDArray)
+    EqualityApi.sameElements(this, other)
 
   def sameElementsBits(other: ReadableArray[A, ?]): Boolean =
-    EqualityApi.sameElementsBits(this, other.toNDArray)
+    EqualityApi.sameElementsBits(this, other)
 
   override def toString: String =
     val builder = new StringBuilder

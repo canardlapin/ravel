@@ -9,7 +9,7 @@ final class MutableNDArray[A, R <: AnyRank] private[ravel] (
     private[ravel] val storage: Storage[A],
     private[ravel] val mutableLayout: MutableLayout,
     val dtype: DType[A]
-):
+) extends ReadableArray[A, R]:
   private[ravel] def layout: Layout = mutableLayout.underlying
 
   val shape: Shape[R] =
@@ -21,35 +21,43 @@ final class MutableNDArray[A, R <: AnyRank] private[ravel] (
   def isCanonicalLayout: Boolean = layout.isCanonicalLayout
   def isWholeBuffer: Boolean = layout.isWholeBuffer(storage.length)
 
-  inline def apply(i: Int): A =
+  inline def apply(i: Int)(using R <:< Rank[1]): A =
     readPrimitive(physicalIndex1(i))
 
-  inline def apply(i: Int, j: Int): A =
+  inline def apply(i: Int, j: Int)(using R <:< Rank[2]): A =
     readPrimitive(physicalIndex2(i, j))
 
-  inline def apply(i: Int, j: Int, k: Int): A =
+  inline def apply(i: Int, j: Int, k: Int)(using R <:< Rank[3]): A =
     readPrimitive(physicalIndex3(i, j, k))
 
-  inline def apply(i: Int, j: Int, k: Int, l: Int): A =
+  inline def apply(i: Int, j: Int, k: Int, l: Int)(using R <:< Rank[4]): A =
     readPrimitive(physicalIndex4(i, j, k, l))
 
   def at(indices: IArray[Int]): A =
     ProbeApi.get(storage, layout.physicalIndex(indices))
 
-  inline def update(i: Int, value: A): Unit =
+  inline def update(i: Int, value: A)(using R <:< Rank[1]): Unit =
     writePrimitive(physicalIndex1(i), value)
 
-  inline def update(i: Int, j: Int, value: A): Unit =
+  inline def update(i: Int, j: Int, value: A)(using R <:< Rank[2]): Unit =
     writePrimitive(physicalIndex2(i, j), value)
 
-  inline def update(i: Int, j: Int, k: Int, value: A): Unit =
+  inline def update(i: Int, j: Int, k: Int, value: A)(using R <:< Rank[3]): Unit =
     writePrimitive(physicalIndex3(i, j, k), value)
 
-  inline def update(i: Int, j: Int, k: Int, l: Int, value: A): Unit =
+  inline def update(i: Int, j: Int, k: Int, l: Int, value: A)(using
+      R <:< Rank[4]
+  ): Unit =
     writePrimitive(physicalIndex4(i, j, k, l), value)
 
   def updateAt(indices: IArray[Int], value: A): Unit =
     ProbeApi.set(storage, layout.physicalIndex(indices), value)
+
+  def requireRank[N <: Int](using
+      expected: ValueOf[N]
+  ): Either[RankMismatch, MutableNDArray[A, Rank[N]]] =
+    if rank == expected.value then Right(this.asInstanceOf[MutableNDArray[A, Rank[N]]])
+    else Left(RankMismatch(expected.value, rank))
 
   private inline def readPrimitive(index: Int): A =
     // This match is reduced at the Scala call site. Each cast is guarded by its exact primitive
@@ -151,13 +159,32 @@ final class MutableNDArray[A, R <: AnyRank] private[ravel] (
   @publicInBinary private[ravel] def writeDouble(index: Int, value: Double): Unit =
     ProbeApi.setDouble(storage.asInstanceOf[Storage[Double]], index, value)
 
+  def cast[B](using source: NumericDType[A], target: NumericDType[B]): NDArray[B, R] =
+    val output = ProbeApi.allocate[B](size)(using target)
+    CastKernels.convert(storage, layout, output, source, target)
+    new NDArray(output, Layout.contiguous(shape, size), target)
+
+  def convert[B](
+      policy: ConversionPolicy = ConversionPolicy()
+  )(using
+      source: NumericDType[A],
+      target: NumericDType[B]
+  ): Either[ConversionError, NDArray[B, R]] =
+    PolicyCastKernels
+      .convert(storage, layout, source, target, policy)
+      .map { output =>
+        new NDArray(output, Layout.contiguous(shape, size), target)
+      }
+
   def fill(value: A): Unit =
     if layout.isCContiguous && layout.offset == 0 && layout.size == storage.length then
       ProbeApi.fill(storage, value)
     else layout.foreachPhysicalIndex(index => ProbeApi.set(storage, index, value))
 
-  def assign(source: NDArray[A, ?]): Unit =
+  def assign(source: ReadableArray[A, ?]): Unit =
     MutableNDArray.requireSameShape(layout.shape, source.layout.shape)
+    if storage.asInstanceOf[AnyRef] eq source.storage.asInstanceOf[AnyRef] then
+      throw new IllegalArgumentException("mutable assignment source must not alias destination")
     MutableKernels.assign(source.storage, source.layout, storage, layout)
 
   def addInPlace(value: A)(using
@@ -202,16 +229,33 @@ final class MutableNDArray[A, R <: AnyRank] private[ravel] (
     )
 
   def slice(axis: Int, range: Range): MutableNDArray[A, R] =
-    val canonical = Slice.from(range).fold(throw _, identity)
+    val canonical = Slice
+      .from(range)
+      .fold(
+        error => throw InvalidSlice(error.reason),
+        identity
+      )
     slice(axis, canonical)
 
+  /** Checked exact, non-clipping narrow with negative-start normalization. */
+  def narrowChecked(
+      axis: Int,
+      from: Int,
+      length: Int
+  ): Either[InvalidNarrow, MutableNDArray[A, R]] =
+    NarrowPlan.from(layout.shape, axis, from, length).map { plan =>
+      new MutableNDArray[A, R](
+        storage,
+        MutableLayout.narrow(mutableLayout, plan, storage.length),
+        dtype
+      )
+    }
+
   def narrow(axis: Int, from: Int, length: Int): MutableNDArray[A, R] =
-    if length < 0 then throw InvalidSlice(s"negative narrow length $length")
-    val stop = Layout.checkedInt(
-      Layout.checkedAdd(from.toLong, length.toLong, "mutable narrow endpoint"),
-      "mutable narrow endpoint"
+    narrowChecked(axis, from, length).fold(
+      error => throw InvalidNarrowException(error),
+      identity
     )
-    slice(axis, Slice(from, stop))
 
   def reverse(axis: Int): MutableNDArray[A, R] =
     new MutableNDArray(
@@ -229,16 +273,31 @@ final class MutableNDArray[A, R <: AnyRank] private[ravel] (
     order(right) = temporary
     permuteAxes(order.toSeq*)
 
+  /** Checked rank-preserving axis permutation. */
+  def permuteAxesChecked(
+      order: Int*
+  ): Either[PermutationError, MutableNDArray[A, R]] =
+    PermutationPlan.from(rank, order).map { plan =>
+      new MutableNDArray(
+        storage,
+        MutableLayout.permute(mutableLayout, plan, storage.length),
+        dtype
+      )
+    }
+
   def permuteAxes(order: Int*): MutableNDArray[A, R] =
-    new MutableNDArray(
-      storage,
-      MutableLayout.permute(mutableLayout, order, storage.length),
-      dtype
+    permuteAxesChecked(order*).fold(
+      error => throw InvalidPermutationException(error),
+      identity
     )
 
-  def transpose: MutableNDArray[A, R] =
-    if rank != 2 then throw InvalidAxis(2, rank)
-    swapAxes(0, 1)
+  def transpose(using R <:< Rank[2]): MutableNDArray[A, Rank[2]] =
+    swapAxes(0, 1).asInstanceOf[MutableNDArray[A, Rank[2]]]
+
+  /** Checked rank-two transpose for arrays whose rank is not statically refined. */
+  def transpose2D: Either[RankMismatch, MutableNDArray[A, Rank[2]]] =
+    if rank == 2 then Right(swapAxes(0, 1).asInstanceOf[MutableNDArray[A, Rank[2]]])
+    else Left(RankMismatch(2, rank))
 
   def newAxis(axis: Int): MutableNDArray[A, AddAxis[R]] =
     new MutableNDArray(
@@ -267,20 +326,21 @@ final class MutableNDArray[A, R <: AnyRank] private[ravel] (
 
   def reshape[S <: AnyRank](target: Shape[S]): MutableNDArray[A, S] =
     try reshapeView(target)
-    catch
-      case _: NonContiguousLayout =>
-        val owned = freezeCopy().reshapeCopy(target)
-        new MutableNDArray(
-          owned.storage,
-          MutableLayout.owned(owned.shape, owned.size),
-          dtype
-        )
+    catch case _: NonContiguousLayout => materializeReshape(target)
 
   def reshapeCopy[S <: AnyRank](target: Shape[S]): MutableNDArray[A, S] =
-    val owned = freezeCopy().reshapeCopy(target)
+    materializeReshape(target)
+
+  private def materializeReshape[S <: AnyRank](target: Shape[S]): MutableNDArray[A, S] =
+    if target.size != size then
+      throw InvalidShape(
+        s"cannot reshape mutable array of size $size into shape $target"
+      )
+    val output = ProbeApi.allocate[A](size)(using dtype)
+    CopyKernels.logical(storage, layout, output)
     new MutableNDArray(
-      owned.storage,
-      MutableLayout.owned(owned.shape, owned.size),
+      output,
+      MutableLayout.owned(target, target.size),
       dtype
     )
 

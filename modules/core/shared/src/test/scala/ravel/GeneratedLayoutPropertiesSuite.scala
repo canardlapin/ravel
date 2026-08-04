@@ -15,6 +15,42 @@ final class GeneratedLayoutPropertiesSuite extends ScalaCheckSuite:
   private val smallDimension = Gen.choose(0, 8)
   private val nonemptyDimension = Gen.choose(1, 8)
 
+  private enum ViewOperation:
+    case ReverseRows, ReverseColumns, Transpose
+
+  private final case class MatrixModel(rows: Int, columns: Int, values: Vector[Int]):
+    def reverseRows: MatrixModel =
+      transform(rows, columns)((row, column) => (rows - 1 - row, column))
+
+    def reverseColumns: MatrixModel =
+      transform(rows, columns)((row, column) => (row, columns - 1 - column))
+
+    def transpose: MatrixModel =
+      transform(columns, rows)((row, column) => (column, row))
+
+    private def transform(
+        targetRows: Int,
+        targetColumns: Int
+    )(sourceCoordinate: (Int, Int) => (Int, Int)): MatrixModel =
+      val transformed = Vector.tabulate(targetRows * targetColumns) { linearIndex =>
+        val row = linearIndex / targetColumns
+        val column = linearIndex % targetColumns
+        val (sourceRow, sourceColumn) = sourceCoordinate(row, column)
+        values(sourceRow * columns + sourceColumn)
+      }
+      MatrixModel(targetRows, targetColumns, transformed)
+
+  private val narrowScenario =
+    for
+      rows <- nonemptyDimension
+      columns <- nonemptyDimension
+      start <- Gen.choose(0, columns)
+      length <- Gen.choose(0, columns - start)
+      useNegativeStart <- Gen.oneOf(true, false)
+      operationCount <- Gen.choose(0, 8)
+      operations <- Gen.listOfN(operationCount, Gen.oneOf(ViewOperation.values.toSeq))
+    yield (rows, columns, start, length, useNegativeStart, operations)
+
   property("generated shapes preserve checked rank and product") {
     val dimensions =
       Gen.choose(0, 5).flatMap(rank => Gen.listOfN(rank, smallDimension))
@@ -42,6 +78,40 @@ final class GeneratedLayoutPropertiesSuite extends ScalaCheckSuite:
           (0 until rows by step).map(row => row * 100 + column)
         }.toList
       actual == expected
+    }
+  }
+
+  property("generated narrow and composed views match an exact coordinate model") {
+    forAll(narrowScenario) { case (rows, columns, start, length, useNegativeStart, operations) =>
+      val source =
+        NDArray.tabulate[Int](rows, columns)((row, column) => row * 100 + column)
+      val encodedStart =
+        if useNegativeStart && start < columns then start - columns else start
+      var actual: Array2[Int] = source.narrow(-1, encodedStart, length)
+      var model = MatrixModel(
+        rows,
+        length,
+        Vector.tabulate(rows * length) { linearIndex =>
+          val row = linearIndex / length
+          val column = linearIndex % length
+          row * 100 + start + column
+        }
+      )
+
+      operations.foreach {
+        case ViewOperation.ReverseRows =>
+          actual = actual.reverse(0)
+          model = model.reverseRows
+        case ViewOperation.ReverseColumns =>
+          actual = actual.reverse(1)
+          model = model.reverseColumns
+        case ViewOperation.Transpose =>
+          actual = actual.transpose
+          model = model.transpose
+      }
+
+      actual.shape == Shape(model.rows, model.columns) &&
+      actual.elementsIterator.toVector == model.values
     }
   }
 

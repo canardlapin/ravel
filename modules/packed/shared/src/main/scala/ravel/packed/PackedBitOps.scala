@@ -2,9 +2,9 @@ package ravel.packed
 
 /** Wordwise set algebra over one-bit packed arrays.
   *
-  * Every operation processes thirty-two samples per instruction and never
-  * expands codes to `Boolean` values. Inputs are canonicalized on entry if
-  * they are views; canonical inputs are combined without any per-sample work.
+  * Every operation processes thirty-two samples per instruction and never expands codes to
+  * `Boolean` values. Inputs are canonicalized on entry if they are views; canonical inputs are
+  * combined without any per-sample work.
   */
 object PackedBitOps:
   def union(
@@ -58,10 +58,8 @@ object PackedBitOps:
       left: PackedArray,
       right: PackedArray
   )(op: (Int, Int) => Int): Either[PackedError, PackedArray] =
-    if left.bits != right.bits then
-      Left(PackedError.BitsMismatch(left.bits, right.bits))
-    else if left.shape != right.shape then
-      Left(PackedError.ShapeMismatch(left.shape, right.shape))
+    if left.bits != right.bits then Left(PackedError.BitsMismatch(left.bits, right.bits))
+    else if left.shape != right.shape then Left(PackedError.ShapeMismatch(left.shape, right.shape))
     else
       for
         leftCanonical <- requireOneBit(left)
@@ -84,8 +82,7 @@ object PackedBitOps:
 
   private def zeroTail(words: Array[Int], samples: Int): Unit =
     val tail = samples & 31
-    if tail != 0 then
-      words(words.length - 1) &= ~(-1 << tail)
+    if tail != 0 then words(words.length - 1) &= ~(-1 << tail)
 
   private def fromCanonicalWords(
       shape: Vector[Int],

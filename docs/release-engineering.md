@@ -19,8 +19,8 @@ semantic failures.
 
 ## Binary compatibility
 
-`sbt-mima-plugin` is enabled on `ravel-core` and `ravel-laws`. Until a first
-tagged Central release exists, `mimaPreviousArtifacts` is empty and
+The 1.0 compatibility gate covers only `ravel-core`. Until a first tagged
+Central release exists, `mimaPreviousArtifacts` is empty and
 `mimaFailOnNoPrevious` is false, so `sbt mimaCheck` is a no-op scaffolding
 gate.
 
@@ -47,10 +47,14 @@ sbt verifyPublishArtifacts
 bash scripts/verify-publish-artifacts.sh
 ```
 
-The script checks that generated POMs use `io.github.canardlapin`, the
-`ravel-core` / `ravel-laws` artifact ids (JVM and `_sjs1`), Apache-2.0
-metadata, and that `ravel-core` does not compile-depend on MUnit or ship Gale
-packages.
+The build first verifies that only `ravel-core` is publishable, then generates
+its JVM and `_sjs1` POMs. The script checks the `io.github.canardlapin`
+coordinates, Apache-2.0 metadata, and that core does not compile-depend on
+MUnit or ship Gale packages. `ravel-laws`, `ravel-packed`, and
+`ravel-stencil` have `publish / skip := true` and are not 1.0 artifacts.
+The current laws helpers remain cross-tested source code, but their two
+constant Discipline properties are not presented as a downstream conformance
+kit and receive no MiMa baseline.
 
 For sibling Gale verification against local snapshots:
 
@@ -60,8 +64,9 @@ sbt publishLocalSnapshot
 sbt interopRavelTest
 ```
 
-`publishLocalSnapshot` forces `1.0.0-SNAPSHOT`, matching Gale's current
-`ravelVersion`.
+`publishLocalSnapshot` forces `1.0.0-SNAPSHOT` for core only, matching Gale's
+current `ravelVersion`. It cannot publish experimental modules under that
+version.
 
 ## Combined local gate
 

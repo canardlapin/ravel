@@ -11,7 +11,7 @@ Dynamic shapes and rank refinement return their error values:
 ```scala mdoc:silent
 import ravel.*
 
-val shapeResult: Either[InvalidShape, Shape[AnyRank]] =
+val shapeResult: Either[ShapeError, Shape[AnyRank]] =
   Shape.from(Seq(2, -1))
 
 val dynamic: AnyNDArray[Double] = NDArray.zeros[Double](2, 3)
@@ -44,6 +44,23 @@ truncation and clamping before narrow integer conversion—is the intended
 contract. Use `convert` when rounding and overflow policy are part of the
 scientific meaning.
 
+Checked failures extend `RavelError`, not `Throwable`. They are ordinary
+values: `ShapeError`, `SliceError`, `RankMismatch`, `CanonicalLayoutError`,
+`InvalidNarrow`, and the `PermutationError` cases. A failed checked constructor
+or refinement therefore carries no exception stack trace. `Axes.from` likewise
+returns `InvalidReductionAxis` or `DuplicateReductionAxis` as pure `AxesError`
+data.
+
+```scala mdoc:silent
+val line = NDArray.tabulate[Int](5)(identity)
+val narrowed: Either[InvalidNarrow, Array1[Int]] =
+  line.narrowChecked(axis = 0, from = -1, length = 1)
+
+val plane = NDArray.zeros[Int](2, 3)
+val permuted: Either[PermutationError, Array2[Int]] =
+  plane.permuteAxesChecked(1, 0)
+```
+
 ## Recognize thrown core failures
 
 | Failure | Typical cause | Recovery |
@@ -52,16 +69,20 @@ scientific meaning.
 | `ShapeMismatch` | wrong constructor value count or exact-shape operation | compare shapes and required element counts |
 | `BroadcastMismatch` | trailing dimensions are neither equal nor `1` | insert an axis or reshape the intended operand |
 | `InvalidAxis` | axis is outside the rank after negative-axis normalization | inspect `rank`; use axes in `[-rank, rank)` |
-| `InvalidIndex` | wrong index arity or coordinate outside an axis | use fixed-rank `apply` or supply exactly `rank` dynamic indices |
+| `InvalidIndex` | dynamic index arity or a coordinate is outside an axis | use the matching fixed-rank `apply`, or supply exactly `rank` indices to `at` / `updateAt` |
 | `InvalidSlice` | zero step or a resolved endpoint outside the axis | use `Slice` helpers or `narrow` for strict ranges |
+| `InvalidNarrowException` | throwing `narrow` received an invalid axis, start, or length | use `narrowChecked` and inspect its `InvalidNarrow` value |
+| `InvalidPermutationException` | throwing `permuteAxes` received the wrong arity, an invalid axis, or a duplicate | use `permuteAxesChecked` and inspect its precise `PermutationError` value |
+| `InvalidAxesException` | a reduction varargs call has an invalid/duplicate axis, or an `Axes` value belongs to another rank | construct `Axes.from` at the input boundary and handle `AxesError` |
 | `NonContiguousLayout` | `reshapeView` would require data movement | choose `reshape` or `reshapeCopy` explicitly |
 | `EmptyReduction` | min, max, or arg reduction over an empty domain | handle emptiness before reducing |
 | `BuilderClosed` | retained `ArrayBuilder` used after its callback | keep all writes inside `NDArray.build` |
 
-These classes extend `IllegalArgumentException` except `BuilderClosed`, which
-extends `IllegalStateException`. Catch a specific Ravel type only when the
-caller can make a specific recovery; otherwise prevent the invalid operation at
-the boundary.
+These throwing classes extend `IllegalArgumentException` except `BuilderClosed`,
+which extends `IllegalStateException`. Catch a specific Ravel exception only
+when the caller can make a specific recovery; otherwise use the checked API at
+the boundary. `InvalidNarrowException.error` and
+`InvalidPermutationException.error` preserve the exact pure validation value.
 
 ## Account for module-specific failures
 

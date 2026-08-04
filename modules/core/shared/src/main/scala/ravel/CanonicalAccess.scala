@@ -16,11 +16,11 @@ opaque type CanonicalArray[A, R <: AnyRank] <: NDArray[A, R] =
 object CanonicalArray:
   def from[A, R <: AnyRank](
       array: NDArray[A, R]
-  ): Either[NonContiguousLayout, CanonicalArray[A, R]] =
+  ): Either[CanonicalLayoutError, CanonicalArray[A, R]] =
     if array.isCanonicalLayout && array.isWholeBuffer then Right(array)
     else
       Left(
-        NonContiguousLayout(
+        CanonicalLayoutError(
           "canonical linear access requires a whole canonical array"
         )
       )
@@ -37,7 +37,7 @@ object CanonicalArray:
   extension [A, R <: AnyRank](array: CanonicalArray[A, R])
     /** Read a logical C-order linear index in `[0, size)`.
       *
-      * Ordinary `apply` overloads remain coordinate access inherited from [[NDArray]], including
+      * Fixed-rank `apply` overloads remain coordinate access inherited from [[NDArray]], including
       * negative element-index normalization.
       */
     inline def readLinear(index: Int): A =
@@ -165,11 +165,11 @@ opaque type MutableCanonicalArray[A, R <: AnyRank] <: MutableNDArray[A, R] =
 object MutableCanonicalArray:
   def from[A, R <: AnyRank](
       array: MutableNDArray[A, R]
-  ): Either[NonContiguousLayout, MutableCanonicalArray[A, R]] =
+  ): Either[CanonicalLayoutError, MutableCanonicalArray[A, R]] =
     if array.isCanonicalLayout && array.isWholeBuffer then Right(array)
     else
       Left(
-        NonContiguousLayout(
+        CanonicalLayoutError(
           "canonical linear access requires a whole canonical mutable array"
         )
       )
@@ -188,7 +188,7 @@ object MutableCanonicalArray:
   )
     /** Read a logical C-order linear index in `[0, size)`.
       *
-      * Ordinary `apply` overloads remain coordinate access inherited from [[MutableNDArray]],
+      * Fixed-rank `apply` overloads remain coordinate access inherited from [[MutableNDArray]],
       * including negative element-index normalization.
       */
     inline def readLinear(index: Int): A =

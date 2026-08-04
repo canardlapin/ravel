@@ -42,7 +42,7 @@ ThisBuild / Test / parallelExecution := false
 ThisBuild / tlSitePublishBranch := None
 
 // MiMa: no previous artifact until 1.0.0 is published to Central.
-// After that release, set previous to "1.0.0" (and later 1.x releases) on core/laws.
+// After that release, set previous to "1.0.0" (and later 1.x releases) on core only.
 ThisBuild / mimaFailOnNoPrevious := false
 
 lazy val commonSettings = Seq(
@@ -53,8 +53,15 @@ lazy val commonSettings = Seq(
   )
 )
 
-lazy val publishableSettings = Seq(
+lazy val coreReleaseSettings = Seq(
+  publish / skip := false,
   mimaPreviousArtifacts := Set.empty
+)
+
+// These modules remain source-visible and cross-tested, but they are not part
+// of the ravel-core 1.0 compatibility or publication promise.
+lazy val experimentalModuleSettings = Seq(
+  publish / skip := true
 )
 
 lazy val benchmarkSharedSettings = Seq(
@@ -82,7 +89,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("modules/core"))
   .enablePlugins(MimaPlugin)
   .settings(commonSettings)
-  .settings(publishableSettings)
+  .settings(coreReleaseSettings)
   .settings(
     name := "ravel-core",
     description := "Dense immutable multidimensional arrays for Scala 3 on the JVM and Scala.js.",
@@ -98,7 +105,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
   .in(file("modules/laws"))
   .enablePlugins(MimaPlugin)
   .dependsOn(core)
-  .settings(publishableSettings)
+  .settings(experimentalModuleSettings)
   .settings(
     name := "ravel-laws",
     description := "Reusable MUnit, ScalaCheck, and Discipline law bundles for Ravel.",
@@ -119,7 +126,7 @@ lazy val stencil = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(MimaPlugin)
   .dependsOn(core)
   .settings(commonSettings)
-  .settings(publishableSettings)
+  .settings(experimentalModuleSettings)
   .settings(
     name := "ravel-stencil",
     description := "Generic N-dimensional neighborhood traversal and border-index mapping for Ravel arrays."
@@ -134,7 +141,7 @@ lazy val packed = crossProject(JSPlatform, JVMPlatform)
   .in(file("modules/packed"))
   .enablePlugins(MimaPlugin)
   .settings(commonSettings)
-  .settings(publishableSettings)
+  .settings(experimentalModuleSettings)
   .settings(
     name := "ravel-packed",
     description := "Endian-independent sub-byte packed arrays with logical sample strides and wordwise one-bit set algebra."
@@ -208,6 +215,10 @@ lazy val docsBundle = taskKey[File](
   "Build the executable guide and bundle JVM module Scaladoc under the site /api path."
 )
 
+lazy val verifyCoreReleaseMatrix = taskKey[Unit](
+  "Fail unless only ravel-core is publishable for the 1.0 release line."
+)
+
 // Public guide inputs live under docs/user. The other docs/ files are internal
 // design, benchmark, audit, and release records and must not be rendered.
 lazy val docs = project
@@ -258,7 +269,42 @@ lazy val root = project
   )
   .settings(
     name := "ravel",
-    publish / skip := true
+    publish / skip := true,
+    verifyCoreReleaseMatrix := {
+      val expected = Seq(
+        "coreJVM" -> (core.jvm / publish / skip).value -> false,
+        "coreJS" -> (core.js / publish / skip).value -> false,
+        "lawsJVM" -> (laws.jvm / publish / skip).value -> true,
+        "lawsJS" -> (laws.js / publish / skip).value -> true,
+        "stencilJVM" -> (stencil.jvm / publish / skip).value -> true,
+        "stencilJS" -> (stencil.js / publish / skip).value -> true,
+        "packedJVM" -> (packed.jvm / publish / skip).value -> true,
+        "packedJS" -> (packed.js / publish / skip).value -> true
+      )
+      val mismatches = expected.collect {
+        case ((module, actual), required) if actual != required =>
+          s"$module publish / skip was $actual, required $required"
+      }
+      if (mismatches.nonEmpty) {
+        sys.error(
+          "Invalid ravel-core 1.0 publication matrix:\n" + mismatches.mkString("\n")
+        )
+      }
+      val coreNames = Seq(
+        "coreJVM" -> (core.jvm / name).value,
+        "coreJS" -> (core.js / name).value
+      )
+      val invalidNames = coreNames.collect {
+        case (module, artifactName) if artifactName != "ravel-core" =>
+          s"$module name was $artifactName, required ravel-core"
+      }
+      if (invalidNames.nonEmpty) {
+        sys.error("Invalid core artifact names:\n" + invalidNames.mkString("\n"))
+      }
+      streams.value.log.info(
+        "verified core-only 1.0 publication matrix: ravel-core JVM and Scala.js"
+      )
+    }
   )
 
 addCommandAlias(
@@ -281,7 +327,7 @@ addCommandAlias("fmtCheck", ";scalafmtCheckAll;scalafmtSbtCheck")
 addCommandAlias("fmt", ";scalafmtAll;scalafmtSbt")
 addCommandAlias(
   "mimaCheck",
-  ";coreJVM/mimaReportBinaryIssues;coreJS/mimaReportBinaryIssues;lawsJVM/mimaReportBinaryIssues;lawsJS/mimaReportBinaryIssues"
+  ";coreJVM/mimaReportBinaryIssues;coreJS/mimaReportBinaryIssues"
 )
 addCommandAlias(
   "coverageReportJvm",
@@ -289,11 +335,11 @@ addCommandAlias(
 )
 addCommandAlias(
   "verifyPublishArtifacts",
-  ";coreJVM/makePom;coreJS/makePom;lawsJVM/makePom;lawsJS/makePom;coreJVM/packageBin;lawsJVM/packageBin"
+  ";verifyCoreReleaseMatrix;coreJVM/makePom;coreJS/makePom;coreJVM/packageBin"
 )
 addCommandAlias(
   "publishLocalSnapshot",
-  """;set ThisBuild / version := "1.0.0-SNAPSHOT"; coreJVM/publishLocal; coreJS/publishLocal; lawsJVM/publishLocal; lawsJS/publishLocal; stencilJVM/publishLocal; stencilJS/publishLocal; packedJVM/publishLocal; packedJS/publishLocal"""
+  """;verifyCoreReleaseMatrix;set ThisBuild / version := "1.0.0-SNAPSHOT"; coreJVM/publishLocal; coreJS/publishLocal"""
 )
 addCommandAlias(
   "releaseEngineeringGate",

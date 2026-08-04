@@ -63,7 +63,7 @@ val integral: Array2[Int] = bounded.cast[Int]
 integral
 ```
 
-## Reduce all elements or one axis
+## Reduce all elements or selected axes
 
 Scalar reductions consume every logical element. Axis reductions remove that
 axis from the static rank; `*Keep`/`*KeepDims` variants retain a singleton
@@ -75,6 +75,22 @@ grid.mean
 grid.sum(axis = 0)
 grid.meanKeep(axis = 1).shape
 ```
+
+Validate a dynamic axis set once with `Axes`. Sum, product, min, max, and mean
+all accept the same value; their `*Keep`/`*KeepDims` overloads preserve the
+input rank with every selected extent replaced by one.
+
+```scala mdoc
+val bothAxes = Axes.from(grid.rank, 0, -1).toOption.get
+grid.sum(bothAxes)
+grid.sumKeepDims(bothAxes).shape
+```
+
+Negative axes are normalized once and duplicates are rejected as pure
+`AxesError` values. Execution plans the complete reduction once, without a
+sequential intermediate for each axis. An empty `Axes` value creates an owned
+copy. The `sumAxes`, `productAxes`, `minAxes`, `maxAxes`, and `meanAxes`
+varargs methods are throwing conveniences around the same validation.
 
 Empty min/max/arg reductions throw `EmptyReduction`. Keep code explicit:
 
@@ -90,6 +106,13 @@ grid.argMax
 grid.argMax(axis = 1)
 ```
 
-Floating sums and means use Ravel's deterministic logical-order schedule on
-both platforms. See [Dtypes and ranks](../reference/dtype-rank.md) for empty,
-NaN, widening, and integer-division behavior.
+`argMin` and `argMax` support a scalar result or one axis. Multi-axis arg
+semantics are intentionally deferred because a stable result needs an explicit
+coordinate or flattened-index contract.
+
+For multiple axes, each floating output fiber traverses selected source axes in
+ascending source-axis order, with the last selected axis varying fastest. The
+usual 128-element blocks and pairwise merge are then applied to that direct
+fiber. Caller axis order therefore cannot alter floating bits. See
+[Dtypes and ranks](../reference/dtype-rank.md) for empty, NaN, widening, and
+integer-division behavior.

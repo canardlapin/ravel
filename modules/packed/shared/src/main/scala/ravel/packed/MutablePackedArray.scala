@@ -2,10 +2,9 @@ package ravel.packed
 
 /** Mutable canonical packed workspace.
   *
-  * Always dense row-major with a zeroed tail; there are no mutable views.
-  * [[freeze]] transfers ownership of the backing words to an immutable
-  * [[PackedArray]] without copying, after which this workspace must not be
-  * written again. [[freezeCopy]] leaves the workspace reusable.
+  * Always dense row-major with a zeroed tail; there are no mutable views. [[freeze]] transfers
+  * ownership of the backing words to an immutable [[PackedArray]] without copying, after which this
+  * workspace must not be written again. [[freezeCopy]] leaves the workspace reusable.
   */
 final class MutablePackedArray private (
     val shape: Vector[Int],
@@ -29,8 +28,7 @@ final class MutablePackedArray private (
     val bitIndex = linear * bits.bits
     val wordIndex = bitIndex >>> 5
     val shift = bitIndex & 31
-    words(wordIndex) =
-      (words(wordIndex) & ~(bits.mask << shift)) | (code << shift)
+    words(wordIndex) = (words(wordIndex) & ~(bits.mask << shift)) | (code << shift)
 
   /** Ownership-transferring freeze; do not mutate this workspace afterwards. */
   def freeze: PackedArray =

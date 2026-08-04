@@ -96,9 +96,7 @@ final class PackedArraySuite extends FunSuite:
     assertEquals(block.shape, Vector(2, 3))
     assertEquals(
       block.codeVector,
-      Vector.tabulate(6)(linear =>
-        codes((1 + linear / 3) * 6 + 2 + linear % 3)
-      )
+      Vector.tabulate(6)(linear => codes((1 + linear / 3) * 6 + 2 + linear % 3))
     )
 
     val copied = block.copy
@@ -139,4 +137,4 @@ final class PackedArraySuite extends FunSuite:
   private def packedRight[A](value: Either[PackedError, A]): A =
     value match
       case Right(result) => result
-      case Left(error)   => fail(error.message)
+      case Left(error) => fail(error.message)

@@ -229,7 +229,10 @@ final class DTypeCastSuite extends FunSuite:
 
   test("unsigned min max and comparisons use magnitude order") {
     val values =
-      NDArray.fromSeq(Shape(4), Seq(UInt8.unsafe(1), UInt8.unsafe(255), UInt8.unsafe(0), UInt8.unsafe(128)))
+      NDArray.fromSeq(
+        Shape(4),
+        Seq(UInt8.unsafe(1), UInt8.unsafe(255), UInt8.unsafe(0), UInt8.unsafe(128))
+      )
     assertEquals(values.min, UInt8.unsafe(0))
     assertEquals(values.max, UInt8.unsafe(255))
     assertEquals(values.argMin, 2)

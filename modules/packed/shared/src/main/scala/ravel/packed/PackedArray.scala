@@ -2,23 +2,20 @@ package ravel.packed
 
 /** Immutable N-dimensional array of sub-byte integer codes.
   *
-  * Storage layout is canonical row-major over 32-bit words: the code at
-  * canonical linear index `k` occupies bits `[(k * bits) mod 32, ...)` of word
-  * `(k * bits) / 32`, least-significant bits first. Words are logical `Int`
-  * values, so serialized word sequences are endian-independent by
-  * construction. Unused bits in the final word of a canonical array are always
-  * zero.
+  * Storage layout is canonical row-major over 32-bit words: the code at canonical linear index `k`
+  * occupies bits `[(k * bits) mod 32, ...)` of word `(k * bits) / 32`, least-significant bits
+  * first. Words are logical `Int` values, so serialized word sequences are endian-independent by
+  * construction. Unused bits in the final word of a canonical array are always zero.
   *
-  * Storage is one shared `Array[Int]` implementation: the JVM uses a primitive
-  * int array and Scala.js compiles the same field to an `Int32Array`, so both
-  * platforms get flat word storage without platform-specific source.
+  * Storage is one shared `Array[Int]` implementation: the JVM uses a primitive int array and
+  * Scala.js compiles the same field to an `Int32Array`, so both platforms get flat word storage
+  * without platform-specific source.
   *
-  * Views created by [[slice]] and [[narrow]] share backing words and address
-  * samples through logical sample strides; [[copy]] re-canonicalizes any view
-  * into minimal zero-tailed storage.
+  * Views created by [[slice]] and [[narrow]] share backing words and address samples through
+  * logical sample strides; [[copy]] re-canonicalizes any view into minimal zero-tailed storage.
   *
-  * This is deliberately not a member of the `DType`/`NDArray` family: sub-byte
-  * codes are storage codes, not primitive element values.
+  * This is deliberately not a member of the `DType`/`NDArray` family: sub-byte codes are storage
+  * codes, not primitive element values.
   */
 final class PackedArray private[packed] (
     val shape: Vector[Int],
@@ -73,8 +70,7 @@ final class PackedArray private[packed] (
     if axis < 0 || axis >= rank then Left(PackedError.InvalidAxis(axis, rank))
     else if index < 0 || index >= shape(axis) then
       Left(PackedError.InvalidRange(axis, index, 1, shape(axis)))
-    else if rank == 1 then
-      Left(PackedError.InvalidShape("cannot slice a rank-1 array to rank 0"))
+    else if rank == 1 then Left(PackedError.InvalidShape("cannot slice a rank-1 array to rank 0"))
     else
       Right(
         new PackedArray(
@@ -159,8 +155,7 @@ object PackedArray:
   private[packed] def validateShape(
       shape: Vector[Int]
   ): Either[PackedError, Unit] =
-    if shape.isEmpty then
-      Left(PackedError.InvalidShape("shape must have at least one axis"))
+    if shape.isEmpty then Left(PackedError.InvalidShape("shape must have at least one axis"))
     else
       shape.find(_ <= 0) match
         case Some(extent) =>
@@ -222,9 +217,8 @@ object PackedArray:
 
   /** Reconstruct from serialized canonical words.
     *
-    * Word order and intra-word bit order are part of the format, so a word
-    * sequence written on one platform decodes identically on any other.
-    * Rejects wrong word counts and nonzero tail bits.
+    * Word order and intra-word bit order are part of the format, so a word sequence written on one
+    * platform decodes identically on any other. Rejects wrong word counts and nonzero tail bits.
     */
   def fromWords(
       shape: Vector[Int],
@@ -242,8 +236,7 @@ object PackedArray:
         val tailWord = if expected == 0 then 0 else copied(expected - 1)
         val unusedMask =
           if tailCodes == 0 then 0 else -1 << (tailCodes * bits.bits)
-        if (tailWord & unusedMask) != 0 then
-          Left(PackedError.NonCanonicalTail(tailWord))
+        if (tailWord & unusedMask) != 0 then Left(PackedError.NonCanonicalTail(tailWord))
         else
           Right(
             new PackedArray(
