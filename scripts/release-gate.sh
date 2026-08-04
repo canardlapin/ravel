@@ -86,6 +86,9 @@ run_phase consumer-jvm \
 run_phase consumer-js \
   env RAVEL_SKIP_PUBLISH=1 RAVEL_CANDIDATE_VERSION="$candidate_version" \
   bash scripts/verify-external-js-consumer.sh
+run_phase sibling-consumers \
+  env RAVEL_SKIP_PUBLISH=1 RAVEL_CANDIDATE_VERSION="$candidate_version" \
+  bash scripts/verify-sibling-consumers.sh
 
 {
   echo "completed_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"

@@ -46,25 +46,27 @@ passed on Temurin JDK 21 and Node 22. Its cross-platform job completed both:
 - `sbt representationProof`, covering both core suites and the optimized
   representation probe.
 
-## Gale integration
+## Downstream artifact integration
 
-Ravel `ravel-core` snapshots were published locally for integration
-verification. In the sibling Gale repository, `sbt interopRavelTest` passed
-four JVM and four Node tests. The publishable `gale-interop-ravel` cross-project
-depends on `gale-core` and `ravel-core`; neither core depends on the other.
-Conversions copy logical values and remove borrowed external aliases.
+The authoritative gate pins Gale revision
+`98508f8d36ceedfb3a7cb4ea18807116fa6af66b`. Its `interopRavelTest` passes 8
+tests on the JVM and 8 on Scala.js against the exact local candidate.
+Conversions copy logical values and remove borrowed external aliases. The
+gate also pins zarr4s revision
+`b7c9840fdd4e5676a58acb4ae516dfdaad9bd177`, applies the checked-in migration
+to Ravel's pure checked errors, and compiles its JVM and Scala.js adapter. A
+fresh offline consumer then completes a Float32 write, read, Ravel transform,
+write, and verification workflow on both platforms.
 
 Re-verify after Ravel changes with:
 
 ```sh
-# in ravel
-sbt publishLocalSnapshot
-# in gale
-sbt interopRavelTest
+bash scripts/verify-sibling-consumers.sh
 ```
 
-Gale pins `ravelVersion = "1.0.0-SNAPSHOT"` until the Central `1.0.0` release;
-`publishLocalSnapshot` forces that version on the Ravel side.
+Both consumers use public Ravel APIs, and their resolved classpaths must name
+the exact local JVM and Scala.js candidate. The detailed friction and ownership
+record is in [`consumer-validation.md`](consumer-validation.md).
 
 ## Artifact scope
 

@@ -26,7 +26,10 @@ version; otherwise it uses `1.0.0-SNAPSHOT`. It verifies:
 - exact-version JVM and Scala.js POM, binary, source, and API jar contents;
 - local publication of both core platforms; and
 - fresh external JVM and Scala.js projects resolved only from those local
-  artifacts.
+  artifacts;
+- pinned Gale JVM and Scala.js integration suites; and
+- a pinned zarr4s adapter plus a fresh, offline JVM and Scala.js storage
+  workflow.
 
 Tag publication invokes this exact entry point before `ci-release`, so any
 failure prevents signing or publication. CI uploads its receipt directory even
@@ -103,6 +106,19 @@ version. The authoritative gate's fresh JVM and Scala.js consumers resolve in
 offline mode after local publication, so they cannot substitute a remote
 artifact for the generated candidate coordinate.
 
+The authoritative sibling check is:
+
+```sh
+bash scripts/verify-sibling-consumers.sh
+```
+
+It pins exact Gale and zarr4s revisions, runs their real public-API workflows
+against both candidate platforms, rejects Ravel internal imports, and verifies
+the resolved local-Ivy classpaths. See
+[`consumer-validation.md`](consumer-validation.md) for the tested workflows,
+copy and ownership boundaries, required zarr4s error migration, and the reason
+image4s is not counted as a core-only artifact consumer yet.
+
 ## Component diagnostics
 
 ```sh
@@ -111,4 +127,6 @@ sbt releaseEngineeringGate
 
 `releaseEngineeringGate` is the sbt-only subset. The shell entry point is
 authoritative because NumPy parity, artifact inspection, and fresh consumer
-projects cannot be expressed honestly as sbt-only checks.
+projects cannot be expressed honestly as sbt-only checks. The sibling phase
+may fetch its pinned public commits when local sibling checkouts are not
+available, so an isolated CI runner requires network access for that phase.
