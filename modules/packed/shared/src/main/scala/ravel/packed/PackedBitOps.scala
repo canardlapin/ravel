@@ -40,7 +40,7 @@ object PackedBitOps:
         output(index) = ~canonical.words(index)
         index += 1
       zeroTail(output, canonical.size)
-      fromCanonicalWords(canonical.shape, output)
+      fromCanonicalWords(canonical.layout, output)
     }
 
   /** Number of set samples, thirty-two samples per popcount. */
@@ -71,7 +71,7 @@ object PackedBitOps:
           output(index) = op(leftCanonical.words(index), rightCanonical.words(index))
           index += 1
         zeroTail(output, leftCanonical.size)
-        fromCanonicalWords(leftCanonical.shape, output)
+        fromCanonicalWords(leftCanonical.layout, output)
 
   private def requireOneBit(
       input: PackedArray
@@ -85,13 +85,13 @@ object PackedBitOps:
     if tail != 0 then words(words.length - 1) &= ~(-1 << tail)
 
   private def fromCanonicalWords(
-      shape: Vector[Int],
+      layout: PackedLayoutPlan,
       words: Array[Int]
   ): PackedArray =
     new PackedArray(
-      shape,
+      layout,
       PackedBits.B1,
       words,
-      PackedArray.rowMajorStrides(shape),
+      layout.rowMajorStrides,
       sampleOffset = 0
     )

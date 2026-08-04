@@ -18,15 +18,18 @@ package ravel.packed
   * codes, not primitive element values.
   */
 final class PackedArray private[packed] (
-    val shape: Vector[Int],
+    private[packed] val layout: PackedLayoutPlan,
     val bits: PackedBits,
     private[packed] val words: Array[Int],
     private[packed] val sampleStrides: Vector[Int],
     private[packed] val sampleOffset: Int
 ):
+  val shape: Vector[Int] =
+    layout.shape
+
   /** Number of logical samples. */
   val size: Int =
-    shape.product
+    layout.size
 
   def rank: Int =
     shape.length
@@ -34,7 +37,7 @@ final class PackedArray private[packed] (
   /** True when this array owns dense row-major storage with a zeroed tail. */
   def isCanonical: Boolean =
     sampleOffset == 0 &&
-      sampleStrides == PackedArray.rowMajorStrides(shape) &&
+      sampleStrides == layout.rowMajorStrides &&
       words.length == PackedArray.wordCount(size, bits)
 
   /** Read the code at a canonical row-major linear index. */
@@ -45,7 +48,11 @@ final class PackedArray private[packed] (
     var sample = sampleOffset
     while axis >= 0 do
       val extent = shape(axis)
-      sample += (remaining % extent) * sampleStrides(axis)
+      sample = PackedLayoutPlan.requireSampleOffset(
+        sample,
+        remaining % extent,
+        sampleStrides(axis)
+      )
       remaining /= extent
       axis -= 1
     readSample(sample)
@@ -61,7 +68,7 @@ final class PackedArray private[packed] (
         index >= 0 && index < shape(axis),
         s"index $index outside axis $axis extent ${shape(axis)}"
       )
-      sample += index * sampleStrides(axis)
+      sample = PackedLayoutPlan.requireSampleOffset(sample, index, sampleStrides(axis))
       axis += 1
     readSample(sample)
 
@@ -72,35 +79,38 @@ final class PackedArray private[packed] (
       Left(PackedError.InvalidRange(axis, index, 1, shape(axis)))
     else if rank == 1 then Left(PackedError.InvalidShape("cannot slice a rank-1 array to rank 0"))
     else
-      Right(
-        new PackedArray(
-          shape.patch(axis, Nil, 1),
-          bits,
-          words,
-          sampleStrides.patch(axis, Nil, 1),
-          sampleOffset + index * sampleStrides(axis)
-        )
+      val nextShape = shape.patch(axis, Nil, 1)
+      for
+        nextLayout <- PackedLayoutPlan.from(nextShape)
+        nextOffset <- PackedLayoutPlan.sampleOffset(sampleOffset, index, sampleStrides(axis))
+      yield new PackedArray(
+        nextLayout,
+        bits,
+        words,
+        sampleStrides.patch(axis, Nil, 1),
+        nextOffset
       )
 
   /** Zero-copy view restricting one axis to `[start, start + length)`. */
   def narrow(axis: Int, start: Int, length: Int): Either[PackedError, PackedArray] =
     if axis < 0 || axis >= rank then Left(PackedError.InvalidAxis(axis, rank))
-    else if start < 0 || length <= 0 || start + length > shape(axis) then
-      Left(PackedError.InvalidRange(axis, start, length, shape(axis)))
     else
-      Right(
-        new PackedArray(
-          shape.updated(axis, length),
-          bits,
-          words,
-          sampleStrides,
-          sampleOffset + start * sampleStrides(axis)
-        )
+      val nextShape = shape.updated(axis, length)
+      for
+        _ <- PackedLayoutPlan.narrowEnd(axis, start, length, shape(axis))
+        nextLayout <- PackedLayoutPlan.from(nextShape)
+        nextOffset <- PackedLayoutPlan.sampleOffset(sampleOffset, start, sampleStrides(axis))
+      yield new PackedArray(
+        nextLayout,
+        bits,
+        words,
+        sampleStrides,
+        nextOffset
       )
 
   /** Materialize into canonical minimal storage with a zeroed tail. */
   def copy: PackedArray =
-    val output = MutablePackedArray.zeros(shape, bits)
+    val output = MutablePackedArray.zeros(layout, bits)
     var linear = 0
     while linear < size do
       output.setCode(linear, codeAt(linear))
@@ -140,28 +150,22 @@ final class PackedArray private[packed] (
       total
 
   private def readSample(sample: Int): Int =
-    val bitIndex = sample * bits.bits
-    (words(bitIndex >>> 5) >>> (bitIndex & 31)) & bits.mask
+    val wordIndex = sample / bits.codesPerWord
+    val slot = sample % bits.codesPerWord
+    val shift = slot * bits.bits
+    (words(wordIndex) >>> shift) & bits.mask
 
 object PackedArray:
   /** Words required for `samples` codes of the given width. */
   def wordCount(samples: Int, bits: PackedBits): Int =
-    val perWord = bits.codesPerWord
-    (samples + perWord - 1) / perWord
-
-  private[packed] def rowMajorStrides(shape: Vector[Int]): Vector[Int] =
-    shape.indices.toVector.map(axis => shape.drop(axis + 1).product)
+    PackedLayoutPlan.wordCount(samples, bits) match
+      case Right(count) => count
+      case Left(error) => throw new IllegalArgumentException(error.message)
 
   private[packed] def validateShape(
       shape: Vector[Int]
   ): Either[PackedError, Unit] =
-    if shape.isEmpty then Left(PackedError.InvalidShape("shape must have at least one axis"))
-    else
-      shape.find(_ <= 0) match
-        case Some(extent) =>
-          Left(PackedError.InvalidShape(s"axis extents must be positive, got $extent"))
-        case None =>
-          Right(())
+    PackedLayoutPlan.from(shape).map(_ => ())
 
   /** Pack explicit codes in row-major order. */
   def fromCodes(
@@ -169,9 +173,9 @@ object PackedArray:
       bits: PackedBits,
       codes: IterableOnce[Int]
   ): Either[PackedError, PackedArray] =
-    validateShape(shape).flatMap { _ =>
-      val size = shape.product
-      val output = MutablePackedArray.zeros(shape, bits)
+    PackedLayoutPlan.from(shape).flatMap { layout =>
+      val size = layout.size
+      val output = MutablePackedArray.zeros(layout, bits)
       val iterator = codes.iterator
       var linear = 0
       var error: Option[PackedError] = None
@@ -199,8 +203,8 @@ object PackedArray:
       shape: Vector[Int],
       bits: PackedBits
   )(code: Int => Int): Either[PackedError, PackedArray] =
-    validateShape(shape).map { _ =>
-      val output = MutablePackedArray.zeros(shape, bits)
+    PackedLayoutPlan.from(shape).map { layout =>
+      val output = MutablePackedArray.zeros(layout, bits)
       var linear = 0
       while linear < output.size do
         output.setCode(linear, code(linear) & bits.mask)
@@ -213,7 +217,7 @@ object PackedArray:
       shape: Vector[Int],
       bits: PackedBits
   ): Either[PackedError, PackedArray] =
-    validateShape(shape).map(_ => MutablePackedArray.zeros(shape, bits).freeze)
+    PackedLayoutPlan.from(shape).map(layout => MutablePackedArray.zeros(layout, bits).freeze)
 
   /** Reconstruct from serialized canonical words.
     *
@@ -225,8 +229,8 @@ object PackedArray:
       bits: PackedBits,
       words: IterableOnce[Int]
   ): Either[PackedError, PackedArray] =
-    validateShape(shape).flatMap { _ =>
-      val size = shape.product
+    PackedLayoutPlan.from(shape).flatMap { layout =>
+      val size = layout.size
       val expected = wordCount(size, bits)
       val copied = words.iterator.toArray
       if copied.length != expected then
@@ -240,10 +244,10 @@ object PackedArray:
         else
           Right(
             new PackedArray(
-              shape,
+              layout,
               bits,
               copied,
-              rowMajorStrides(shape),
+              layout.rowMajorStrides,
               sampleOffset = 0
             )
           )

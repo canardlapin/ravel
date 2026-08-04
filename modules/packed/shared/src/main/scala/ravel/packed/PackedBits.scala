@@ -30,6 +30,7 @@ enum PackedError derives CanEqual:
   case NonCanonicalTail(word: Int)
   case InvalidAxis(axis: Int, rank: Int)
   case InvalidRange(axis: Int, start: Int, length: Int, extent: Int)
+  case AddressOverflow(base: Int, index: Int, stride: Int)
   case ShapeMismatch(left: Vector[Int], right: Vector[Int])
   case BitsMismatch(left: PackedBits, right: PackedBits)
   case NotOneBit(bits: PackedBits)
@@ -47,7 +48,10 @@ enum PackedError derives CanEqual:
       case InvalidAxis(axis, rank) =>
         s"axis $axis is outside rank $rank"
       case InvalidRange(axis, start, length, extent) =>
-        s"range [$start, ${start + length}) is outside axis $axis extent $extent"
+        val end = start.toLong + length.toLong
+        s"range [$start, $end) is outside axis $axis extent $extent"
+      case AddressOverflow(base, index, stride) =>
+        s"sample offset $base + $index * $stride is outside the portable Int storage range"
       case ShapeMismatch(left, right) =>
         s"shapes ${left.mkString("(", ",", ")")} and ${right.mkString("(", ",", ")")} differ"
       case BitsMismatch(left, right) =>

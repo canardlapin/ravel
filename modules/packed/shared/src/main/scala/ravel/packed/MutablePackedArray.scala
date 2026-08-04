@@ -7,17 +7,22 @@ package ravel.packed
   * workspace must not be written again. [[freezeCopy]] leaves the workspace reusable.
   */
 final class MutablePackedArray private (
-    val shape: Vector[Int],
+    private[packed] val layout: PackedLayoutPlan,
     val bits: PackedBits,
     private[packed] val words: Array[Int]
 ):
+  val shape: Vector[Int] =
+    layout.shape
+
   val size: Int =
-    shape.product
+    layout.size
 
   def codeAt(linear: Int): Int =
     require(linear >= 0 && linear < size, s"linear index $linear outside $size")
-    val bitIndex = linear * bits.bits
-    (words(bitIndex >>> 5) >>> (bitIndex & 31)) & bits.mask
+    val wordIndex = linear / bits.codesPerWord
+    val slot = linear % bits.codesPerWord
+    val shift = slot * bits.bits
+    (words(wordIndex) >>> shift) & bits.mask
 
   def setCode(linear: Int, code: Int): Unit =
     require(linear >= 0 && linear < size, s"linear index $linear outside $size")
@@ -25,46 +30,45 @@ final class MutablePackedArray private (
       code >= 0 && code <= bits.maxCode,
       s"code $code exceeds maximum ${bits.maxCode}"
     )
-    val bitIndex = linear * bits.bits
-    val wordIndex = bitIndex >>> 5
-    val shift = bitIndex & 31
+    val wordIndex = linear / bits.codesPerWord
+    val slot = linear % bits.codesPerWord
+    val shift = slot * bits.bits
     words(wordIndex) = (words(wordIndex) & ~(bits.mask << shift)) | (code << shift)
 
   /** Ownership-transferring freeze; do not mutate this workspace afterwards. */
   def freeze: PackedArray =
     new PackedArray(
-      shape,
+      layout,
       bits,
       words,
-      PackedArray.rowMajorStrides(shape),
+      layout.rowMajorStrides,
       sampleOffset = 0
     )
 
   /** Copying freeze; the workspace stays writable. */
   def freezeCopy: PackedArray =
     new PackedArray(
-      shape,
+      layout,
       bits,
       words.clone(),
-      PackedArray.rowMajorStrides(shape),
+      layout.rowMajorStrides,
       sampleOffset = 0
     )
 
 object MutablePackedArray:
   /** Zeroed canonical workspace. Shape must already be validated. */
   private[packed] def zeros(
-      shape: Vector[Int],
+      layout: PackedLayoutPlan,
       bits: PackedBits
   ): MutablePackedArray =
-    val samples = shape.product
     new MutablePackedArray(
-      shape,
+      layout,
       bits,
-      new Array[Int](PackedArray.wordCount(samples, bits))
+      new Array[Int](PackedArray.wordCount(layout.size, bits))
     )
 
   def allocate(
       shape: Vector[Int],
       bits: PackedBits
   ): Either[PackedError, MutablePackedArray] =
-    PackedArray.validateShape(shape).map(_ => zeros(shape, bits))
+    PackedLayoutPlan.from(shape).map(layout => zeros(layout, bits))
