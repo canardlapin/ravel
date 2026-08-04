@@ -1,0 +1,1 @@
+{"actor":"codex-ravel","entity":"bd-01KYQ21F3TH9NCRC90K6KCCTM0","kind":"note","note_kind":"progress","op":"20260804T125620.453879Z-p62170-c0003-ra9c9-h7bea66","text":"Current JDK 25 standalone parity is green; record the terminal no-go using existing checked-in JDK 21/25 receipts and the absence of x86/fallback/module-loading proof.","ts":"2026-08-04T12:56:20.453879Z","v":1}

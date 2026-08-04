@@ -1,0 +1,2 @@
+$ node --expose-gc /private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/js/target/scala-3.7.4/ravel-representation-probe-js-opt/main.js --signatures-only --sides 64,256,1024 --out /private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/scala-js-signatures.json
+Wrote 65 cross-runtime court rows to /private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/scala-js-signatures.json (signatures only)

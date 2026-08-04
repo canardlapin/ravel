@@ -1,0 +1,2 @@
+$ /opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/bin/python3.14 modules/benchmarks/python/compare_cross_runtime_court.py --jvm /private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/jvm-cross-runtime-signatures.json --js /private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/scala-js-signatures.json
+Cross-runtime semantic parity OK: 65 matched rows

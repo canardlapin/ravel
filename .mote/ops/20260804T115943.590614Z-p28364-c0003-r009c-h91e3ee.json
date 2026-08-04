@@ -1,0 +1,1 @@
+{"actor":"codex-ravel","entity":"bd-01KZ6A5Q0X8ZDPX47Q4XXRX74T","kind":"note","note_kind":"progress","op":"20260804T115943.590614Z-p28364-c0003-r009c-h91e3ee","text":"Implement dtype-owned logical formatting for unsigned previews and codify unary-plus as an owned eager copy across readable ownership forms; verify on JVM and Scala.js.","ts":"2026-08-04T11:59:43.590614Z","v":1}

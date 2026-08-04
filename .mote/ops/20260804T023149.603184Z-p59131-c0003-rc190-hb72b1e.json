@@ -1,0 +1,1 @@
+{"actor":"codex-ravel","entity":"bd-01KZ58FJTENDCGQYYZKKFR6M92","kind":"note","note_kind":"progress","op":"20260804T023149.603184Z-p59131-c0003-rc190-hb72b1e","text":"Replacing the NDArray ownership facade with a private zero-allocation ArraySource contract across numerical, reduction, and equality kernels.","ts":"2026-08-04T02:31:49.603184Z","v":1}
