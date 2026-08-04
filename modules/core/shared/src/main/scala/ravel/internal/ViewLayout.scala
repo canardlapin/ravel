@@ -17,18 +17,21 @@ private[ravel] object ViewLayout:
         strides(target) = layout.strides(source)
         target += 1
       source += 1
-    val offset = Layout.checkedInt(
-      Layout.checkedAdd(
-        layout.offset.toLong,
-        Layout.checkedMultiply(
-          normalizedIndex.toLong,
-          layout.strides(selectedAxis).toLong,
-          s"select axis $selectedAxis"
-        ),
-        s"select axis $selectedAxis"
-      ),
-      "selected offset"
-    )
+    val offset =
+      if layout.size == 0 then 0
+      else
+        Layout.checkedInt(
+          Layout.checkedAdd(
+            layout.offset.toLong,
+            Layout.checkedMultiply(
+              normalizedIndex.toLong,
+              layout.strides(selectedAxis).toLong,
+              s"select axis $selectedAxis"
+            ),
+            s"select axis $selectedAxis"
+          ),
+          "selected offset"
+        )
     Layout.view(
       IArray.unsafeFromArray(shape),
       IArray.unsafeFromArray(strides),
