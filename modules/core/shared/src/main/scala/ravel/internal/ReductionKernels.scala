@@ -43,6 +43,27 @@ private[ravel] object ReductionKernels:
   private inline def pairwiseBlockCount(length: Int): Int =
     if length == 0 then 0 else 1 + (length - 1) / PairwiseBlockSize
 
+  def all(source: Storage[Boolean], layout: Layout): Boolean =
+    booleanFold(source.asInstanceOf[BooleanStorage], layout, identity = true)(_ && _)
+
+  def any(source: Storage[Boolean], layout: Layout): Boolean =
+    booleanFold(source.asInstanceOf[BooleanStorage], layout, identity = false)(_ || _)
+
+  def countTrue(source: Storage[Boolean], layout: Layout): Int =
+    val boolean = source.asInstanceOf[BooleanStorage]
+    var count = 0
+    if layout.isPhysicallyDense then
+      val offset = layout.minimumPhysicalAddress
+      var index = 0
+      while index < layout.size do
+        if PlatformBoolean.get(boolean, offset + index) then count += 1
+        index += 1
+    else
+      foreachLogical(layout) { physical =>
+        if PlatformBoolean.get(boolean, physical) then count += 1
+      }
+    count
+
   def sum[A](source: Storage[A], layout: Layout): A =
     (source match
       case x: IntStorage => sumIntStorage(x, layout)
@@ -209,6 +230,45 @@ private[ravel] object ReductionKernels:
         axisPairwiseMeanDoubleStorage(x, z, plan)
       case _ => throw new UnsupportedOperationException("mean requires matching floating storage")
 
+  def allAxis(
+      source: Storage[Boolean],
+      output: Storage[Boolean],
+      plan: ReductionPlan
+  ): Unit =
+    val input = source.asInstanceOf[BooleanStorage]
+    val target = output.asInstanceOf[BooleanStorage]
+    axisFold(
+      plan,
+      physical => PlatformBoolean.get(input, physical),
+      (index, value) => PlatformBoolean.set(target, index, value),
+      identity = true
+    )(_ && _)
+
+  def anyAxis(
+      source: Storage[Boolean],
+      output: Storage[Boolean],
+      plan: ReductionPlan
+  ): Unit =
+    val input = source.asInstanceOf[BooleanStorage]
+    val target = output.asInstanceOf[BooleanStorage]
+    axisFold(
+      plan,
+      physical => PlatformBoolean.get(input, physical),
+      (index, value) => PlatformBoolean.set(target, index, value),
+      identity = false
+    )(_ || _)
+
+  def countTrueAxis(
+      source: Storage[Boolean],
+      output: Storage[Int],
+      plan: ReductionPlan
+  ): Unit =
+    axisCountTrue(
+      source.asInstanceOf[BooleanStorage],
+      output.asInstanceOf[IntStorage],
+      plan
+    )
+
   def sumAxes[A](source: Storage[A], output: Storage[A], plan: MultiReductionPlan): Unit =
     (source, output) match
       case (x: IntStorage, z: IntStorage) =>
@@ -283,6 +343,45 @@ private[ravel] object ReductionKernels:
       case (x: DoubleStorage, z: DoubleStorage) =>
         multiAxisPairwiseMeanDouble(plan, x.raw.apply, z.raw.update)
       case _ => throw new UnsupportedOperationException("mean requires matching floating storage")
+
+  def allAxes(
+      source: Storage[Boolean],
+      output: Storage[Boolean],
+      plan: MultiReductionPlan
+  ): Unit =
+    val input = source.asInstanceOf[BooleanStorage]
+    val target = output.asInstanceOf[BooleanStorage]
+    multiAxisFold(
+      plan,
+      physical => PlatformBoolean.get(input, physical),
+      (index, value) => PlatformBoolean.set(target, index, value),
+      identity = true
+    )(_ && _)
+
+  def anyAxes(
+      source: Storage[Boolean],
+      output: Storage[Boolean],
+      plan: MultiReductionPlan
+  ): Unit =
+    val input = source.asInstanceOf[BooleanStorage]
+    val target = output.asInstanceOf[BooleanStorage]
+    multiAxisFold(
+      plan,
+      physical => PlatformBoolean.get(input, physical),
+      (index, value) => PlatformBoolean.set(target, index, value),
+      identity = false
+    )(_ || _)
+
+  def countTrueAxes(
+      source: Storage[Boolean],
+      output: Storage[Int],
+      plan: MultiReductionPlan
+  ): Unit =
+    multiAxisCountTrue(
+      source.asInstanceOf[BooleanStorage],
+      output.asInstanceOf[IntStorage],
+      plan
+    )
 
   def argMinimumAxis[A](
       source: Storage[A],
@@ -751,6 +850,24 @@ private[ravel] object ReductionKernels:
     foreachLogical(layout) { physical =>
       result = combine(result, read(physical))
     }
+    result
+
+  private inline def booleanFold(
+      storage: BooleanStorage,
+      layout: Layout,
+      identity: Boolean
+  )(inline combine: (Boolean, Boolean) => Boolean): Boolean =
+    var result = identity
+    if layout.isPhysicallyDense then
+      val offset = layout.minimumPhysicalAddress
+      var index = 0
+      while index < layout.size do
+        result = combine(result, PlatformBoolean.get(storage, offset + index))
+        index += 1
+    else
+      foreachLogical(layout) { physical =>
+        result = combine(result, PlatformBoolean.get(storage, physical))
+      }
     result
 
   private inline def logicalExtremum[T](
@@ -1235,6 +1352,20 @@ private[ravel] object ReductionKernels:
       write(output, result)
     }
 
+  private def multiAxisCountTrue(
+      source: BooleanStorage,
+      output: IntStorage,
+      plan: MultiReductionPlan
+  ): Unit =
+    val reducedCounters = new Array[Int](plan.reducedShape.length)
+    foreachMultiAxisBase(plan) { (base, target) =>
+      var count = 0
+      foreachReducedPhysical(plan, base, reducedCounters) { physical =>
+        if PlatformBoolean.get(source, physical) then count += 1
+      }
+      output.raw(target) = count
+    }
+
   private inline def multiAxisExtremum[T](
       plan: MultiReductionPlan,
       inline read: Int => T,
@@ -1433,6 +1564,22 @@ private[ravel] object ReductionKernels:
         physical += plan.reducedStride
         index += 1
       write(output, result)
+    }
+
+  private def axisCountTrue(
+      source: BooleanStorage,
+      output: IntStorage,
+      plan: ReductionPlan
+  ): Unit =
+    foreachAxisBase(plan) { (base, target) =>
+      var count = 0
+      var index = 0
+      var physical = base
+      while index < plan.reducedLength do
+        if PlatformBoolean.get(source, physical) then count += 1
+        physical += plan.reducedStride
+        index += 1
+      output.raw(target) = count
     }
 
   private inline def axisExtremum[T](

@@ -36,9 +36,10 @@ experimental and may stabilize later on an explicitly separate release line.
   owned output. Array-valued reductions allocate even when an empty axis list
   leaves the logical values unchanged.
 - `Axes` normalizes and validates a multi-axis reduction once. Sum, product,
-  min, max, and mean plan the full axis set without sequential intermediates;
-  keep-dimensions variants replace every selected extent by one. Multi-axis arg
-  reductions are not part of the 1.0 contract.
+  min, max, mean, Boolean `all`, Boolean `any`, and `countTrue` plan the full
+  axis set without sequential intermediates; keep-dimensions variants replace
+  every selected extent by one. Multi-axis arg reductions are not part of the
+  1.0 contract.
 - Owned, borrowed, and mutable arrays may all be read operands. Reusable-output
   kernels reject destination/input storage aliasing before mutation. Mutable
   copying reshape paths allocate one output buffer rather than freezing into an
@@ -62,8 +63,9 @@ experimental and may stabilize later on an explicitly separate release line.
   Within a multi-axis output fiber, selected source axes are traversed in
   ascending source-axis order with the final selected axis varying fastest;
   caller axis order cannot change the result bits.
-- Empty sum is positive zero and empty product is one. Empty floating mean is
-  NaN. Empty minimum, maximum, and arg reductions throw `EmptyReduction`.
+- Empty sum is positive zero and empty product is one. Empty Boolean `all` is
+  true, `any` is false, and `countTrue` is zero. Empty floating mean is NaN.
+  Empty minimum, maximum, and arg reductions throw `EmptyReduction`.
 - NaNs propagate through minimum, maximum, sum, and mean. Arg reductions choose
   the first logical NaN; ordinary ties choose the first logical value.
   Minimum chooses negative zero and maximum chooses positive zero.

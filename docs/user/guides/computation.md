@@ -86,11 +86,29 @@ grid.sum(bothAxes)
 grid.sumKeepDims(bothAxes).shape
 ```
 
+Boolean arrays use the same axis contract for `all`, `any`, and `countTrue`:
+
+```scala mdoc
+val mask = NDArray.fromSeq(
+  Shape(2, 3),
+  Seq(true, false, true, true, true, false)
+)
+mask.all
+mask.any(axis = 0)
+mask.countTrue(axis = 1)
+```
+
+An empty Boolean domain has explicit identities: `all` is true, `any` is
+false, and `countTrue` is zero. `countTrue` returns `Int` because every Ravel
+array is already bounded by the portable `Int` element limit.
+
 Negative axes are normalized once and duplicates are rejected as pure
 `AxesError` values. Execution plans the complete reduction once, without a
 sequential intermediate for each axis. An empty `Axes` value creates an owned
-copy. The `sumAxes`, `productAxes`, `minAxes`, `maxAxes`, and `meanAxes`
-varargs methods are throwing conveniences around the same validation.
+Boolean copy for `all` and `any`; `countTrue` creates an owned `Int` array of
+zeros and ones. The `sumAxes`, `productAxes`, `minAxes`, `maxAxes`,
+`meanAxes`, `allAxes`, `anyAxes`, and `countTrueAxes` varargs methods are
+throwing conveniences around the same validation.
 
 Empty min/max/arg reductions throw `EmptyReduction`. Keep code explicit:
 

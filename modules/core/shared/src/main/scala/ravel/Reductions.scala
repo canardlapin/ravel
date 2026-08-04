@@ -15,6 +15,73 @@ object SumAs:
     private[ravel] def apply(array: ArraySource[Float, ?]): Double =
       ReductionKernels.sumAsDouble(array.storage, array.layout)
 
+extension [R <: AnyRank](array: ReadableArray[Boolean, R])
+  def all: Boolean =
+    ReductionKernels.all(array.storage, array.layout)
+
+  def any: Boolean =
+    ReductionKernels.any(array.storage, array.layout)
+
+  def countTrue: Int =
+    ReductionKernels.countTrue(array.storage, array.layout)
+
+  def all(axis: Int)(using CanDropAxis[R]): NDArray[Boolean, DropAxis[R]] =
+    ReductionApi.allAxis[R, DropAxis[R]](array, axis, keep = false)
+
+  def allKeep(axis: Int): NDArray[Boolean, R] =
+    ReductionApi.allAxis[R, R](array, axis, keep = true)
+
+  def allKeepDims(axis: Int): NDArray[Boolean, R] = allKeep(axis)
+
+  def any(axis: Int)(using CanDropAxis[R]): NDArray[Boolean, DropAxis[R]] =
+    ReductionApi.anyAxis[R, DropAxis[R]](array, axis, keep = false)
+
+  def anyKeep(axis: Int): NDArray[Boolean, R] =
+    ReductionApi.anyAxis[R, R](array, axis, keep = true)
+
+  def anyKeepDims(axis: Int): NDArray[Boolean, R] = anyKeep(axis)
+
+  def countTrue(axis: Int)(using CanDropAxis[R]): NDArray[Int, DropAxis[R]] =
+    ReductionApi.countTrueAxis[R, DropAxis[R]](array, axis, keep = false)
+
+  def countTrueKeep(axis: Int): NDArray[Int, R] =
+    ReductionApi.countTrueAxis[R, R](array, axis, keep = true)
+
+  def countTrueKeepDims(axis: Int): NDArray[Int, R] = countTrueKeep(axis)
+
+  def all(axes: Axes): AnyNDArray[Boolean] =
+    ReductionApi.allAxes[R, AnyRank](array, axes, keep = false)
+
+  def allKeep(axes: Axes): NDArray[Boolean, R] =
+    ReductionApi.allAxes[R, R](array, axes, keep = true)
+
+  def allKeepDims(axes: Axes): NDArray[Boolean, R] = allKeep(axes)
+
+  def any(axes: Axes): AnyNDArray[Boolean] =
+    ReductionApi.anyAxes[R, AnyRank](array, axes, keep = false)
+
+  def anyKeep(axes: Axes): NDArray[Boolean, R] =
+    ReductionApi.anyAxes[R, R](array, axes, keep = true)
+
+  def anyKeepDims(axes: Axes): NDArray[Boolean, R] = anyKeep(axes)
+
+  def countTrue(axes: Axes): AnyNDArray[Int] =
+    ReductionApi.countTrueAxes[R, AnyRank](array, axes, keep = false)
+
+  def countTrueKeep(axes: Axes): NDArray[Int, R] =
+    ReductionApi.countTrueAxes[R, R](array, axes, keep = true)
+
+  def countTrueKeepDims(axes: Axes): NDArray[Int, R] = countTrueKeep(axes)
+
+  def allAxes(axes: Int*): AnyNDArray[Boolean] =
+    all(Axes.require(array.rank, axes*))
+
+  def anyAxes(axes: Int*): AnyNDArray[Boolean] =
+    any(Axes.require(array.rank, axes*))
+
+  def countTrueAxes(axes: Int*): AnyNDArray[Int] =
+    countTrue(Axes.require(array.rank, axes*))
+
 extension [A, R <: AnyRank](array: ReadableArray[A, R])(using
     @unused arithmetic: ArithmeticDType[A]
 )
