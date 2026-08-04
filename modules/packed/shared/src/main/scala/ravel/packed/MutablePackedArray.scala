@@ -3,14 +3,18 @@ package ravel.packed
 /** Mutable canonical packed workspace.
   *
   * Always dense row-major with a zeroed tail; there are no mutable views. [[freeze]] transfers
-  * ownership of the backing words to an immutable [[PackedArray]] without copying, after which this
-  * workspace must not be written again. [[freezeCopy]] leaves the workspace reusable.
+  * ownership of the backing words to an immutable [[PackedArray]] without copying and consumes this
+  * workspace. Every subsequent data read, write, copying freeze, or ownership-transferring freeze
+  * fails with [[PackedWorkspaceConsumedException]]. [[freezeCopy]] leaves the workspace reusable.
   */
 final class MutablePackedArray private (
     private[packed] val layout: PackedLayoutPlan,
     val bits: PackedBits,
-    private[packed] val words: Array[Int]
+    initialWords: Array[Int]
 ):
+  private var openBacking: Option[Array[Int]] =
+    Some(initialWords)
+
   val shape: Vector[Int] =
     layout.shape
 
@@ -18,42 +22,79 @@ final class MutablePackedArray private (
     layout.size
 
   def codeAt(linear: Int): Int =
-    require(linear >= 0 && linear < size, s"linear index $linear outside $size")
-    val wordIndex = linear / bits.codesPerWord
-    val slot = linear % bits.codesPerWord
-    val shift = slot * bits.bits
-    (words(wordIndex) >>> shift) & bits.mask
+    this.synchronized {
+      val words = requireOpenBacking()
+      require(linear >= 0 && linear < size, s"linear index $linear outside $size")
+      readCode(words, linear)
+    }
 
   def setCode(linear: Int, code: Int): Unit =
+    this.synchronized {
+      val words = requireOpenBacking()
+      validateCode(linear, code)
+      writeCode(words, linear, code)
+    }
+
+  /** Ownership-transferring freeze. This workspace is consumed atomically. */
+  def freeze: PackedArray =
+    this.synchronized {
+      val transferred = requireOpenBacking()
+      openBacking = None
+      new PackedArray(
+        layout,
+        bits,
+        transferred,
+        layout.rowMajorStrides,
+        sampleOffset = 0
+      )
+    }
+
+  /** Copying freeze; the workspace stays writable. */
+  def freezeCopy: PackedArray =
+    this.synchronized {
+      val copied = requireOpenBacking().clone()
+      new PackedArray(
+        layout,
+        bits,
+        copied,
+        layout.rowMajorStrides,
+        sampleOffset = 0
+      )
+    }
+
+  /** Lock-free write for a freshly allocated workspace that has not escaped its builder. */
+  private[packed] def setCodeDuringBuild(linear: Int, code: Int): Unit =
+    val words = requireOpenBacking()
+    validateCode(linear, code)
+    writeCode(words, linear, code)
+
+  private def validateCode(linear: Int, code: Int): Unit =
     require(linear >= 0 && linear < size, s"linear index $linear outside $size")
     require(
       code >= 0 && code <= bits.maxCode,
       s"code $code exceeds maximum ${bits.maxCode}"
     )
+
+  private def readCode(words: Array[Int], linear: Int): Int =
+    val wordIndex = linear / bits.codesPerWord
+    val slot = linear % bits.codesPerWord
+    val shift = slot * bits.bits
+    (words(wordIndex) >>> shift) & bits.mask
+
+  private def writeCode(words: Array[Int], linear: Int, code: Int): Unit =
     val wordIndex = linear / bits.codesPerWord
     val slot = linear % bits.codesPerWord
     val shift = slot * bits.bits
     words(wordIndex) = (words(wordIndex) & ~(bits.mask << shift)) | (code << shift)
 
-  /** Ownership-transferring freeze; do not mutate this workspace afterwards. */
-  def freeze: PackedArray =
-    new PackedArray(
-      layout,
-      bits,
-      words,
-      layout.rowMajorStrides,
-      sampleOffset = 0
-    )
+  private def requireOpenBacking(): Array[Int] =
+    openBacking match
+      case Some(words) => words
+      case None => throw new PackedWorkspaceConsumedException()
 
-  /** Copying freeze; the workspace stays writable. */
-  def freezeCopy: PackedArray =
-    new PackedArray(
-      layout,
-      bits,
-      words.clone(),
-      layout.rowMajorStrides,
-      sampleOffset = 0
-    )
+/** Raised when a data operation is attempted after [[MutablePackedArray.freeze]]. */
+final class PackedWorkspaceConsumedException()
+    extends IllegalStateException("mutable packed workspace was consumed by freeze")
 
 object MutablePackedArray:
   /** Zeroed canonical workspace. Shape must already be validated. */

@@ -113,7 +113,7 @@ final class PackedArray private[packed] (
     val output = MutablePackedArray.zeros(layout, bits)
     var linear = 0
     while linear < size do
-      output.setCode(linear, codeAt(linear))
+      output.setCodeDuringBuild(linear, codeAt(linear))
       linear += 1
     output.freeze
 
@@ -184,7 +184,7 @@ object PackedArray:
         if code < 0 || code > bits.maxCode then
           error = Some(PackedError.InvalidCode(linear, code, bits.maxCode))
         else
-          output.setCode(linear, code)
+          output.setCodeDuringBuild(linear, code)
           linear += 1
       error match
         case Some(err) => Left(err)
@@ -207,7 +207,7 @@ object PackedArray:
       val output = MutablePackedArray.zeros(layout, bits)
       var linear = 0
       while linear < output.size do
-        output.setCode(linear, code(linear) & bits.mask)
+        output.setCodeDuringBuild(linear, code(linear) & bits.mask)
         linear += 1
       output.freeze
     }
