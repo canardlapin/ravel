@@ -42,7 +42,7 @@ final class PackedPerformanceSuite extends FunSuite:
       )
     }
 
-  test("wordwise mask union beats the Boolean expansion baseline"):
+  test("specialized wordwise mask operations beat Boolean expansion baselines"):
     val samples = 1 << 20
     val leftPacked =
       packedRight(
@@ -59,10 +59,19 @@ final class PackedPerformanceSuite extends FunSuite:
     val leftBooleans = Array.tabulate(samples)(index => (index * 5) % 7 < 3)
     val rightBooleans = Array.tabulate(samples)(index => (index * 3) % 5 < 2)
 
-    def wordwise(): Unit =
+    def wordwiseUnion(): Unit =
       retained = packedRight(PackedBitOps.union(leftPacked, rightPacked))
 
-    def expansion(): Unit =
+    def wordwiseIntersection(): Unit =
+      retained = packedRight(PackedBitOps.intersection(leftPacked, rightPacked))
+
+    def wordwiseDifference(): Unit =
+      retained = packedRight(PackedBitOps.difference(leftPacked, rightPacked))
+
+    def wordwiseXor(): Unit =
+      retained = packedRight(PackedBitOps.xor(leftPacked, rightPacked))
+
+    def expansionUnion(): Unit =
       val output = new Array[Boolean](samples)
       var index = 0
       while index < samples do
@@ -70,31 +79,64 @@ final class PackedPerformanceSuite extends FunSuite:
         index += 1
       retained = output
 
-    var warmup = 0
-    while warmup < 10 do
-      wordwise()
-      expansion()
-      warmup += 1
+    def expansionIntersection(): Unit =
+      val output = new Array[Boolean](samples)
+      var index = 0
+      while index < samples do
+        output(index) = leftBooleans(index) && rightBooleans(index)
+        index += 1
+      retained = output
 
-    val wordwiseNanos = Vector.fill(9)(elapsedNanos(wordwise())).sorted.apply(4)
-    val expansionNanos = Vector.fill(9)(elapsedNanos(expansion())).sorted.apply(4)
-    val wordwiseAllocated =
-      Vector.fill(7)(allocatedBytes(wordwise())).sorted.apply(3)
+    def expansionDifference(): Unit =
+      val output = new Array[Boolean](samples)
+      var index = 0
+      while index < samples do
+        output(index) = leftBooleans(index) && !rightBooleans(index)
+        index += 1
+      retained = output
+
+    def expansionXor(): Unit =
+      val output = new Array[Boolean](samples)
+      var index = 0
+      while index < samples do
+        output(index) = leftBooleans(index) != rightBooleans(index)
+        index += 1
+      retained = output
+
+    val cases = Vector(
+      ("union", () => wordwiseUnion(), () => expansionUnion()),
+      ("intersection", () => wordwiseIntersection(), () => expansionIntersection()),
+      ("difference", () => wordwiseDifference(), () => expansionDifference()),
+      ("xor", () => wordwiseXor(), () => expansionXor())
+    )
     val wordBytes = PackedArray.wordCount(samples, PackedBits.B1).toLong * 4L
 
-    assert(
-      wordwiseAllocated <= wordBytes + 4096L,
-      s"wordwise union allocated $wordwiseAllocated B; words need $wordBytes B"
-    )
-    assert(
-      wordwiseNanos < expansionNanos,
-      s"wordwise union ($wordwiseNanos ns) must beat Boolean expansion ($expansionNanos ns)"
-    )
-    println(
-      s"RAVEL-PACKED JVM baseline: case=mask-union, samples=$samples, " +
-        s"wordwise=$wordwiseNanos ns, expansion=$expansionNanos ns, " +
-        s"wordwiseAllocated=$wordwiseAllocated B"
-    )
+    cases.foreach { (name, wordwise, expansion) =>
+      var warmup = 0
+      while warmup < 10 do
+        wordwise()
+        expansion()
+        warmup += 1
+
+      val wordwiseNanos = Vector.fill(9)(elapsedNanos(wordwise())).sorted.apply(4)
+      val expansionNanos = Vector.fill(9)(elapsedNanos(expansion())).sorted.apply(4)
+      val wordwiseAllocated =
+        Vector.fill(7)(allocatedBytes(wordwise())).sorted.apply(3)
+
+      assert(
+        wordwiseAllocated <= wordBytes + 4096L,
+        s"wordwise $name allocated $wordwiseAllocated B; words need $wordBytes B"
+      )
+      assert(
+        wordwiseNanos < expansionNanos,
+        s"wordwise $name ($wordwiseNanos ns) must beat Boolean expansion ($expansionNanos ns)"
+      )
+      println(
+        s"RAVEL-PACKED JVM baseline: case=mask-$name, samples=$samples, " +
+          s"wordwise=$wordwiseNanos ns, expansion=$expansionNanos ns, " +
+          s"wordwiseAllocated=$wordwiseAllocated B"
+      )
+    }
     assert(retained != null)
 
   private def elapsedNanos(body: => Unit): Long =

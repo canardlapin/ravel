@@ -146,6 +146,10 @@ final class PackedArray[+R <: AnyRank] private[packed] (
   def wordVector: Vector[Int] =
     if isCanonical then words.toVector else copy.wordVector
 
+  /** Encode a canonical, versioned, platform-independent byte representation. */
+  def toBytes: Either[PackedError, IArray[Byte]] =
+    PackedByteFormat.encode(this)
+
   /** All codes in logical C order. */
   def codeVector: Vector[Int] =
     Vector.tabulate(size)(codeAt)
@@ -244,17 +248,35 @@ object PackedArray:
         Left(PackedError.InvalidShape(s"expected ${shape.size} codes for shape $shape"))
       case None => Right(output.freeze)
 
-  /** Tabulate by logical C-order linear index. Codes are masked to width. */
+  /** Tabulate validated codes by logical C-order linear index. */
   def tabulate[R <: AnyRank](
       shape: Shape[R],
       bits: PackedBits
   )(code: Int => Int): Either[PackedError, PackedArray[R]] =
     val output = MutablePackedArray.zeros(shape, bits)
     var linear = 0
+    var error: Option[PackedError] = None
+    while linear < output.size && error.isEmpty do
+      val generated = code(linear)
+      if generated < 0 || generated > bits.maxCode then
+        error = Some(PackedError.InvalidCode(linear, generated, bits.maxCode))
+      else output.setCodeDuringBuild(linear, generated)
+      linear += 1
+    error match
+      case Some(value) => Left(value)
+      case None => Right(output.freeze)
+
+  /** Tabulate by logical C-order linear index, explicitly masking each generated code. */
+  def tabulateMasked[R <: AnyRank](
+      shape: Shape[R],
+      bits: PackedBits
+  )(code: Int => Int): PackedArray[R] =
+    val output = MutablePackedArray.zeros(shape, bits)
+    var linear = 0
     while linear < output.size do
       output.setCodeDuringBuild(linear, code(linear) & bits.mask)
       linear += 1
-    Right(output.freeze)
+    output.freeze
 
   def zeros[R <: AnyRank](shape: Shape[R], bits: PackedBits): PackedArray[R] =
     MutablePackedArray.zeros(shape, bits).freeze
@@ -266,8 +288,16 @@ object PackedArray:
       words: IterableOnce[Int]
   ): Either[PackedError, PackedArray[R]] =
     val expected = wordCount(shape.size, bits)
-    val copied = words.iterator.toArray
-    if copied.length != expected then Left(PackedError.WordLengthMismatch(expected, copied.length))
+    val copied = new Array[Int](expected)
+    val iterator = words.iterator
+    var actual = 0
+    while actual < expected && iterator.hasNext do
+      copied(actual) = iterator.next()
+      actual += 1
+    if actual < expected then Left(PackedError.WordLengthMismatch(expected, actual))
+    else if iterator.hasNext then
+      iterator.next()
+      Left(PackedError.WordLengthMismatch(expected, expected + 1))
     else
       val tailCodes = shape.size % bits.codesPerWord
       val tailWord = if expected == 0 then 0 else copied(expected - 1)
@@ -275,6 +305,10 @@ object PackedArray:
         if tailCodes == 0 then 0 else -1 << (tailCodes * bits.bits)
       if (tailWord & unusedMask) != 0 then Left(PackedError.NonCanonicalTail(tailWord))
       else Right(canonical(shape, bits, copied))
+
+  /** Decode the portable packed byte format. */
+  def fromBytes(bytes: IArray[Byte]): Either[PackedError, PackedArray[AnyRank]] =
+    PackedByteFormat.decode(bytes)
 
 type PackedArray0 = PackedArray[Rank[0]]
 type PackedArray1 = PackedArray[Rank[1]]

@@ -9,7 +9,8 @@ stores one-, two-, or four-bit codes in 32-bit words on both the JVM and
 Scala.js.
 
 Packed arrays are not `NDArray` values and packed widths are not `DType`s. They
-have their own shape, error, view, mutation, and serialization contracts.
+reuse core `Shape`, `Slice`, indexing, and view semantics while retaining
+storage-specific construction, mutation, and serialization contracts.
 
 ## Construct validated codes
 
@@ -44,9 +45,14 @@ Packed arrays use the same scalar and empty shapes as core. `Shape.scalar`
 contains one code and has rank zero; shapes such as `Shape(2, 0, 3)` contain no
 codes and preserve their zero extent through views.
 
-`tabulate` has a different contract: it masks each generated value to the
-selected width. Use `fromCodes` when an out-of-range value should be reported
-rather than truncated.
+`tabulate` applies the same range check to every generated code. Use the
+explicitly named `tabulateMasked` only when low-bit truncation is the intended
+operation:
+
+```scala mdoc
+PackedArray.tabulate(Shape(3), PackedBits.B2)(index => index * 2)
+PackedArray.tabulateMasked(Shape(3), PackedBits.B2)(index => index * 2).codeVector
+```
 
 ## Take a view, then materialize deliberately
 
@@ -75,7 +81,7 @@ into minimal canonical storage with zeroed unused tail bits:
 (secondRow.copy.isCanonical, secondRow.copy.wordVector)
 ```
 
-## Round-trip canonical words
+## Round-trip words or portable bytes
 
 `wordVector` returns canonical row-major words. Code zero occupies the least
 significant bits of the first word, and unused bits in the final word are zero.
@@ -89,15 +95,42 @@ words
 restored.map(_.codeVector)
 ```
 
-`fromWords` copies and validates the input. It rejects an incorrect word count
-or a nonzero unused tail, so accepted words are canonical serialization input.
-The module does not choose a byte-level file format; a caller serializing
-32-bit words must still define byte order for that outer format.
+`fromWords` copies and validates the input. It consumes no more than the
+expected number of words plus one, even when given an unbounded iterator. It
+rejects an incorrect word count or a nonzero unused tail, so accepted words
+are canonical serialization input.
+
+For storage or interchange, `toBytes` and `fromBytes` implement the version 1
+portable format:
+
+```scala mdoc
+val encoded = labels.toBytes
+val decoded = encoded.flatMap(PackedArray.fromBytes)
+decoded.map(value => (value.shape, value.bits, value.codeVector))
+```
+
+| Bytes | Version 1 meaning |
+|---|---|
+| `0..3` | ASCII magic `RVPK` |
+| `4` | format version, currently `1` |
+| `5` | code width: `1`, `2`, or `4` |
+| `6..7` | reserved and required to be zero |
+| `8..11` | non-negative rank as a big-endian 32-bit integer |
+| next `4 * rank` | non-negative dimensions as big-endian 32-bit integers |
+| remainder | canonical words in logical order, each big-endian |
+
+Within each decoded word, the earliest logical code occupies the
+least-significant slot. Later codes occupy progressively higher slots. Unused
+high bits in the final word must be zero, and the payload must contain exactly
+the word count implied by shape and width. Decoders reject unknown versions,
+nonzero reserved bytes, invalid shapes or widths, wrong byte lengths, and
+noncanonical tails. A future incompatible interpretation therefore requires a
+new version rather than silently changing version 1.
 
 ## Combine one-bit masks
 
-`PackedBitOps` performs union, intersection, difference, symmetric difference,
-complement, and population count over `B1` arrays:
+`PackedBitOps` performs union, intersection, difference, `xor` (also named
+`symmetricDifference`), complement, and population count over `B1` arrays:
 
 ```scala mdoc:silent
 val selected = PackedArray.fromCodes(
@@ -132,7 +165,9 @@ the result.
 
 | Operation | Storage consequence | Failure surface |
 |---|---|---|
-| `fromCodes`, `fromWords`, `zeros` | new canonical immutable storage | `Either[PackedError, ...]` |
+| `fromCodes`, `fromWords`, `fromBytes`, `tabulate`, `zeros` | new canonical immutable storage | `Either[PackedError, ...]`, except validated-shape `zeros` |
+| `tabulateMasked` | new canonical immutable storage with explicit low-bit truncation | none after a valid shape exists |
+| `toBytes` | copied portable byte representation; views first become canonical | `Either[PackedError, ...]` for unrepresentable byte length |
 | `select`, `slice`, `reverse` | shared immutable view | typed core exception for invalid programmer input |
 | `narrowChecked`, `permuteAxesChecked` | shared immutable view | checked core error value |
 | `copy` | new canonical immutable storage | none after a valid source exists |

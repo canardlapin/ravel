@@ -30,6 +30,8 @@ enum PackedError derives CanEqual:
   case InvalidCode(index: Int, code: Int, maxCode: Int)
   case WordLengthMismatch(expected: Int, actual: Int)
   case NonCanonicalTail(word: Int)
+  case ByteLengthOverflow(requiredBytes: Long)
+  case InvalidByteFormat(detail: String)
   case ShapeMismatch(left: Shape[?], right: Shape[?])
   case BitsMismatch(left: PackedBits, right: PackedBits)
   case NotOneBit(bits: PackedBits)
@@ -39,11 +41,15 @@ enum PackedError derives CanEqual:
       case InvalidShape(detail) =>
         detail
       case InvalidCode(index, code, maxCode) =>
-        s"code $code at linear index $index exceeds maximum $maxCode"
+        s"code $code at linear index $index is outside [0, $maxCode]"
       case WordLengthMismatch(expected, actual) =>
         s"expected $expected backing words, got $actual"
       case NonCanonicalTail(word) =>
         s"unused tail bits must be zero, got 0x${word.toHexString}"
+      case ByteLengthOverflow(requiredBytes) =>
+        s"packed byte representation needs $requiredBytes bytes, above the portable Int limit"
+      case InvalidByteFormat(detail) =>
+        s"invalid packed byte representation: $detail"
       case ShapeMismatch(left, right) =>
         s"shapes $left and $right differ"
       case BitsMismatch(left, right) =>

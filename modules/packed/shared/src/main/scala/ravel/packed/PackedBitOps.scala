@@ -11,26 +11,60 @@ object PackedBitOps:
       left: PackedArray[R],
       right: PackedArray[?]
   ): Either[PackedError, PackedArray[R]] =
-    combine(left, right)((a, b) => a | b)
+    canonicalPair(left, right).map { (leftCanonical, rightCanonical) =>
+      val output = new Array[Int](leftCanonical.words.length)
+      var index = 0
+      while index < output.length do
+        output(index) = leftCanonical.words(index) | rightCanonical.words(index)
+        index += 1
+      finish(leftCanonical, output)
+    }
 
   def intersection[R <: ravel.AnyRank](
       left: PackedArray[R],
       right: PackedArray[?]
   ): Either[PackedError, PackedArray[R]] =
-    combine(left, right)((a, b) => a & b)
+    canonicalPair(left, right).map { (leftCanonical, rightCanonical) =>
+      val output = new Array[Int](leftCanonical.words.length)
+      var index = 0
+      while index < output.length do
+        output(index) = leftCanonical.words(index) & rightCanonical.words(index)
+        index += 1
+      finish(leftCanonical, output)
+    }
 
   /** Samples present in `left` and absent from `right`. */
   def difference[R <: ravel.AnyRank](
       left: PackedArray[R],
       right: PackedArray[?]
   ): Either[PackedError, PackedArray[R]] =
-    combine(left, right)((a, b) => a & ~b)
+    canonicalPair(left, right).map { (leftCanonical, rightCanonical) =>
+      val output = new Array[Int](leftCanonical.words.length)
+      var index = 0
+      while index < output.length do
+        output(index) = leftCanonical.words(index) & ~rightCanonical.words(index)
+        index += 1
+      finish(leftCanonical, output)
+    }
+
+  def xor[R <: ravel.AnyRank](
+      left: PackedArray[R],
+      right: PackedArray[?]
+  ): Either[PackedError, PackedArray[R]] =
+    canonicalPair(left, right).map { (leftCanonical, rightCanonical) =>
+      val output = new Array[Int](leftCanonical.words.length)
+      var index = 0
+      while index < output.length do
+        output(index) = leftCanonical.words(index) ^ rightCanonical.words(index)
+        index += 1
+      finish(leftCanonical, output)
+    }
 
   def symmetricDifference[R <: ravel.AnyRank](
       left: PackedArray[R],
       right: PackedArray[?]
   ): Either[PackedError, PackedArray[R]] =
-    combine(left, right)((a, b) => a ^ b)
+    xor(left, right)
 
   def complement[R <: ravel.AnyRank](
       input: PackedArray[R]
@@ -56,24 +90,24 @@ object PackedBitOps:
       total
     }
 
-  private def combine[R <: ravel.AnyRank](
+  private def canonicalPair[R <: ravel.AnyRank](
       left: PackedArray[R],
       right: PackedArray[?]
-  )(op: (Int, Int) => Int): Either[PackedError, PackedArray[R]] =
+  ): Either[PackedError, (PackedArray[R], PackedArray[?])] =
     if left.bits != right.bits then Left(PackedError.BitsMismatch(left.bits, right.bits))
     else if left.shape != right.shape then Left(PackedError.ShapeMismatch(left.shape, right.shape))
     else
       for
         leftCanonical <- requireOneBit(left)
         rightCanonical <- requireOneBit(right)
-      yield
-        val output = new Array[Int](leftCanonical.words.length)
-        var index = 0
-        while index < output.length do
-          output(index) = op(leftCanonical.words(index), rightCanonical.words(index))
-          index += 1
-        zeroTail(output, leftCanonical.size)
-        PackedArray.canonical(leftCanonical.shape, PackedBits.B1, output)
+      yield (leftCanonical, rightCanonical)
+
+  private def finish[R <: ravel.AnyRank](
+      left: PackedArray[R],
+      output: Array[Int]
+  ): PackedArray[R] =
+    zeroTail(output, left.size)
+    PackedArray.canonical(left.shape, PackedBits.B1, output)
 
   private def requireOneBit[R <: ravel.AnyRank](
       input: PackedArray[R]

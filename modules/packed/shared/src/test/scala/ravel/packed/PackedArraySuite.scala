@@ -56,6 +56,32 @@ final class PackedArraySuite extends FunSuite:
     assert(PackedArray.fromCodes(Shape(4), PackedBits.B1, Vector(1, 0, 1)).isLeft)
     assert(PackedArray.fromCodes(Shape(2), PackedBits.B1, Vector(1, 0, 1)).isLeft)
 
+  test("tabulate validates codes and masking is explicit"):
+    widths.foreach { bits =>
+      PackedArray.tabulate(Shape(4), bits)(index =>
+        if index == 2 then bits.maxCode + 1 else index
+      ) match
+        case Left(PackedError.InvalidCode(index, code, maxCode)) =>
+          assertEquals(index, 2, s"width $bits")
+          assertEquals(code, bits.maxCode + 1, s"width $bits")
+          assertEquals(maxCode, bits.maxCode, s"width $bits")
+        case other => fail(s"expected InvalidCode for $bits, got $other")
+      assert(
+        PackedArray.tabulate(Shape(1), bits)(_ => -1).isLeft,
+        s"negative code at $bits"
+      )
+
+      val masked =
+        PackedArray.tabulateMasked(Shape(4), bits)(index =>
+          if index == 0 then -1 else bits.maxCode + index
+        )
+      assertEquals(
+        masked.codeVector,
+        Vector.tabulate(4)(index => (if index == 0 then -1 else bits.maxCode + index) & bits.mask),
+        s"width $bits"
+      )
+    }
+
   test("word layout is least-significant-slot first and fixed across platforms"):
     val oneBit = packedRight(
       PackedArray.fromCodes(Shape(8), PackedBits.B1, Vector(1, 0, 1, 0, 1, 0, 1, 0))
@@ -87,6 +113,37 @@ final class PackedArraySuite extends FunSuite:
     PackedArray.fromWords(shape, PackedBits.B2, corrupted) match
       case Left(PackedError.NonCanonicalTail(_)) => ()
       case other => fail(s"expected NonCanonicalTail, got $other")
+
+  test("fromWords consumes at most the expected words plus one"):
+    val shape = Shape(33)
+
+    val exact = GuardedIterator(Vector(1, 1), maximumNextCalls = 2)
+    assert(PackedArray.fromWords(shape, PackedBits.B1, exact).isRight)
+    assertEquals(exact.nextCalls, 2)
+
+    val short = GuardedIterator(Vector(1), maximumNextCalls = 1)
+    PackedArray.fromWords(shape, PackedBits.B1, short) match
+      case Left(PackedError.WordLengthMismatch(expected, actual)) =>
+        assertEquals(expected, 2)
+        assertEquals(actual, 1)
+      case other => fail(s"expected short WordLengthMismatch, got $other")
+    assertEquals(short.nextCalls, 1)
+
+    val excessive = GuardedIterator(Vector.fill(100)(0), maximumNextCalls = 3)
+    PackedArray.fromWords(shape, PackedBits.B1, excessive) match
+      case Left(PackedError.WordLengthMismatch(expected, actual)) =>
+        assertEquals(expected, 2)
+        assertEquals(actual, 3)
+      case other => fail(s"expected long WordLengthMismatch, got $other")
+    assertEquals(excessive.nextCalls, 3)
+
+    val emptyExtra = GuardedIterator(Vector(0, 1), maximumNextCalls = 1)
+    PackedArray.fromWords(Shape(0), PackedBits.B4, emptyExtra) match
+      case Left(PackedError.WordLengthMismatch(expected, actual)) =>
+        assertEquals(expected, 0)
+        assertEquals(actual, 1)
+      case other => fail(s"expected empty WordLengthMismatch, got $other")
+    assertEquals(emptyExtra.nextCalls, 1)
 
   test("select, slice, narrow, reverse, and permutation compose against a Vector model"):
     val shape = Shape(2, 3, 4)
@@ -200,6 +257,23 @@ final class PackedArraySuite extends FunSuite:
     value match
       case Right(result) => result
       case Left(error) => fail(error.message)
+
+  private final class GuardedIterator(
+      values: Vector[Int],
+      maximumNextCalls: Int
+  ) extends Iterator[Int]:
+    var nextCalls: Int = 0
+
+    def hasNext: Boolean =
+      nextCalls < values.length
+
+    def next(): Int =
+      if nextCalls >= maximumNextCalls then
+        throw new IllegalStateException(s"iterator consumed more than $maximumNextCalls values")
+      if !hasNext then throw new NoSuchElementException("next on empty iterator")
+      val value = values(nextCalls)
+      nextCalls += 1
+      value
 
   private final case class Model(shape: Vector[Int], values: Vector[Int]):
     def select(axis: Int, index: Int): Model =

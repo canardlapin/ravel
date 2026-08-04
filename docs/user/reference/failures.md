@@ -87,11 +87,14 @@ the boundary. `InvalidNarrowException.error` and
 ## Account for module-specific failures
 
 `ravel-packed` reuses core `Shape`, `Slice`, negative-axis/index normalization,
-`InvalidNarrow`, and `PermutationError`. Dynamic code and word constructors and
-one-bit set algebra return `Either[PackedError, ...]`. Structural views follow
-the core split: `narrowChecked` and `permuteAxesChecked` return pure errors;
-their convenience forms and direct indexing throw the corresponding typed core
-exceptions. A mutable packed workspace throws
+`InvalidNarrow`, and `PermutationError`. Dynamic code, word, and byte
+constructors, portable byte encoding, and one-bit set algebra return
+`Either[PackedError, ...]`. `InvalidByteFormat` distinguishes malformed magic,
+version, width, shape, and length metadata; a nonzero unused tail remains the
+more specific `NonCanonicalTail`. Structural views follow the core split:
+`narrowChecked` and `permuteAxesChecked` return pure errors; their convenience
+forms and direct indexing throw the corresponding typed core exceptions. A
+mutable packed workspace throws
 `PackedWorkspaceConsumedException` after ownership-transferring `freeze`.
 
 `ravel-stencil` validates `NeighborhoodSpec`, ranks, destination shapes, and

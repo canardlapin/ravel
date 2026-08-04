@@ -34,6 +34,11 @@ final class PackedBitOpsSuite extends FunSuite:
         s"symmetric difference at size $size"
       )
       assertEquals(
+        codes(packedRight(PackedBitOps.xor(left, right))),
+        leftBooleans.zip(rightBooleans).map(_ != _),
+        s"xor at size $size"
+      )
+      assertEquals(
         codes(packedRight(PackedBitOps.complement(left))),
         leftBooleans.map(!_),
         s"complement at size $size"
