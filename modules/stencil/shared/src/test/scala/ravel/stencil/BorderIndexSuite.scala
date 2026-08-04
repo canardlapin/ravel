@@ -62,3 +62,32 @@ final class BorderIndexSuite extends FunSuite:
       BorderIndex.mapInside(-1, 5, BorderMode.ReflectWithoutEdge),
       BorderIndex.mapInside(-1, 5, BorderMode.ReflectWithEdge)
     )
+
+  test("logical coordinates widen before addition"):
+    assertEquals(
+      StencilArithmetic.logicalCoordinate(Int.MaxValue, Int.MaxValue, Int.MaxValue),
+      6442450941L
+    )
+    assertEquals(
+      StencilArithmetic.logicalCoordinate(Int.MinValue, Int.MinValue, Int.MinValue),
+      -6442450944L
+    )
+
+  test("Long-domain wrapping and reflection do not overflow Int periods"):
+    assertEquals(BorderIndex.mapInside(Long.MinValue, 5, BorderMode.Wrap), 2)
+    assertEquals(
+      BorderIndex.mapInside(
+        Int.MaxValue.toLong,
+        Int.MaxValue,
+        BorderMode.ReflectWithEdge
+      ),
+      Int.MaxValue - 1
+    )
+    assertEquals(
+      BorderIndex.mapInside(
+        Int.MaxValue.toLong,
+        Int.MaxValue,
+        BorderMode.ReflectWithoutEdge
+      ),
+      Int.MaxValue - 2
+    )

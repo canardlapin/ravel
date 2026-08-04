@@ -11,8 +11,15 @@ object BorderIndex:
       extent: Int,
       mode: BorderMode
   ): MappedIndex =
+    map(index.toLong, extent, mode)
+
+  def map(
+      index: Long,
+      extent: Int,
+      mode: BorderMode
+  ): MappedIndex =
     if extent <= 0 then throw IllegalArgumentException(s"extent must be positive, got $extent")
-    if index >= 0 && index < extent then MappedIndex.Inside(index)
+    if index >= 0L && index < extent.toLong then MappedIndex.Inside(index.toInt)
     else
       mode match
         case BorderMode.Constant =>
@@ -32,6 +39,13 @@ object BorderIndex:
       extent: Int,
       mode: BorderMode
   ): Int =
+    mapInside(index.toLong, extent, mode)
+
+  def mapInside(
+      index: Long,
+      extent: Int,
+      mode: BorderMode
+  ): Int =
     map(index, extent, mode) match
       case MappedIndex.Inside(mapped) => mapped
       case MappedIndex.Outside =>
@@ -45,12 +59,12 @@ object BorderIndex:
     * All valid mapped indices are non-negative.
     */
   private[stencil] def direct(
-      index: Int,
+      index: Long,
       extent: Int,
       mode: BorderMode
   ): Int =
     if extent <= 0 then throw IllegalArgumentException(s"extent must be positive, got $extent")
-    if index >= 0 && index < extent then index
+    if index >= 0L && index < extent.toLong then index.toInt
     else
       mode match
         case BorderMode.Constant =>
@@ -64,27 +78,53 @@ object BorderIndex:
         case BorderMode.ReflectWithEdge =>
           reflectWithEdge(index, extent)
 
-  private def clamp(index: Int, extent: Int): Int =
-    if index < 0 then 0
-    else if index >= extent then extent - 1
-    else index
+  private def clamp(index: Long, extent: Int): Int =
+    if index < 0L then 0
+    else if index >= extent.toLong then extent - 1
+    else index.toInt
 
-  private def wrap(index: Int, extent: Int): Int =
-    val mod = index % extent
-    if mod < 0 then mod + extent else mod
+  private def wrap(index: Long, extent: Int): Int =
+    val mod = index % extent.toLong
+    val normalized = if mod < 0L then mod + extent.toLong else mod
+    normalized.toInt
 
   /** Reflect without duplicating the edge sample (OpenCV REFLECT_101 / NumPy reflect). */
-  private def reflectWithoutEdge(index: Int, extent: Int): Int =
+  private def reflectWithoutEdge(index: Long, extent: Int): Int =
     if extent == 1 then 0
     else
-      val period = 2 * (extent - 1)
+      val period = 2L * (extent.toLong - 1L)
       var x = index % period
-      if x < 0 then x += period
-      if x >= extent then period - x else x
+      if x < 0L then x += period
+      val mapped = if x >= extent.toLong then period - x else x
+      mapped.toInt
 
   /** Reflect while duplicating the edge sample (OpenCV REFLECT / NumPy symmetric). */
-  private def reflectWithEdge(index: Int, extent: Int): Int =
-    val period = 2 * extent
+  private def reflectWithEdge(index: Long, extent: Int): Int =
+    val period = 2L * extent.toLong
     var x = index % period
-    if x < 0 then x += period
-    if x >= extent then period - 1 - x else x
+    if x < 0L then x += period
+    val mapped = if x >= extent.toLong then period - 1L - x else x
+    mapped.toInt
+
+private[stencil] object StencilArithmetic:
+  def logicalCoordinate(origin: Int, destination: Int, offset: Int): Long =
+    checkedAdd(checkedAdd(origin.toLong, destination.toLong), offset.toLong)
+
+  def requirePositiveSpatialExtents(
+      spatialAxes: Int,
+      extentAt: Int => Int
+  ): Unit =
+    var axis = 0
+    while axis < spatialAxes do
+      val extent = extentAt(axis)
+      if extent <= 0 then
+        throw IllegalArgumentException(
+          s"source spatial extent on axis $axis must be positive, got $extent"
+        )
+      axis += 1
+
+  private def checkedAdd(left: Long, right: Long): Long =
+    val result = left + right
+    if ((left ^ result) & (right ^ result)) < 0L then
+      throw ArithmeticException(s"stencil coordinate overflow: $left + $right")
+    result

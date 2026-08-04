@@ -112,10 +112,24 @@ The prepared executor has primitive `runBoolean`, `runByte`, `runShort`,
 `runFloat`, and `runDouble` paths. Mutable-to-mutable prepared passes support
 ping-pong workspaces, but source and destination must not share storage.
 
-`StencilExecutionPolicy` is currently a placeholder: its method and parallelism
-fields do not change executor selection or scheduling. Choose the reference or
-direct executor explicitly, and do not infer parallel execution from the
-default `Auto` values.
+Each prepared executor owns its coordinate and offset workspace until the plan
+is discarded. Runs on one plan are thread-safe and serialized; use separate
+plans for parallel work. Source and destination arrays remain caller-owned and
+must not be mutated elsewhere until a run returns. The plan retains no array or
+reducer after the call.
+
+Stencil execution is sequential. Choose the reference or direct executor
+explicitly; the experimental API does not expose `Auto` selection or inert
+parallelism controls.
+
+Logical source coordinates are formed and border-mapped in checked `Long`
+arithmetic before narrowing to an in-range storage index. Preparation rejects
+an empty source extent on any spatial axis; use an explicit empty-result branch
+instead of constructing a plan that cannot sample its source.
+
+Zero extents are valid in the declared output spatial shape. Reference, direct,
+and prepared execution treat a zero-sized destination as a no-op and never call
+the reducer.
 
 ## Know what changes
 
@@ -124,7 +138,7 @@ default `Auto` values.
 | source `NDArray` | read only | arbitrary valid view layout is accepted | remains owned and immutable |
 | destination `MutableNDArray` | overwritten once per logical output sample | must match the declared output spatial shape and source batch axes | remains mutable and caller-owned |
 | `freezeCopy()` after a pass | copied result values | preserves destination logical shape in canonical owned storage | new immutable owner |
-| prepared executor | no array values retained | bound to source and destination logical shapes, not storage identities | owns reusable scheduling workspace |
+| prepared executor | no array values retained | bound to source and destination logical shapes, not storage identities | owns reusable scheduling workspace; serializes its runs |
 
 Invalid specifications, rank mismatches, destination-shape mismatches, and
 incompatible prepared runs currently throw `IllegalArgumentException`. Validate

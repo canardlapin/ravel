@@ -1,6 +1,10 @@
 package ravel.stencil
 
 import java.lang.management.ManagementFactory
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 import com.sun.management.ThreadMXBean
 import munit.FunSuite
@@ -57,6 +61,13 @@ final class DirectNeighborhoodExecutorPerformanceSuite extends FunSuite:
         def finish(acc: Double): Double = acc
     val plan =
       DirectNeighborhoodExecutor.prepare(source, directDestination, spec)
+    var preparedSink = plan
+
+    val preparationBytes =
+      medianAllocation {
+        preparedSink = DirectNeighborhoodExecutor.prepare(source, directDestination, spec)
+      }
+    assert(preparedSink != null)
 
     var warmup = 0
     while warmup < 20 do
@@ -101,12 +112,18 @@ final class DirectNeighborhoodExecutorPerformanceSuite extends FunSuite:
       s"prepared direct run allocated $directBytes B; expected reusable workspace"
     )
     assert(
+      preparationBytes > directBytes,
+      s"preparation allocation $preparationBytes B did not exceed run allocation $directBytes B"
+    )
+    assert(
       referenceBytes > directBytes * 20L,
       s"reference allocation $referenceBytes B was not materially larger " +
         s"than direct allocation $directBytes B"
     )
     println(
-      s"RAVEL-STENCIL JVM baseline: directAllocated=$directBytes B, " +
+      s"RAVEL-STENCIL JVM baseline: executor=PreparedDirectNeighborhoodExecutor, " +
+        s"execution=sequential, layout=canonical, workspace=reused, " +
+        s"prepareAllocated=$preparationBytes B, directAllocated=$directBytes B, " +
         s"referenceAllocated=$referenceBytes B, samples=${nx * ny}, " +
         s"support=${spec.offsets.size}"
     )
@@ -160,9 +177,68 @@ final class DirectNeighborhoodExecutorPerformanceSuite extends FunSuite:
       s"prepared Boolean run allocated $allocated B; expected reusable workspace"
     )
     println(
-      s"RAVEL-STENCIL JVM baseline: booleanAllocated=$allocated B, " +
+      s"RAVEL-STENCIL JVM baseline: executor=PreparedDirectNeighborhoodExecutor, " +
+        s"execution=sequential, dtype=Boolean, layout=canonical, workspace=reused, " +
+        s"booleanAllocated=$allocated B, " +
         s"samples=${nx * ny}, support=${spec.offsets.size}"
     )
+
+  test("one prepared plan serializes overlapping JVM runs"):
+    val source = NDArray.fromSeq(Shape(1), Seq(7.0))
+    val firstDestination = MutableNDArray.zeros[Double, Rank[1]](Shape(1))
+    val secondDestination = MutableNDArray.zeros[Double, Rank[1]](Shape(1))
+    val spec = NeighborhoodSpec(
+      spatialAxes = 1,
+      offsets = Vector(Vector(0)),
+      border = BorderMode.Constant,
+      outputOrigin = Vector(0),
+      outputSpatialShape = Vector(1)
+    )
+    val firstAccumulator = new AtomicBoolean(true)
+    val firstEntered = new CountDownLatch(1)
+    val releaseFirst = new CountDownLatch(1)
+    val secondFinished = new CountDownLatch(1)
+    val failures = new ConcurrentLinkedQueue[Throwable]()
+    val reducer = new DoubleNeighborhoodReducer:
+      def zero: Double = 0.0
+      def accumulate(acc: Double, value: Double, offsetIndex: Int): Double =
+        if firstAccumulator.compareAndSet(true, false) then
+          firstEntered.countDown()
+          if !releaseFirst.await(5, TimeUnit.SECONDS) then
+            throw AssertionError("timed out waiting to release first prepared run")
+        value
+      def finish(acc: Double): Double = acc
+    val plan = DirectNeighborhoodExecutor.prepare(source, firstDestination, spec)
+
+    val first = new Thread(() =>
+      try plan.runDouble(source, firstDestination, reducer, constant = 0.0)
+      catch case failure: Throwable => failures.add(failure)
+      ()
+    )
+    val second = new Thread(() =>
+      try plan.runDouble(source, secondDestination, reducer, constant = 0.0)
+      catch case failure: Throwable => failures.add(failure)
+      finally secondFinished.countDown()
+      ()
+    )
+
+    first.start()
+    assert(firstEntered.await(5, TimeUnit.SECONDS), "first prepared run did not enter")
+    second.start()
+    try
+      assert(
+        !secondFinished.await(100, TimeUnit.MILLISECONDS),
+        "overlapping run was not serialized"
+      )
+    finally releaseFirst.countDown()
+    first.join(5000)
+    second.join(5000)
+
+    assert(!first.isAlive)
+    assert(!second.isAlive)
+    assert(failures.isEmpty, failures.toString)
+    assertEquals(firstDestination(0), 7.0)
+    assertEquals(secondDestination(0), 7.0)
 
   private def medianAllocation(run: => Unit): Long =
     Vector

@@ -63,6 +63,19 @@ val integral: Array2[Int] = bounded.cast[Int]
 integral
 ```
 
+Unary `+` takes an eager owned snapshot. This is deliberate even for an owned
+input, and isolates the result when the readable source is borrowed or mutable.
+Array previews use the dtype's logical formatter, so unsigned values are shown
+as magnitudes such as `255` and `65535`, not their signed storage bits.
+
+```scala mdoc
+val unsigned = NDArray.fromSeq(
+  Shape(2),
+  Seq(UInt8.unsafe(255), UInt8.unsafe(128))
+)
+unsigned
+```
+
 ## Reduce all elements or selected axes
 
 Scalar reductions consume every logical element. Axis reductions remove that

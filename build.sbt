@@ -119,11 +119,11 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
   .settings(experimentalModuleSettings)
   .settings(
     name := "ravel-laws",
-    description := "Reusable MUnit, ScalaCheck, and Discipline law bundles for Ravel.",
+    description := "Internal JVM and Scala.js conformance tests for Ravel; not a published API.",
     libraryDependencies ++= Seq(
-      "org.scalameta" %%% "munit" % "1.3.0",
-      "org.scalameta" %%% "munit-scalacheck" % "1.3.0",
-      "org.typelevel" %%% "discipline-core" % "1.7.0"
+      "org.scalameta" %%% "munit" % "1.3.0" % Test,
+      "org.scalameta" %%% "munit-scalacheck" % "1.3.0" % Test,
+      "org.typelevel" %%% "discipline-core" % "1.7.0" % Test
     )
   )
   .jsSettings(

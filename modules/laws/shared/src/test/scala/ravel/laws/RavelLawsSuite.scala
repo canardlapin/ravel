@@ -42,8 +42,8 @@ final class RavelLawsSuite extends FunSuite:
   }
 
   test("Discipline ruleset is reusable") {
-    val rules = RavelDiscipline.core
-    assertEquals(rules.name, "ravel-core")
+    val rules = InternalRavelDiscipline.core
+    assertEquals(rules.name, "ravel-internal-generated")
     rules.all.properties.foreach { (name, property) =>
       val result =
         Test.check(

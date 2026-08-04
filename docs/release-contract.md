@@ -6,9 +6,10 @@ This page separates public guarantees from current implementation details.
 
 The 1.0 compatibility and publication promise applies only to `ravel-core`,
 cross-published for the JVM and Scala.js. `ravel-laws`, `ravel-packed`, and
-`ravel-stencil` remain tested, documented source modules, but their builds set
-`publish / skip := true`; a core 1.0 tag cannot publish them. Their APIs remain
-experimental and may stabilize later on an explicitly separate release line.
+`ravel-stencil` all set `publish / skip := true`; a core 1.0 tag cannot publish
+them. Packed and stencil remain experimental source APIs. Laws is an internal
+generated test harness with no main-source API. Any future public artifact
+requires an explicitly separate design and release line.
 
 ## Public guarantees
 
@@ -35,6 +36,8 @@ experimental and may stabilize later on an explicitly separate release line.
 - Built-in numerical operations execute eagerly and allocate one contiguous
   owned output. Array-valued reductions allocate even when an empty axis list
   leaves the logical values unchanged.
+- Unary `+` is an eager owned copy for owned, borrowed, and mutable readable
+  inputs; it is not an identity view.
 - `Axes` normalizes and validates a multi-axis reduction once. Sum, product,
   min, max, mean, Boolean `all`, Boolean `any`, and `countTrue` plan the full
   axis set without sequential intermediates; keep-dimensions variants replace
@@ -56,6 +59,9 @@ experimental and may stabilize later on an explicitly separate release line.
   keeps low bits; floating-to-integral conversion truncates toward zero,
   maps NaN to zero, and clamps infinities and out-of-range values before any
   final `Byte` or `Short` narrowing.
+- `DType.format` defines logical scalar presentation. In particular, `UInt8`
+  and `UInt16` render as unsigned magnitudes while floating NaN, infinity, and
+  signed zero retain their ordinary Scala spelling.
 - `sum` preserves the input arithmetic dtype. The supported widened sums are
   `Int` to `Long` and `Float` to `Double`.
 - Floating sum and mean use logical row-major blocks of 128 values and a fixed

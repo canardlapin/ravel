@@ -71,9 +71,11 @@ record is in [`consumer-validation.md`](consumer-validation.md).
 ## Artifact scope
 
 The current enforced 1.0 matrix publishes only `ravel-core` for JVM and
-Scala.js. `ravel-laws`, `ravel-packed`, and `ravel-stencil` remain cross-tested
-source modules with publishing disabled. This supersedes the earlier candidate
-inspection in this document, which also treated `ravel-laws` as publishable.
+Scala.js. `ravel-packed` and `ravel-stencil` remain cross-tested source modules
+with publishing disabled. `ravel-laws` is also cross-tested, but only from Test:
+clean Compile outputs contain no `ravel.laws` classes and its test-framework
+dependencies do not enter the Compile classpath. This supersedes the earlier
+candidate inspection in this document, which treated laws as publishable.
 
 Generated POM inspection found:
 
@@ -98,6 +100,14 @@ The final baselines and the 70-percent regression budget are recorded in
 [`benchmark-baselines.md`](benchmark-baselines.md). The JVM public addition
 allocates one result buffer plus 1,177 bytes of wrapper and plan overhead,
 within the 2,048-byte allowance. The raw probes reuse their output.
+
+The experimental stencil court separately reports preparation allocation and
+per-run allocation for the sequential `PreparedDirectNeighborhoodExecutor`,
+including dtype, layout class, and reusable-workspace status. Its shared
+conformance matrix covers every border mode, canonical/reversed/permuted/sliced
+rank-three and rank-four inputs, immutable and mutable sources, and empty
+outputs on JVM and Scala.js. Stencil remains unpublished and is not part of the
+core 1.0 performance promise.
 
 ## Publication boundary
 

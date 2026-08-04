@@ -13,9 +13,10 @@ part of the 1.0 publication or compatibility promise. They remain experimental
 source modules and may be released later only after their own contracts and
 version lines are defined.
 
-The checked-in `ravel-laws` helpers are preliminary internal evidence, not a
-stable adapter-driven conformance kit. Core 1.0 attaches no compatibility
-promise to those helpers or to the current two constant Discipline properties.
+`ravel-laws` contains generated repository tests only. It has no main-source
+API, published coordinate, adapter contract, or RuleSet compatibility promise.
+A future downstream conformance kit would require an explicit new design and
+release line.
 
 Local `publishLocalSnapshot` follows the same matrix and publishes only the
 two core platform artifacts as `1.0.0-SNAPSHOT`.

@@ -86,3 +86,31 @@ final class BorrowedEqualitySuite extends FunSuite:
     assert(!rendered.contains("707"))
     assert(rendered.length < 300)
   }
+
+  test("dtype formatting renders logical unsigned magnitudes and floating edge values") {
+    val uint8 = NDArray.fromSeq(
+      Shape(3),
+      Seq(UInt8.unsafe(0), UInt8.unsafe(128), UInt8.unsafe(255))
+    )
+    val uint16 = NDArray.scalar(UInt16.unsafe(65535))
+
+    assert(uint8.toString.contains("values = [0, 128, 255]"))
+    assert(uint16.toString.contains("values = 65535"))
+    assertEquals(summon[DType[Float]].format(Float.NegativeInfinity), "-Infinity")
+    assertEquals(summon[DType[Float]].format(-0.0f), "-0.0")
+    assertEquals(summon[DType[Double]].format(Double.NaN), "NaN")
+    assertEquals(summon[DType[Double]].format(Double.PositiveInfinity), "Infinity")
+    assertEquals(summon[DType[Double]].format(-0.0), "-0.0")
+  }
+
+  test("unary plus always returns an isolated owned copy") {
+    val owned = NDArray.fromSeq(Shape(3), Seq(1.0, 2.0, 3.0))
+    val ownedCopy = +owned
+    assert(!(ownedCopy eq owned))
+    assert(ownedCopy.sameElements(owned))
+
+    val mutable = owned.mutableCopy
+    val mutableCopy = +mutable
+    mutable.update(0, 99.0)
+    assertEquals(mutableCopy.elementsIterator.toList, List(1.0, 2.0, 3.0))
+  }

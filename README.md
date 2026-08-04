@@ -81,14 +81,13 @@ for executable workflows.
 | `ravel-core` | Dense arrays, views, computation, mutation, and platform interop | Ordinary entry point |
 | `ravel-packed` | Compact one-, two-, and four-bit codes | Independent packed representation |
 | `ravel-stencil` | Neighborhood traversal over `NDArray` values | Depends on `ravel-core` |
-| `ravel-laws` | Incubating assertion helpers and two preliminary Discipline checks | Experimental test-support source depending on `ravel-core`; not yet a conformance kit |
+| `ravel-laws` | Internal generated repository tests | Unpublished test harness with no main-source API or downstream coordinate |
 
 All four are cross-built for the JVM and Scala.js in the current source tree.
 The 1.0 publication matrix contains only `ravel-core` for the JVM and
-Scala.js. `ravel-packed`, `ravel-stencil`, and `ravel-laws` remain unpublished
-experimental source modules until their contracts are ready for separate
-stabilization. In particular, the current `ravel-laws` constant properties do
-not carry a binary-compatibility or downstream conformance promise.
+Scala.js. `ravel-packed` and `ravel-stencil` remain unpublished experimental
+source modules. `ravel-laws` is an internal test-only harness: its generated
+properties carry no binary-compatibility or downstream conformance promise.
 
 ## Mental model
 

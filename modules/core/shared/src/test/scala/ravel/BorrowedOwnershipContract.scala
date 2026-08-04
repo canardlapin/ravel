@@ -72,6 +72,7 @@ abstract class BorrowedOwnershipContract extends FunSuite:
       _.convert[Float]().fold(error => fail(error.toString), identity)
     )
     assertOwnedResult("map")(_.map(_ * 2.0))
+    assertOwnedResult("unary plus")(array => +array)
     assertOwnedResult("arithmetic")(_ + 1.0)
     assertOwnedResult("comparison")(_ > 2.5)
     assertOwnedResult("sum(axis)")(_.sum(0))

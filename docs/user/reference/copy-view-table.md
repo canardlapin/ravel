@@ -16,6 +16,7 @@
 | `mutableCopy` | mutable copy | source is unchanged |
 | `freezeCopy` | owned copy | mutable source remains separate |
 | `map`, arithmetic, comparisons | owned allocation | eager |
+| unary `+` | owned copy | eager snapshot for owned, borrowed, or mutable input |
 | array-valued reductions | owned allocation | eager; one multi-axis plan and output; an empty `Axes` still copies |
 | `NDArray.build` | owned value | one destination, no final output-sized copy |
 | `JvmInterop.copyToArray` / typed-array copy | platform copy | logical row-major order |

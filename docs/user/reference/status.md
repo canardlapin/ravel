@@ -11,14 +11,16 @@ stable release are currently claimed. Local `1.0.0-SNAPSHOT` publication is a
 | `ravel-core` | Primitive dense arrays, views, broadcasting, eager computation, mutation, and interop | Ordinary entry point |
 | `ravel-packed` | One-, two-, and four-bit codes plus one-bit set algebra | Separate representation; not a `DType` |
 | `ravel-stencil` | Border mapping and neighborhood execution | Depends on `ravel-core` |
-| `ravel-laws` | Reusable MUnit and ScalaCheck laws | Test support depending on `ravel-core` |
+| `ravel-laws` | Internal generated MUnit, ScalaCheck, and Discipline tests | No main-source API or downstream artifact contract |
 
 All four modules are cross-built for the JVM and Scala.js in the current
 source tree. The executable guide runs on the JVM; repository suites and API
 compilation provide the separate Scala.js evidence.
 
-The enforced 1.0 publication matrix contains only `ravel-core`. Laws, packed,
-and stencil set `publish / skip := true` and remain experimental source APIs.
+The enforced 1.0 publication matrix contains only `ravel-core`. Packed and
+stencil set `publish / skip := true` and remain experimental source APIs. Laws
+is also publish-skipped, but is narrower still: it compiles only repository
+test sources and exposes no consumer API.
 
 ## Deliberate exclusions
 

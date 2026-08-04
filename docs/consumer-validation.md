@@ -1,5 +1,10 @@
 # Downstream artifact validation
 
+There is deliberately no `ravel-laws` consumer project. The laws module has no
+main-source API or published coordinate; downstream validation resolves only
+the core artifacts. A future public conformance kit would require a new adapter
+contract and a separate compatibility decision.
+
 The release gate builds two pinned sibling projects against the exact local
 `ravel-core` candidate. It does not use source-project dependencies. The check
 runs on the JVM and Scala.js and fails if either consumer resolves a different

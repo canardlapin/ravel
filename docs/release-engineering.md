@@ -87,10 +87,9 @@ Scala.js POMs, binaries, source jars, and API jars; coordinates; Apache-2.0
 metadata; test dependency scopes; and core package boundaries. Negative tests
 prove that omitting a selected platform or its files cannot pass.
 `ravel-laws`, `ravel-packed`, and `ravel-stencil` have
-`publish / skip := true` and are not 1.0 artifacts.
-The current laws helpers remain cross-tested source code, but their two
-constant Discipline properties are not presented as a downstream conformance
-kit and receive no MiMa baseline.
+`publish / skip := true` and are not 1.0 artifacts. Laws has no main-source API;
+its generated MUnit, ScalaCheck, and Discipline checks compile only in Test and
+receive no downstream coordinate or MiMa baseline.
 
 For sibling Gale verification against local snapshots:
 

@@ -18,7 +18,7 @@ version. Choose the smallest source surface that owns your task:
 | `ravel-core` | Dense arrays, views, computation, mutation, and platform interop |
 | `ravel-packed` | Compact one-, two-, and four-bit codes |
 | `ravel-stencil` | Neighborhood execution over core arrays |
-| `ravel-laws` | Reusable conformance laws in tests |
+| `ravel-laws` | Internal repository conformance tests; not a consumer module |
 
 Only `ravel-core` is in the 1.0 artifact matrix. The other rows describe APIs
 available when working from this repository.

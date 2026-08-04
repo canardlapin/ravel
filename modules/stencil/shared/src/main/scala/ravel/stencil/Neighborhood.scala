@@ -48,17 +48,6 @@ trait ShortNeighborhoodReducer:
   def accumulate(acc: Short, value: Short, offsetIndex: Int): Short
   def finish(acc: Short): Short
 
-enum StencilMethod derives CanEqual:
-  case Auto, Direct
-
-enum StencilParallelism derives CanEqual:
-  case Auto, Sequential
-
-final case class StencilExecutionPolicy(
-    method: StencilMethod = StencilMethod.Auto,
-    parallelism: StencilParallelism = StencilParallelism.Auto
-)
-
 /** Description of one neighborhood pass over leading spatial axes.
   *
   * Non-spatial trailing axes are treated as an independent batch: each batch member is processed
@@ -95,9 +84,9 @@ final case class NeighborhoodSpec(
       throw IllegalArgumentException(
         s"outputSpatialShape rank ${outputSpatialShape.length} != spatialAxes $spatialAxes"
       )
-    if outputSpatialShape.exists(_ <= 0) then
+    if outputSpatialShape.exists(_ < 0) then
       throw IllegalArgumentException(
-        s"outputSpatialShape must be positive, got $outputSpatialShape"
+        s"outputSpatialShape must be nonnegative, got $outputSpatialShape"
       )
     offsets.foreach { offset =>
       if offset.length != spatialAxes then
@@ -117,6 +106,5 @@ trait NeighborhoodExecutor:
       destination: MutableNDArray[B, R],
       spec: NeighborhoodSpec,
       reducer: NeighborhoodReducer[A, Acc, B],
-      constant: A,
-      policy: StencilExecutionPolicy = StencilExecutionPolicy()
+      constant: A
   ): Unit

@@ -15,6 +15,12 @@ import ravel.internal.Layout
   * Mutable sources are supported for multi-pass ping-pong schedules. A mutable source and
   * destination must not share storage; callers swap distinct workspaces between axes instead of
   * freezing intermediate buffers.
+  *
+  * The plan owns its coordinate arrays and offset workspace for its entire lifetime. Public runs on
+  * one plan are synchronized, so concurrent callers are serialized and cannot race that workspace.
+  * Separate plan instances may execute concurrently. Sources and destinations remain caller-owned:
+  * do not mutate either from outside the plan until its run returns. No source, destination, or
+  * reducer is retained after a run.
   */
 final class PreparedDirectNeighborhoodExecutor private[stencil] (
     private val spec: NeighborhoodSpec,
@@ -35,8 +41,9 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       destination: MutableNDArray[Double, R],
       reducer: DoubleNeighborhoodReducer,
       constant: Double
-  ): Unit =
+  ): Unit = this.synchronized:
     validateCompatible(source.rank, source.shape, destination)
+    if destination.size == 0 then return
     if spatialAxes == 1 then
       runDoubleLines(source, destination, reducer, constant)
       return
@@ -62,8 +69,9 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       destination: MutableNDArray[Double, R],
       reducer: DoubleNeighborhoodReducer,
       constant: Double
-  ): Unit =
+  ): Unit = this.synchronized:
     validateCompatibleMutable(source, destination)
+    if destination.size == 0 then return
     if spatialAxes == 1 then
       runDoubleLines(source, destination, reducer, constant)
       return
@@ -89,8 +97,9 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       destination: MutableNDArray[Float, R],
       reducer: FloatNeighborhoodReducer,
       constant: Float
-  ): Unit =
+  ): Unit = this.synchronized:
     validateCompatible(source.rank, source.shape, destination)
+    if destination.size == 0 then return
     var linear = 0
     while linear < destination.size do
       unravel(linear, destination)
@@ -110,8 +119,9 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       destination: MutableNDArray[Float, R],
       reducer: FloatNeighborhoodReducer,
       constant: Float
-  ): Unit =
+  ): Unit = this.synchronized:
     validateCompatibleMutable(source, destination)
+    if destination.size == 0 then return
     var linear = 0
     while linear < destination.size do
       unravel(linear, destination)
@@ -131,8 +141,9 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       destination: MutableNDArray[Boolean, R],
       reducer: BooleanNeighborhoodReducer,
       constant: Boolean
-  ): Unit =
+  ): Unit = this.synchronized:
     validateCompatible(source.rank, source.shape, destination)
+    if destination.size == 0 then return
     if spatialAxes == 1 then
       runBooleanLines(source, destination, reducer, constant)
       return
@@ -159,8 +170,9 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       destination: MutableNDArray[Boolean, R],
       reducer: BooleanNeighborhoodReducer,
       constant: Boolean
-  ): Unit =
+  ): Unit = this.synchronized:
     validateCompatibleMutable(source, destination)
+    if destination.size == 0 then return
     var linear = 0
     while linear < destination.size do
       unravel(linear, destination)
@@ -181,8 +193,9 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       destination: MutableNDArray[Byte, R],
       reducer: ByteNeighborhoodReducer,
       constant: Byte
-  ): Unit =
+  ): Unit = this.synchronized:
     validateCompatible(source.rank, source.shape, destination)
+    if destination.size == 0 then return
     var linear = 0
     while linear < destination.size do
       unravel(linear, destination)
@@ -202,8 +215,9 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       destination: MutableNDArray[Byte, R],
       reducer: ByteNeighborhoodReducer,
       constant: Byte
-  ): Unit =
+  ): Unit = this.synchronized:
     validateCompatibleMutable(source, destination)
+    if destination.size == 0 then return
     var linear = 0
     while linear < destination.size do
       unravel(linear, destination)
@@ -223,8 +237,9 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       destination: MutableNDArray[Short, R],
       reducer: ShortNeighborhoodReducer,
       constant: Short
-  ): Unit =
+  ): Unit = this.synchronized:
     validateCompatible(source.rank, source.shape, destination)
+    if destination.size == 0 then return
     var linear = 0
     while linear < destination.size do
       unravel(linear, destination)
@@ -244,8 +259,9 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       destination: MutableNDArray[Short, R],
       reducer: ShortNeighborhoodReducer,
       constant: Short
-  ): Unit =
+  ): Unit = this.synchronized:
     validateCompatibleMutable(source, destination)
+    if destination.size == 0 then return
     var linear = 0
     while linear < destination.size do
       unravel(linear, destination)
@@ -283,7 +299,7 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
         while offsetIndex < offsetCount do
           val offset = offsets(offsetIndex)
           val mapped = BorderIndex.direct(
-            outputOrigin(0) + row + offset(0),
+            StencilArithmetic.logicalCoordinate(outputOrigin(0), row, offset(0)),
             sourceShape(0),
             border
           )
@@ -323,7 +339,7 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
         while offsetIndex < offsetCount do
           val offset = offsets(offsetIndex)
           val mapped = BorderIndex.direct(
-            outputOrigin(0) + row + offset(0),
+            StencilArithmetic.logicalCoordinate(outputOrigin(0), row, offset(0)),
             sourceShape(0),
             border
           )
@@ -356,7 +372,6 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       val destinationStride1 = destinationLayout.strides(1).toLong
       var first = 0
       while first < destinationShape(0) do
-        val logicalFirst = outputOrigin(0) + first
         var second = 0
         while second < destinationShape(1) do
           var acc = reducer.zero
@@ -364,7 +379,7 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
           while offsetIndex < offsetCount do
             val offset = offsets(offsetIndex)
             val mappedFirst = BorderIndex.direct(
-              logicalFirst + offset(0),
+              StencilArithmetic.logicalCoordinate(outputOrigin(0), first, offset(0)),
               sourceShape(0),
               border
             )
@@ -372,7 +387,7 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
               if mappedFirst < 0 then constant
               else
                 val mappedSecond = BorderIndex.direct(
-                  outputOrigin(1) + second + offset(1),
+                  StencilArithmetic.logicalCoordinate(outputOrigin(1), second, offset(1)),
                   sourceShape(1),
                   border
                 )
@@ -410,10 +425,8 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       val destinationStride2 = destinationLayout.strides(2).toLong
       var first = 0
       while first < destinationShape(0) do
-        val logicalFirst = outputOrigin(0) + first
         var second = 0
         while second < destinationShape(1) do
-          val logicalSecond = outputOrigin(1) + second
           var third = 0
           while third < destinationShape(2) do
             var acc = reducer.zero
@@ -421,7 +434,7 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
             while offsetIndex < offsetCount do
               val offset = offsets(offsetIndex)
               val mappedFirst = BorderIndex.direct(
-                logicalFirst + offset(0),
+                StencilArithmetic.logicalCoordinate(outputOrigin(0), first, offset(0)),
                 sourceShape(0),
                 border
               )
@@ -429,14 +442,14 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
                 if mappedFirst < 0 then constant
                 else
                   val mappedSecond = BorderIndex.direct(
-                    logicalSecond + offset(1),
+                    StencilArithmetic.logicalCoordinate(outputOrigin(1), second, offset(1)),
                     sourceShape(1),
                     border
                   )
                   if mappedSecond < 0 then constant
                   else
                     val mappedThird = BorderIndex.direct(
-                      outputOrigin(2) + third + offset(2),
+                      StencilArithmetic.logicalCoordinate(outputOrigin(2), third, offset(2)),
                       sourceShape(2),
                       border
                     )
@@ -482,7 +495,6 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       val destinationStride1 = destinationLayout.strides(1).toLong
       var first = 0
       while first < destinationShape(0) do
-        val logicalFirst = outputOrigin(0) + first
         var second = 0
         while second < destinationShape(1) do
           var acc = reducer.zero
@@ -490,7 +502,7 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
           while offsetIndex < offsetCount do
             val offset = offsets(offsetIndex)
             val mappedFirst = BorderIndex.direct(
-              logicalFirst + offset(0),
+              StencilArithmetic.logicalCoordinate(outputOrigin(0), first, offset(0)),
               sourceShape(0),
               border
             )
@@ -498,7 +510,7 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
               if mappedFirst < 0 then constant
               else
                 val mappedSecond = BorderIndex.direct(
-                  outputOrigin(1) + second + offset(1),
+                  StencilArithmetic.logicalCoordinate(outputOrigin(1), second, offset(1)),
                   sourceShape(1),
                   border
                 )
@@ -536,10 +548,8 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       val destinationStride2 = destinationLayout.strides(2).toLong
       var first = 0
       while first < destinationShape(0) do
-        val logicalFirst = outputOrigin(0) + first
         var second = 0
         while second < destinationShape(1) do
-          val logicalSecond = outputOrigin(1) + second
           var third = 0
           while third < destinationShape(2) do
             var acc = reducer.zero
@@ -547,7 +557,7 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
             while offsetIndex < offsetCount do
               val offset = offsets(offsetIndex)
               val mappedFirst = BorderIndex.direct(
-                logicalFirst + offset(0),
+                StencilArithmetic.logicalCoordinate(outputOrigin(0), first, offset(0)),
                 sourceShape(0),
                 border
               )
@@ -555,14 +565,14 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
                 if mappedFirst < 0 then constant
                 else
                   val mappedSecond = BorderIndex.direct(
-                    logicalSecond + offset(1),
+                    StencilArithmetic.logicalCoordinate(outputOrigin(1), second, offset(1)),
                     sourceShape(1),
                     border
                   )
                   if mappedSecond < 0 then constant
                   else
                     val mappedThird = BorderIndex.direct(
-                      outputOrigin(2) + third + offset(2),
+                      StencilArithmetic.logicalCoordinate(outputOrigin(2), third, offset(2)),
                       sourceShape(2),
                       border
                     )
@@ -615,7 +625,7 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
         while offsetIndex < offsetCount do
           val offset = offsets(offsetIndex)
           val mapped = BorderIndex.direct(
-            outputOrigin(0) + row + offset(0),
+            StencilArithmetic.logicalCoordinate(outputOrigin(0), row, offset(0)),
             sourceShape(0),
             border
           )
@@ -649,7 +659,6 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
     if rank == 2 then
       var first = 0
       while first < destinationShape(0) do
-        val logicalFirst = outputOrigin(0) + first
         var second = 0
         while second < destinationShape(1) do
           var acc = reducer.zero
@@ -657,7 +666,7 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
           while offsetIndex < offsetCount do
             val offset = offsets(offsetIndex)
             val mappedFirst = BorderIndex.direct(
-              logicalFirst + offset(0),
+              StencilArithmetic.logicalCoordinate(outputOrigin(0), first, offset(0)),
               sourceShape(0),
               border
             )
@@ -665,7 +674,7 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
               if mappedFirst < 0 then constant
               else
                 val mappedSecond = BorderIndex.direct(
-                  outputOrigin(1) + second + offset(1),
+                  StencilArithmetic.logicalCoordinate(outputOrigin(1), second, offset(1)),
                   sourceShape(1),
                   border
                 )
@@ -696,10 +705,8 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
       val destinationStride2 = destinationLayout.strides(2).toLong
       var first = 0
       while first < destinationShape(0) do
-        val logicalFirst = outputOrigin(0) + first
         var second = 0
         while second < destinationShape(1) do
-          val logicalSecond = outputOrigin(1) + second
           var third = 0
           while third < destinationShape(2) do
             var acc = reducer.zero
@@ -707,7 +714,7 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
             while offsetIndex < offsetCount do
               val offset = offsets(offsetIndex)
               val mappedFirst = BorderIndex.direct(
-                logicalFirst + offset(0),
+                StencilArithmetic.logicalCoordinate(outputOrigin(0), first, offset(0)),
                 sourceShape(0),
                 border
               )
@@ -715,14 +722,14 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
                 if mappedFirst < 0 then constant
                 else
                   val mappedSecond = BorderIndex.direct(
-                    logicalSecond + offset(1),
+                    StencilArithmetic.logicalCoordinate(outputOrigin(1), second, offset(1)),
                     sourceShape(1),
                     border
                   )
                   if mappedSecond < 0 then constant
                   else
                     val mappedThird = BorderIndex.direct(
-                      outputOrigin(2) + third + offset(2),
+                      StencilArithmetic.logicalCoordinate(outputOrigin(2), third, offset(2)),
                       sourceShape(2),
                       border
                     )
@@ -810,7 +817,11 @@ final class PreparedDirectNeighborhoodExecutor private[stencil] (
     var axis = 0
     while axis < spec.spatialAxes do
       val logical =
-        outputOrigin(axis) + destinationIndices(axis) + offset(axis)
+        StencilArithmetic.logicalCoordinate(
+          outputOrigin(axis),
+          destinationIndices(axis),
+          offset(axis)
+        )
       val mapped =
         BorderIndex.direct(logical, sourceShape(axis), border)
       if mapped < 0 then return -1
@@ -849,10 +860,9 @@ object PreparedDirectNeighborhoodExecutor:
   def prepare[A, B, R <: AnyRank](
       source: NDArray[A, R],
       destination: MutableNDArray[B, R],
-      spec: NeighborhoodSpec,
-      policy: StencilExecutionPolicy = StencilExecutionPolicy()
+      spec: NeighborhoodSpec
   ): PreparedDirectNeighborhoodExecutor =
-    prepareShapes(source.rank, source.shape, destination, spec, policy)
+    prepareShapes(source.rank, source.shape, destination, spec)
 
   /** Validate a mutable-to-mutable direct pass and allocate reusable scheduling workspace. */
   def prepare[A, B, R <: AnyRank](
@@ -860,28 +870,18 @@ object PreparedDirectNeighborhoodExecutor:
       destination: MutableNDArray[B, R],
       spec: NeighborhoodSpec
   ): PreparedDirectNeighborhoodExecutor =
-    prepare(source, destination, spec, StencilExecutionPolicy())
-
-  def prepare[A, B, R <: AnyRank](
-      source: MutableNDArray[A, R],
-      destination: MutableNDArray[B, R],
-      spec: NeighborhoodSpec,
-      policy: StencilExecutionPolicy
-  ): PreparedDirectNeighborhoodExecutor =
     if source.storage eq destination.storage then
       throw IllegalArgumentException(
         "mutable source and destination must not share storage; use distinct ping-pong workspaces"
       )
-    prepareShapes(source.rank, source.shape, destination, spec, policy)
+    prepareShapes(source.rank, source.shape, destination, spec)
 
   private def prepareShapes[B, R <: AnyRank](
       sourceRank: Int,
       sourceShapeValue: Shape[R],
       destination: MutableNDArray[B, R],
-      spec: NeighborhoodSpec,
-      policy: StencilExecutionPolicy
+      spec: NeighborhoodSpec
   ): PreparedDirectNeighborhoodExecutor =
-    val _ = policy
     spec.validate()
     val rank = sourceRank
     if destination.rank != rank then
@@ -892,6 +892,7 @@ object PreparedDirectNeighborhoodExecutor:
       throw IllegalArgumentException(
         s"spatialAxes ${spec.spatialAxes} exceeds array rank $rank"
       )
+    StencilArithmetic.requirePositiveSpatialExtents(spec.spatialAxes, sourceShapeValue(_))
     var axis = 0
     while axis < spec.spatialAxes do
       if destination.shape(axis) != spec.outputSpatialShape(axis) then

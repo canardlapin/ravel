@@ -30,11 +30,11 @@ site, orders its navigation, and rejects broken internal links.
 | Dense primitive arrays, views, broadcasting, and reductions | `ravel-core` | This is Ravel's ordinary array API. |
 | One-, two-, or four-bit storage codes | `ravel-packed` | Packed codes are a separate representation, not an `NDArray` dtype. |
 | N-dimensional neighborhood traversal | `ravel-stencil` | Stencil execution operates over core arrays but leaves image meaning to higher layers. |
-| Reusable conformance checks | `ravel-laws` | This module is for library and adapter test suites. |
+| Repository conformance checks | `ravel-laws` | Internal generated tests; there is no downstream laws artifact. |
 
-Only `ravel-core` is slated for 1.0 publication. Packed, stencil, and laws are
-experimental source modules even though the repository cross-builds and tests
-them on both platforms.
+Only `ravel-core` is slated for 1.0 publication. Packed and stencil are
+experimental source modules. Laws is an internal test harness; the repository
+cross-runs it on both platforms without exposing a main-source API.
 
 ## Choose a path
 
