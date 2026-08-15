@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import warnings
 from pathlib import Path
 from typing import Any, Callable
 
@@ -141,6 +142,73 @@ def ravel_convert(
     return np.ascontiguousarray(array.astype(target_dtype, order="C"))
 
 
+def empty_reduction_error(operation: str) -> dict[str, Any]:
+    return {"kind": "error", "values": ["empty_reduction", operation]}
+
+
+def ravel_full_reduce(array: np.ndarray, operation: str) -> Any:
+    values = np.asarray(array)
+    if operation in {"min", "max", "argMin", "argMax"} and values.size == 0:
+        return empty_reduction_error(operation)
+    if operation == "min":
+        return values.min()
+    if operation == "max":
+        return values.max()
+    if operation == "argMin":
+        return int(values.argmin())
+    if operation == "argMax":
+        return int(values.argmax())
+    raise ValueError(f"unsupported full reduction: {operation}")
+
+
+def ravel_axis_reduce(
+    array: np.ndarray,
+    operation: str,
+    axis: int,
+    keepdims: bool = False,
+) -> Any:
+    values = np.asarray(array)
+    rank = values.ndim
+    normalized = axis if axis >= 0 else axis + rank
+    reduced_length = int(values.shape[normalized])
+    output_size = int(
+        np.prod(
+            [dim for index, dim in enumerate(values.shape) if index != normalized],
+            initial=1,
+        )
+    )
+    if (
+        operation in {"min", "max", "argMin", "argMax"}
+        and reduced_length == 0
+        and output_size > 0
+    ):
+        return empty_reduction_error(operation)
+
+    kwargs: dict[str, Any] = {"axis": axis, "keepdims": keepdims}
+    if operation == "sum":
+        return values.sum(**kwargs)
+    if operation == "product":
+        return values.prod(**kwargs)
+    if operation == "mean":
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            with np.errstate(invalid="ignore", divide="ignore"):
+                return values.mean(**kwargs)
+    if operation == "min":
+        return values.min(**kwargs)
+    if operation == "max":
+        return values.max(**kwargs)
+    if operation == "argMin":
+        return values.argmin(**kwargs).astype(np.int32, order="C")
+    if operation == "argMax":
+        return values.argmax(**kwargs).astype(np.int32, order="C")
+    if operation == "all":
+        return values.all(**kwargs)
+    if operation == "any":
+        return values.any(**kwargs)
+    raise ValueError(f"unsupported axis reduction: {operation}")
+
+
 class Fixture:
     def __init__(self) -> None:
         rows = np.arange(4, dtype=np.int64)[:, None]
@@ -150,6 +218,11 @@ class Fixture:
         self.empty_int = np.zeros((0,), dtype=np.int32)
         self.empty_bool = np.zeros((0,), dtype=bool)
         self.empty_double = np.zeros((0,), dtype=np.float64)
+        self.empty_fiber_int = np.zeros((3, 0), dtype=np.int32)
+        self.empty_fiber_double = np.zeros((3, 0), dtype=np.float64)
+        self.empty_fiber_rank3 = np.zeros((2, 0, 3), dtype=np.int32)
+        self.empty_rows_int = np.zeros((0, 5), dtype=np.int32)
+        self.empty_fiber_bool = np.zeros((2, 0, 3), dtype=bool)
 
         index = np.arange(7, dtype=np.int64)
         self.int1_left = ((index * 17) % 23 - 11).astype(np.int32)
@@ -1255,6 +1328,285 @@ def cases(fixture: Fixture) -> list[dict[str, Any]]:
             "reversed",
             "exact",
             lambda: ravel_convert(f.convert_int_overflow_reversed, "int8"),
+        ),
+        row(
+            "empty_int_min_reject",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_full_reduce(f.empty_int, "min"),
+        ),
+        row(
+            "empty_int_max_reject",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_full_reduce(f.empty_int, "max"),
+        ),
+        row(
+            "empty_int_arg_min_reject",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_full_reduce(f.empty_int, "argMin"),
+        ),
+        row(
+            "empty_int_arg_max_reject",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_full_reduce(f.empty_int, "argMax"),
+        ),
+        row(
+            "empty_fiber_int_sum",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.empty_fiber_int, "sum", 1),
+        ),
+        row(
+            "empty_fiber_int_product",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.empty_fiber_int, "product", 1),
+        ),
+        row(
+            "empty_fiber_int_min_reject",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.empty_fiber_int, "min", 1),
+        ),
+        row(
+            "empty_fiber_int_arg_max_reject",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.empty_fiber_int, "argMax", 1),
+        ),
+        row(
+            "empty_fiber_double_mean",
+            "reduction",
+            "float64",
+            "float64",
+            "contiguous",
+            "floating",
+            lambda: ravel_axis_reduce(f.empty_fiber_double, "mean", 1),
+        ),
+        row(
+            "empty_fiber_rank3_sum",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.empty_fiber_rank3, "sum", 1),
+        ),
+        row(
+            "empty_fiber_rank3_min_reject",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.empty_fiber_rank3, "min", 1),
+        ),
+        row(
+            "empty_output_int_sum_axis0",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.empty_rows_int, "sum", 0),
+        ),
+        row(
+            "empty_output_int_sum_axis1",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.empty_rows_int, "sum", 1),
+        ),
+        row(
+            "empty_output_int_min_axis1",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.empty_rows_int, "min", 1),
+        ),
+        row(
+            "empty_output_rank3_min_axis0",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.empty_fiber_rank3, "min", 0),
+        ),
+        row(
+            "empty_fiber_bool_all",
+            "reduction",
+            "bool",
+            "bool",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.empty_fiber_bool, "all", 1),
+        ),
+        row(
+            "empty_fiber_bool_any",
+            "reduction",
+            "bool",
+            "bool",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.empty_fiber_bool, "any", 1),
+        ),
+        row(
+            "rank2_int_sum_axis_neg1",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.int2_left, "sum", -1),
+        ),
+        row(
+            "rank2_int_sum_axis_neg2",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.int2_left, "sum", -2),
+        ),
+        row(
+            "rank2_int_product_axis_neg1",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.int2_sign, "product", -1),
+        ),
+        row(
+            "rank2_int_min_axis_neg1",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.int2_left, "min", -1),
+        ),
+        row(
+            "rank2_int_max_axis_neg1",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.int2_left, "max", -1),
+        ),
+        row(
+            "rank2_int_arg_min_axis_neg1",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.int2_left, "argMin", -1),
+        ),
+        row(
+            "rank2_int_arg_max_axis_neg1",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.int2_left, "argMax", -1),
+        ),
+        row(
+            "rank2_int_sum_keepdims_neg1",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.int2_left, "sum", -1, keepdims=True),
+        ),
+        row(
+            "rank3_int_sum_axis_neg1",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.int3, "sum", -1),
+        ),
+        row(
+            "rank2_double_mean_axis_neg1",
+            "reduction",
+            "float64",
+            "float64",
+            "contiguous",
+            "floating",
+            lambda: ravel_axis_reduce(f.double_left, "mean", -1),
+        ),
+        row(
+            "uint8_max_axis_neg1",
+            "reduction",
+            "uint8",
+            "uint8",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.uint8_left, "max", -1),
+        ),
+        row(
+            "long_arg_min_axis_neg1",
+            "reduction",
+            "int64",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.long_left, "argMin", -1),
+        ),
+        row(
+            "empty_fiber_int_sum_axis_neg1",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.empty_fiber_int, "sum", -1),
+        ),
+        row(
+            "empty_fiber_bool_all_axis_neg2",
+            "reduction",
+            "bool",
+            "bool",
+            "contiguous",
+            "exact",
+            lambda: ravel_axis_reduce(f.empty_fiber_bool, "all", -2),
         ),
     ]
 

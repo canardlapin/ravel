@@ -58,6 +58,13 @@ class CommonOpsTest(unittest.TestCase):
                 "int32_convert_int8_reject",
                 "double_convert_int32_nan_reject",
                 "reversed_int32_convert_int8_reject",
+                "empty_int_min_reject",
+                "empty_fiber_int_sum",
+                "empty_fiber_int_min_reject",
+                "empty_output_int_sum_axis1",
+                "rank2_int_sum_axis_neg1",
+                "rank2_int_sum_keepdims_neg1",
+                "empty_fiber_bool_all_axis_neg2",
             }
             <= names
         )

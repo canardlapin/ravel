@@ -912,6 +912,254 @@ object CommonOpsParity:
         "int8",
         "reversed",
         () => f.convertIntOverflowReversed.convert[Byte]()
+      ),
+      exact(
+        "empty_int_min_reject",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.emptyInt.min
+      ),
+      exact(
+        "empty_int_max_reject",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.emptyInt.max
+      ),
+      exact(
+        "empty_int_arg_min_reject",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.emptyInt.argMin
+      ),
+      exact(
+        "empty_int_arg_max_reject",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.emptyInt.argMax
+      ),
+      exact(
+        "empty_fiber_int_sum",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.emptyFiberInt.sum(1)
+      ),
+      exact(
+        "empty_fiber_int_product",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.emptyFiberInt.product(1)
+      ),
+      exact(
+        "empty_fiber_int_min_reject",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.emptyFiberInt.min(1)
+      ),
+      exact(
+        "empty_fiber_int_arg_max_reject",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.emptyFiberInt.argMax(1)
+      ),
+      floating(
+        "empty_fiber_double_mean",
+        "reduction",
+        "float64",
+        "float64",
+        "contiguous",
+        () => f.emptyFiberDouble.mean(1)
+      ),
+      exact(
+        "empty_fiber_rank3_sum",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.emptyFiberRank3.sum(1)
+      ),
+      exact(
+        "empty_fiber_rank3_min_reject",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.emptyFiberRank3.min(1)
+      ),
+      exact(
+        "empty_output_int_sum_axis0",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.emptyRowsInt.sum(0)
+      ),
+      exact(
+        "empty_output_int_sum_axis1",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.emptyRowsInt.sum(1)
+      ),
+      exact(
+        "empty_output_int_min_axis1",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.emptyRowsInt.min(1)
+      ),
+      exact(
+        "empty_output_rank3_min_axis0",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.emptyFiberRank3.min(0)
+      ),
+      exact(
+        "empty_fiber_bool_all",
+        "reduction",
+        "bool",
+        "bool",
+        "contiguous",
+        () => f.emptyFiberBool.all(1)
+      ),
+      exact(
+        "empty_fiber_bool_any",
+        "reduction",
+        "bool",
+        "bool",
+        "contiguous",
+        () => f.emptyFiberBool.any(1)
+      ),
+      exact(
+        "rank2_int_sum_axis_neg1",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.int2Left.sum(-1)
+      ),
+      exact(
+        "rank2_int_sum_axis_neg2",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.int2Left.sum(-2)
+      ),
+      exact(
+        "rank2_int_product_axis_neg1",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.int2Sign.product(-1)
+      ),
+      exact(
+        "rank2_int_min_axis_neg1",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.int2Left.min(-1)
+      ),
+      exact(
+        "rank2_int_max_axis_neg1",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.int2Left.max(-1)
+      ),
+      exact(
+        "rank2_int_arg_min_axis_neg1",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.int2Left.argMin(-1)
+      ),
+      exact(
+        "rank2_int_arg_max_axis_neg1",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.int2Left.argMax(-1)
+      ),
+      exact(
+        "rank2_int_sum_keepdims_neg1",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.int2Left.sumKeepDims(-1)
+      ),
+      exact(
+        "rank3_int_sum_axis_neg1",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.int3.sum(-1)
+      ),
+      floating(
+        "rank2_double_mean_axis_neg1",
+        "reduction",
+        "float64",
+        "float64",
+        "contiguous",
+        () => f.doubleLeft.mean(-1)
+      ),
+      exact(
+        "uint8_max_axis_neg1",
+        "reduction",
+        "uint8",
+        "uint8",
+        "contiguous",
+        () => f.uint8Left.max(-1)
+      ),
+      exact(
+        "long_arg_min_axis_neg1",
+        "reduction",
+        "int64",
+        "int32",
+        "contiguous",
+        () => f.longLeft.argMin(-1)
+      ),
+      exact(
+        "empty_fiber_int_sum_axis_neg1",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.emptyFiberInt.sum(-1)
+      ),
+      exact(
+        "empty_fiber_bool_all_axis_neg2",
+        "reduction",
+        "bool",
+        "bool",
+        "contiguous",
+        () => f.emptyFiberBool.all(-2)
       )
     )
 
@@ -939,6 +1187,11 @@ object CommonOpsParity:
     val emptyInt: Array1[Int] = NDArray.zeros[Int](0)
     val emptyBool: Array1[Boolean] = NDArray.zeros[Boolean](0)
     val emptyDouble: Array1[Double] = NDArray.zeros[Double](0)
+    val emptyFiberInt: Array2[Int] = NDArray.zeros[Int](3, 0)
+    val emptyFiberDouble: Array2[Double] = NDArray.zeros[Double](3, 0)
+    val emptyFiberRank3: Array3[Int] = NDArray.zeros[Int](2, 0, 3)
+    val emptyRowsInt: Array2[Int] = NDArray.zeros[Int](0, 5)
+    val emptyFiberBool: Array3[Boolean] = NDArray.zeros[Boolean](2, 0, 3)
 
     val int1Left: Array1[Int] =
       NDArray.tabulate[Int](7)(i => (i * 17) % 23 - 11)
@@ -1095,7 +1348,16 @@ object CommonOpsParity:
     config
 
   private def row(operation: Case): Map[String, String] =
-    val encoded = encode(operation.run())
+    val encoded =
+      try encode(operation.run())
+      catch
+        case error: EmptyReduction =>
+          Encoded(
+            "error",
+            "none",
+            "[]",
+            s"""["empty_reduction", ${jsonString(error.operation)}]"""
+          )
     Map(
       "case" -> jsonString(operation.name),
       "family" -> jsonString(operation.family),
