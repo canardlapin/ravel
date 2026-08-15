@@ -7,7 +7,7 @@ private[ravel] object Preview:
   private val MaxElements = 24
 
   def render[A](array: NDArray[A, ?]): String =
-    if array.rank == 0 then String.valueOf(array.at(IArray.empty))
+    if array.rank == 0 then array.dtype.format(array.at(IArray.empty))
     else
       val indices = new Array[Int](array.rank)
       var emitted = 0
@@ -16,7 +16,7 @@ private[ravel] object Preview:
         if emitted >= MaxElements then "…"
         else if axis == array.rank then
           emitted += 1
-          String.valueOf(array.at(IArray.unsafeFromArray(indices.clone())))
+          array.dtype.format(array.at(IArray.unsafeFromArray(indices.clone())))
         else
           val dimension = array.layout.shape(axis)
           val shown = math.min(dimension, MaxPerAxis)

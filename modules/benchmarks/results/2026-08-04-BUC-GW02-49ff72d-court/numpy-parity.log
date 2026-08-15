@@ -1,0 +1,2 @@
+$ /opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/bin/python3.14 modules/benchmarks/python/compare_operation_matrix.py --numpy /private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/numpy-signatures.json --signatures /private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/ravel-signatures.json --parity-only
+Operation matrix parity OK: 237 matched cases ([64, 256, 1024])

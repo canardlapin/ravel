@@ -6,107 +6,108 @@ import scala.annotation.unused
 /** Expert reusable-output kernels. Destinations must be whole contiguous buffers. */
 object kernel:
   def addInto[A, RX <: AnyRank, RY <: AnyRank, RO <: AnyRank](
-      left: NDArray[A, RX],
-      right: NDArray[A, RY],
+      left: ReadableArray[A, RX],
+      right: ReadableArray[A, RY],
       output: MutableNDArray[A, RO]
   )(using @unused arithmetic: ArithmeticDType[A]): Unit =
     binaryInto(KernelOp.Add, left, right, output)
 
   def subtractInto[A, RX <: AnyRank, RY <: AnyRank, RO <: AnyRank](
-      left: NDArray[A, RX],
-      right: NDArray[A, RY],
+      left: ReadableArray[A, RX],
+      right: ReadableArray[A, RY],
       output: MutableNDArray[A, RO]
   )(using @unused arithmetic: ArithmeticDType[A]): Unit =
     binaryInto(KernelOp.Subtract, left, right, output)
 
   def multiplyInto[A, RX <: AnyRank, RY <: AnyRank, RO <: AnyRank](
-      left: NDArray[A, RX],
-      right: NDArray[A, RY],
+      left: ReadableArray[A, RX],
+      right: ReadableArray[A, RY],
       output: MutableNDArray[A, RO]
   )(using @unused arithmetic: ArithmeticDType[A]): Unit =
     binaryInto(KernelOp.Multiply, left, right, output)
 
   def quotInto[A, RX <: AnyRank, RY <: AnyRank, RO <: AnyRank](
-      left: NDArray[A, RX],
-      right: NDArray[A, RY],
+      left: ReadableArray[A, RX],
+      right: ReadableArray[A, RY],
       output: MutableNDArray[A, RO]
   )(using @unused integral: IntegralArithmeticDType[A]): Unit =
     binaryInto(KernelOp.Divide, left, right, output)
 
   def divideInto[A, RX <: AnyRank, RY <: AnyRank, RO <: AnyRank](
-      left: NDArray[A, RX],
-      right: NDArray[A, RY],
+      left: ReadableArray[A, RX],
+      right: ReadableArray[A, RY],
       output: MutableNDArray[A, RO]
   )(using @unused floating: FloatingDType[A]): Unit =
     binaryInto(KernelOp.Divide, left, right, output)
 
   def minimumInto[A, RX <: AnyRank, RY <: AnyRank, RO <: AnyRank](
-      left: NDArray[A, RX],
-      right: NDArray[A, RY],
+      left: ReadableArray[A, RX],
+      right: ReadableArray[A, RY],
       output: MutableNDArray[A, RO]
   )(using @unused ordered: OrderedDType[A]): Unit =
     binaryInto(KernelOp.Minimum, left, right, output)
 
   def maximumInto[A, RX <: AnyRank, RY <: AnyRank, RO <: AnyRank](
-      left: NDArray[A, RX],
-      right: NDArray[A, RY],
+      left: ReadableArray[A, RX],
+      right: ReadableArray[A, RY],
       output: MutableNDArray[A, RO]
   )(using @unused ordered: OrderedDType[A]): Unit =
     binaryInto(KernelOp.Maximum, left, right, output)
 
   def negateInto[A, RX <: AnyRank, RO <: AnyRank](
-      source: NDArray[A, RX],
+      source: ReadableArray[A, RX],
       output: MutableNDArray[A, RO]
   )(using @unused arithmetic: ArithmeticDType[A]): Unit =
     unaryInto(KernelOp.Negate, source, output)
 
   def absInto[A, RX <: AnyRank, RO <: AnyRank](
-      source: NDArray[A, RX],
+      source: ReadableArray[A, RX],
       output: MutableNDArray[A, RO]
   )(using @unused arithmetic: ArithmeticDType[A]): Unit =
     unaryInto(KernelOp.Absolute, source, output)
 
   def addScalarInto[A, RX <: AnyRank, RO <: AnyRank](
-      source: NDArray[A, RX],
+      source: ReadableArray[A, RX],
       value: A,
       output: MutableNDArray[A, RO]
   )(using @unused arithmetic: ArithmeticDType[A]): Unit =
     scalarInto(KernelOp.Add, source, value, output)
 
   def subtractScalarInto[A, RX <: AnyRank, RO <: AnyRank](
-      source: NDArray[A, RX],
+      source: ReadableArray[A, RX],
       value: A,
       output: MutableNDArray[A, RO]
   )(using @unused arithmetic: ArithmeticDType[A]): Unit =
     scalarInto(KernelOp.Subtract, source, value, output)
 
   def multiplyScalarInto[A, RX <: AnyRank, RO <: AnyRank](
-      source: NDArray[A, RX],
+      source: ReadableArray[A, RX],
       value: A,
       output: MutableNDArray[A, RO]
   )(using @unused arithmetic: ArithmeticDType[A]): Unit =
     scalarInto(KernelOp.Multiply, source, value, output)
 
   def quotScalarInto[A, RX <: AnyRank, RO <: AnyRank](
-      source: NDArray[A, RX],
+      source: ReadableArray[A, RX],
       value: A,
       output: MutableNDArray[A, RO]
   )(using @unused integral: IntegralArithmeticDType[A]): Unit =
     scalarInto(KernelOp.Divide, source, value, output)
 
   def divideScalarInto[A, RX <: AnyRank, RO <: AnyRank](
-      source: NDArray[A, RX],
+      source: ReadableArray[A, RX],
       value: A,
       output: MutableNDArray[A, RO]
   )(using @unused floating: FloatingDType[A]): Unit =
     scalarInto(KernelOp.Divide, source, value, output)
 
   def mapInto[A, B, RX <: AnyRank, RO <: AnyRank](
-      source: NDArray[A, RX],
+      source: ReadableArray[A, RX],
       output: MutableNDArray[B, RO]
   )(f: A => B): Unit =
     MutableNDArray.requireSameShape(source.layout.shape, output.layout.shape)
     requireWholeOutput(output)
+    requireNoAliasUnary(source, output)
     var write = 0
     source.layout.foreachPhysicalIndex { physical =>
       ProbeApi.set(output.storage, write, f(ProbeApi.get(source.storage, physical)))
@@ -114,13 +115,14 @@ object kernel:
     }
 
   def zipMapInto[A, B, RX <: AnyRank, RY <: AnyRank, RO <: AnyRank](
-      left: NDArray[A, RX],
-      right: NDArray[A, RY],
+      left: ReadableArray[A, RX],
+      right: ReadableArray[A, RY],
       output: MutableNDArray[B, RO]
   )(f: (A, A) => B): Unit =
     val plan = LoopPlan.broadcast(left.layout, right.layout)
     requireResultShape(plan, output)
     requireWholeOutput(output)
+    requireNoAlias(left, right, output)
     plan.foreachOffset { (leftIndex, rightIndex, outputIndex) =>
       ProbeApi.set(
         output.storage,
@@ -139,8 +141,8 @@ object kernel:
       RO <: AnyRank
   ](
       operation: Byte,
-      left: NDArray[A, RX],
-      right: NDArray[A, RY],
+      left: ReadableArray[A, RX],
+      right: ReadableArray[A, RY],
       output: MutableNDArray[A, RO]
   ): Unit =
     if left.layout.isCContiguous &&
@@ -174,7 +176,7 @@ object kernel:
 
   private def unaryInto[A, RX <: AnyRank, RO <: AnyRank](
       operation: Byte,
-      source: NDArray[A, RX],
+      source: ReadableArray[A, RX],
       output: MutableNDArray[A, RO]
   ): Unit =
     MutableNDArray.requireSameShape(source.layout.shape, output.layout.shape)
@@ -185,7 +187,7 @@ object kernel:
 
   private def scalarInto[A, RX <: AnyRank, RO <: AnyRank](
       operation: Byte,
-      source: NDArray[A, RX],
+      source: ReadableArray[A, RX],
       value: A,
       output: MutableNDArray[A, RO]
   ): Unit =
@@ -201,17 +203,17 @@ object kernel:
       RY <: AnyRank,
       RO <: AnyRank
   ](
-      left: NDArray[A, RX],
-      right: NDArray[A, RY],
-      output: MutableNDArray[A, RO]
+      left: ReadableArray[A, RX],
+      right: ReadableArray[A, RY],
+      output: MutableNDArray[?, RO]
   ): Unit =
     if (output.storage.asInstanceOf[AnyRef] eq left.storage.asInstanceOf[AnyRef]) ||
       (output.storage.asInstanceOf[AnyRef] eq right.storage.asInstanceOf[AnyRef])
     then throw new IllegalArgumentException("output must not alias an input")
 
   private def requireNoAliasUnary[A, RX <: AnyRank, RO <: AnyRank](
-      source: NDArray[A, RX],
-      output: MutableNDArray[A, RO]
+      source: ReadableArray[A, RX],
+      output: MutableNDArray[?, RO]
   ): Unit =
     if output.storage.asInstanceOf[AnyRef] eq source.storage.asInstanceOf[AnyRef] then
       throw new IllegalArgumentException("output must not alias an input")

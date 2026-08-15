@@ -138,8 +138,8 @@ object JsInterop:
 
   /** Borrows a `Uint8Array` as unsigned 8-bit storage.
     *
-    * Named distinctly from Boolean [[unsafeBorrow]] on `Uint8Array`, which
-    * validates a 0/1 encoding.
+    * Named distinctly from Boolean [[unsafeBorrow]] on `Uint8Array`, which validates a 0/1
+    * encoding.
     */
   def unsafeBorrowUInt8[R <: AnyRank](
       values: Uint8Array,

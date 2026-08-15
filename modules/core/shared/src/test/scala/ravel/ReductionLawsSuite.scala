@@ -38,6 +38,170 @@ final class ReductionLawsSuite extends FunSuite:
     assertEquals(values(source.product(0)), List(0, 11, 24))
     assertEquals(values(source.sumAxes(0, 1)), List(36))
     assertEquals(source.sumAxes(0, 1).rank, 0)
+    val noAxes = source.sumAxes()
+    assert(noAxes.sameElements(source))
+    assert(!(noAxes.storage eq source.storage))
+  }
+
+  test("validated multi-axis reductions plan one domain and keep dimensions coherently") {
+    val source = NDArray.tabulate[Int](2, 3, 4)((i, j, k) => i * 100 + j * 10 + k)
+    val axes = Axes.from(source.rank, 0, -1).toOption.get
+
+    val sums = source.sum(axes)
+    val keptSums = source.sumKeepDims(axes)
+    assertEquals(sums.shape.toString, "(3)")
+    assertEquals(values(sums), List(412, 492, 572))
+    assertEquals(keptSums.shape, Shape(1, 3, 1))
+    assertEquals(values(keptSums), values(sums))
+
+    val small = NDArray.tabulate[Int](2, 2, 2)((i, j, k) => 1 + i + 2 * j + k)
+    val edgeAxes = Axes.from(small.rank, 0, 2).toOption.get
+    assertEquals(values(small.product(edgeAxes)), List(12, 240))
+    assertEquals(values(small.min(edgeAxes)), List(1, 3))
+    assertEquals(values(small.max(edgeAxes)), List(3, 5))
+
+    val doubles = small.cast[Double]
+    assertEquals(values(doubles.mean(edgeAxes)), List(2.0, 4.0))
+    assertEquals(doubles.meanKeep(edgeAxes).shape, Shape(1, 2, 1))
+  }
+
+  test(
+    "multi-axis floating schedule is source-axis C-order and independent of axis argument order"
+  ) {
+    val source = NDArray.tabulate[Double](5, 3, 131)((i, j, k) =>
+      if k % 3 == 0 then 1.0e16
+      else if k % 3 == 1 then 1.0
+      else -1.0e16 + i + j
+    )
+    val forward = Axes.from(source.rank, 0, 2).toOption.get
+    val reversed = Axes.from(source.rank, 2, 0).toOption.get
+    val forwardSum = source.sum(forward)
+    val reversedSum = source.sum(reversed)
+    val means = source.mean(forward)
+
+    var column = 0
+    while column < source.shape(1) do
+      val fiber =
+        Vector.tabulate(source.shape(0) * source.shape(2)) { logical =>
+          val i = logical / source.shape(2)
+          val k = logical % source.shape(2)
+          source(i, column, k)
+        }
+      val expected = referenceDoublePairwise(fiber)
+      assertEquals(
+        java.lang.Double.doubleToRawLongBits(forwardSum.at(IArray(column))),
+        java.lang.Double.doubleToRawLongBits(expected)
+      )
+      assertEquals(
+        java.lang.Double.doubleToRawLongBits(reversedSum.at(IArray(column))),
+        java.lang.Double.doubleToRawLongBits(expected)
+      )
+      assertEquals(
+        java.lang.Double.doubleToRawLongBits(means.at(IArray(column))),
+        java.lang.Double.doubleToRawLongBits(expected / fiber.size.toDouble)
+      )
+      column += 1
+  }
+
+  test("multi-axis plans follow composed negative-stride layouts") {
+    val source =
+      NDArray
+        .tabulate[Int](2, 3, 4)((i, j, k) => i * 100 + j * 10 + k)
+        .permuteAxes(2, 0, 1)
+        .reverse(0)
+    val axes = Axes.from(source.rank, 0, 2).toOption.get
+    val reduced = source.sum(axes)
+    val expected = Vector.tabulate(source.shape(1)) { middle =>
+      var total = 0
+      var first = 0
+      while first < source.shape(0) do
+        var last = 0
+        while last < source.shape(2) do
+          total += source(first, middle, last)
+          last += 1
+        first += 1
+      total
+    }
+    assertEquals(values(reduced), expected.toList)
+    assertEquals(source.sumKeepDims(axes).shape, Shape(1, 2, 1))
+  }
+
+  test("empty axis sets copy and empty reduction domains preserve each operation's identity") {
+    val source = NDArray.fromSeq(Shape(2, 2), Seq(1.0, -0.0, 3.0, 4.0))
+    val none = Axes.from(source.rank).toOption.get
+    val copies = List(
+      source.sum(none),
+      source.product(none),
+      source.min(none),
+      source.max(none),
+      source.mean(none)
+    )
+    copies.foreach { copy =>
+      assert(copy.sameElements(source))
+      assert(!(copy.storage eq source.storage))
+      assertEquals(copy.shape.toString, source.shape.toString)
+    }
+
+    val emptyFibers = NDArray.zeros[Double](2, 0, 3)
+    val middle = Axes.from(emptyFibers.rank, 1).toOption.get
+    assertEquals(values(emptyFibers.sum(middle)), List.fill(6)(0.0))
+    assertEquals(values(emptyFibers.product(middle)), List.fill(6)(1.0))
+    assert(values(emptyFibers.mean(middle)).forall(_.isNaN))
+    intercept[EmptyReduction](emptyFibers.min(middle))
+    intercept[EmptyReduction](emptyFibers.max(middle))
+
+    val zeroOutput = emptyFibers.min(Axes.from(emptyFibers.rank, 0).toOption.get)
+    assertEquals(zeroOutput.size, 0)
+  }
+
+  test("multi-axis extrema preserve NaN and signed zero while integer sums wrap") {
+    val floating = NDArray.fromSeq(
+      Shape(2, 2, 2),
+      Seq(0.0, 4.0, -0.0, 3.0, 1.0, 2.0, Double.NaN, -0.0)
+    )
+    val axes = Axes.from(floating.rank, 0, 2).toOption.get
+    val minima = floating.min(axes)
+    val maxima = floating.max(axes)
+    assertEquals(
+      java.lang.Double.doubleToRawLongBits(minima.at(IArray(0))),
+      java.lang.Double.doubleToRawLongBits(0.0)
+    )
+    assert(maxima.at(IArray(1)).isNaN)
+
+    val signed = NDArray.fromSeq(
+      Shape(2, 1, 2),
+      Seq(0.0, 2.0, -0.0, 1.0)
+    )
+    val signedMinimum = signed.min(Axes.from(signed.rank, 0, 2).toOption.get)
+    assertEquals(
+      java.lang.Double.doubleToRawLongBits(signedMinimum.at(IArray(0))),
+      java.lang.Double.doubleToRawLongBits(-0.0)
+    )
+
+    val overflow = NDArray.fromSeq(
+      Shape(2, 1, 2),
+      Seq(Int.MaxValue, 1, Int.MaxValue, 1)
+    )
+    assertEquals(values(overflow.sum(Axes.from(overflow.rank, 0, 2).toOption.get)), List(0))
+  }
+
+  test("multi-axis arg reductions are explicitly deferred") {
+    assert(
+      compileErrors("""
+        import ravel.*
+        val source = NDArray.zeros[Double](2, 3, 4)
+        val axes = Axes.from(3, 0, 2).toOption.get
+        source.argMin(axes)
+      """).nonEmpty
+    )
+    assert(
+      compileErrors("""
+        import ravel.*
+        val source = NDArray.zeros[Double](2, 3, 4)
+        val axes = Axes.from(3, 0, 2).toOption.get
+        source.argMax(axes)
+      """).nonEmpty
+    )
   }
 
   test("ordered reductions define empty, tie, NaN, and signed-zero behavior") {

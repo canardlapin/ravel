@@ -31,6 +31,15 @@ permutations, and legal no-copy reshapes remain views over the same mutable
 storage. Broadcasting is intentionally unavailable for mutable arrays because
 a zero stride would alias multiple logical cells.
 
+Mutable arrays are also read operands for eager arithmetic, comparisons,
+reductions, callbacks, and expert kernels. Those operations do not freeze the
+source; eager results own new storage, while `kernel.*Into` rejects a
+destination that aliases any mutable input before writing.
+
+`reshapeCopy` and the copying fallback of `reshape` traverse the mutable source
+directly into one new primitive destination. They do not freeze and then copy
+that intermediate a second time.
+
 ## Construct one immutable destination
 
 `NDArray.build` allocates one zero-initialized destination. The callback writes
@@ -69,5 +78,6 @@ kernel.addInto(left, right, out)
 out.freezeCopy()
 ```
 
-Use this surface for measured loops that need output reuse. Destinations must
-not alias inputs; ordinary arithmetic remains the clearer default.
+Use this surface for measured loops that need output reuse. Inputs may be
+owned, borrowed, or mutable readable arrays. Destinations must not alias any
+input; ordinary arithmetic remains the clearer default.

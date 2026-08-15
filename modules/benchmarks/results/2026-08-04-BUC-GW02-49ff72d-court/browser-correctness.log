@@ -1,0 +1,23 @@
+$ node /Users/bbuchsbaum/.local/share/agent-policy/browser-automation-guard.mjs --audit
+No automated top-level browser processes found.
+$ sbt browserTests/test
+[info] welcome to sbt 1.11.7 (Oracle Corporation Java 22)
+[info] loading settings for project ravel-release-49ff72d-clone-build from plugins.sbt...
+[info] loading project definition from /private/tmp/ravel-release-49ff72d-clone/project
+[info] loading settings for project root from build.sbt...
+[info] resolving key references (14023 settings) ...
+[info] set current project to ravel (in build file:/private/tmp/ravel-release-49ff72d-clone/)
+[info] compiling 1 Scala source to /private/tmp/ravel-release-49ff72d-clone/modules/browser-tests/target/scala-3.7.4/test-classes ...
+[info] done compiling
+[info] Fast optimizing /private/tmp/ravel-release-49ff72d-clone/modules/browser-tests/target/scala-3.7.4/ravel-browser-tests-test-fastopt
+2026.08.04 08:47:35:470 [pool-6-thread-7] Runner INFO jsRunPrg - Begin Main with isComEnabled true and  browserName chrome and headless is true [0m
+2026.08.04 08:47:38:491 [io-compute-12] PageFactory INFO browserBuilder - Creating browser chromium version 131.0.6778.33 with 726537744[0m
+2026.08.04 08:47:38:807 [pool-6-thread-2] Runner INFO jsRunPrg - Begin Main with isComEnabled true and  browserName chrome and headless is true [0m
+2026.08.04 08:47:39:155 [io-compute-1] PageFactory INFO browserBuilder - Creating browser chromium version 131.0.6778.33 with 224683435[0m
+[info] Passed: Total 3, Failed 0, Errors 0, Passed 3
+Test run ravel.browser.BrowserSuite started
+ravel.browser.BrowserSuite: finished 0.011s
+Test run ravel.browser.BrowserSuite finished: 0 failed, 0 ignored, 3 total 0.011s
+[success] Total time: 11 s, completed Aug 4, 2026, 8:47:39 a.m.
+$ node /Users/bbuchsbaum/.local/share/agent-policy/browser-automation-guard.mjs --audit
+No automated top-level browser processes found.

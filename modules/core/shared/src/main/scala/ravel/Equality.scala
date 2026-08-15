@@ -12,8 +12,8 @@ extension [A, R <: AnyRank](array: ReadableArray[A, R])(using
       absoluteTolerance: Double
   ): Boolean =
     EqualityApi.allClose(
-      array.toNDArray,
-      other.toNDArray,
+      array,
+      other,
       relativeTolerance,
       absoluteTolerance
     )

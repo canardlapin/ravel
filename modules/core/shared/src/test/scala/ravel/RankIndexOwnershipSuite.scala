@@ -23,6 +23,117 @@ final class RankIndexOwnershipSuite extends FunSuite:
     assertEquals(dynamic.requireRank[3], Left(RankMismatch(3, 2)))
   }
 
+  test("wrong fixed arity and statically wrong transpose fail at compile time") {
+    val ownedArity = compileErrors("""
+      import ravel.*
+      val vector: Array1[Int] = NDArray.zeros[Int](3)
+      vector(0, 1)
+    """)
+    val rankZeroArity = compileErrors("""
+      import ravel.*
+      val scalar: Array0[Int] = NDArray.scalar(1)
+      scalar(0)
+    """)
+    val rankTwoArity = compileErrors("""
+      import ravel.*
+      val matrix: Array2[Int] = NDArray.zeros[Int](2, 3)
+      matrix(0, 1, 2)
+    """)
+    val rankThreeArity = compileErrors("""
+      import ravel.*
+      val cube: Array3[Int] = NDArray.zeros[Int](2, 3, 4)
+      cube(0, 1, 2, 3)
+    """)
+    val rankFourArity = compileErrors("""
+      import ravel.*
+      val hyper: Array4[Int] = NDArray.zeros[Int](2, 2, 2, 2)
+      hyper(0, 1, 2)
+    """)
+    val borrowedArity = compileErrors("""
+      import ravel.*
+      val borrowed = null.asInstanceOf[BorrowedNDArray[Int, Rank[3]]]
+      borrowed(0, 1)
+    """)
+    val mutableReadArity = compileErrors("""
+      import ravel.*
+      val mutable = MutableNDArray.zeros[Int, Rank[2]](Shape(2, 3))
+      mutable(0)
+    """)
+    val mutableUpdateArity = compileErrors("""
+      import ravel.*
+      val mutable = MutableNDArray.zeros[Int, Rank[2]](Shape(2, 3))
+      mutable(0) = 1
+    """)
+    val mutableRankOneUpdateArity = compileErrors("""
+      import ravel.*
+      val mutable = MutableNDArray.zeros[Int, Rank[1]](Shape(3))
+      mutable(0, 1) = 1
+    """)
+    val vectorTranspose = compileErrors("""
+      import ravel.*
+      NDArray.zeros[Int](3).transpose
+    """)
+    val dynamicTranspose = compileErrors("""
+      import ravel.*
+      val dynamic = null.asInstanceOf[AnyNDArray[Int]]
+      dynamic.transpose
+    """)
+    val borrowedTranspose = compileErrors("""
+      import ravel.*
+      val borrowed = null.asInstanceOf[BorrowedNDArray[Int, Rank[3]]]
+      borrowed.transpose
+    """)
+    val mutableTranspose = compileErrors("""
+      import ravel.*
+      val mutable = MutableNDArray.zeros[Int, Rank[1]](Shape(3))
+      mutable.transpose
+    """)
+
+    assert(ownedArity.nonEmpty)
+    assert(rankZeroArity.nonEmpty)
+    assert(rankTwoArity.nonEmpty)
+    assert(rankThreeArity.nonEmpty)
+    assert(rankFourArity.nonEmpty)
+    assert(borrowedArity.nonEmpty)
+    assert(mutableReadArity.nonEmpty)
+    assert(mutableUpdateArity.nonEmpty)
+    assert(mutableRankOneUpdateArity.nonEmpty)
+    assert(vectorTranspose.nonEmpty)
+    assert(dynamicTranspose.nonEmpty)
+    assert(borrowedTranspose.nonEmpty)
+    assert(mutableTranspose.nonEmpty)
+  }
+
+  test("dynamic and ranks above four retain explicit coordinate fallbacks") {
+    val errors = compileErrors("""
+      import ravel.*
+      val dynamic = null.asInstanceOf[AnyNDArray[Int]]
+      val high = null.asInstanceOf[NDArray[Int, Rank[5]]]
+      val mutable = null.asInstanceOf[MutableNDArray[Int, AnyRank]]
+      val borrowed = null.asInstanceOf[BorrowedNDArray[Int, AnyRank]]
+      dynamic.at(IArray(0, 1))
+      high.at(IArray(0, 1, 2, 3, 4))
+      mutable.at(IArray(0, 1))
+      mutable.updateAt(IArray(0, 1), 1)
+      borrowed.at(IArray(0, 1))
+      borrowed.transpose2D
+    """)
+    assertEquals(errors, "")
+  }
+
+  test("dynamic transpose2D refines success and reports rank mismatch") {
+    val matrixShape: Shape[AnyRank] = Shape.from(Seq(2, 3)).toOption.get
+    val vectorShape: Shape[AnyRank] = Shape.from(Seq(3)).toOption.get
+    val matrix: AnyNDArray[Int] = NDArray.zeros[Int, AnyRank](matrixShape)
+    val vector: AnyNDArray[Int] = NDArray.zeros[Int, AnyRank](vectorShape)
+    assertEquals(matrix.transpose2D.map(_.shape), Right(Shape(3, 2)))
+    assertEquals(vector.transpose2D, Left(RankMismatch(2, 1)))
+
+    val mutable = MutableNDArray.zeros[Int, AnyRank](matrixShape)
+    assertEquals(mutable.transpose2D.map(_.shape), Right(Shape(3, 2)))
+    assertEquals(mutable.requireRank[2].map(_.shape), Right(Shape(2, 3)))
+  }
+
   test("known rank zero has no CanDropAxis evidence") {
     val errors = compileErrors("""
       import ravel.*

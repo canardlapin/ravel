@@ -11,8 +11,8 @@ a Scala spelling of all NumPy behavior.
 | `a[i, j]` | `a(i, j)` | fixed-rank overloads for ranks 1–4 |
 | `a[tuple(indices)]` | `a.at(IArray(...))` | dynamic-rank path |
 | `a[:, ::2]` | `a.slice(1, Slice.every(2))` | one axis per call |
-| `a.T` | `a.transpose` | rank two only |
-| `np.transpose(a, axes)` | `a.permuteAxes(axes*)` | checked axis permutation |
+| `a.T` | `a.transpose` | static rank two; dynamic rank uses checked `transpose2D` |
+| `np.transpose(a, axes)` | `a.permuteAxes(axes*)` / `a.permuteAxesChecked(axes*)` | throwing convenience or pure checked permutation |
 | `np.expand_dims(a, axis)` | `a.newAxis(axis)` | rank changes in the type when known |
 | `np.squeeze(a, axis)` | `a.squeeze(axis)` | explicit axis required |
 | `np.broadcast_to(a, shape)` | `a.broadcastTo(shape)` | immutable/borrowed view |
@@ -20,6 +20,7 @@ a Scala spelling of all NumPy behavior.
 | `np.ascontiguousarray(a)` | `a.contiguous` | owned contiguous values may return themselves |
 | `a.astype(dtype)` | `a.cast[B]` | closed primitive dtype family |
 | `a.sum(axis)` | `a.sum(axis)` | deterministic Ravel reduction schedule |
+| `a.sum(axis=(0, 2))` | `a.sum(Axes.from(a.rank, 0, 2).toOption.get)` | one validated multi-axis plan; product/min/max/mean share the surface |
 | `a.mean(axis, keepdims=True)` | `a.meanKeep(axis)` | rank type is preserved |
 | `np.array_equal(a, b)` | `a.sameElements(b)` | `equals` remains reference equality |
 

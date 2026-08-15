@@ -8,8 +8,8 @@ import ravel.*
   */
 private[ravel] object EqualityApi:
   def sameElements[A](
-      left: NDArray[A, ?],
-      right: NDArray[A, ?]
+      left: ArraySource[A, ?],
+      right: ArraySource[A, ?]
   ): Boolean =
     sameShape(left.layout.shape, right.layout.shape) &&
       zipPhysical(left.layout, right.layout) { (li, ri) =>
@@ -17,8 +17,8 @@ private[ravel] object EqualityApi:
       }
 
   def sameElementsBits[A](
-      left: NDArray[A, ?],
-      right: NDArray[A, ?]
+      left: ArraySource[A, ?],
+      right: ArraySource[A, ?]
   ): Boolean =
     sameShape(left.layout.shape, right.layout.shape) && {
       left.dtype.tag match
@@ -45,8 +45,8 @@ private[ravel] object EqualityApi:
     }
 
   def allClose[A](
-      left: NDArray[A, ?],
-      right: NDArray[A, ?],
+      left: ArraySource[A, ?],
+      right: ArraySource[A, ?],
       relativeTolerance: Double,
       absoluteTolerance: Double
   ): Boolean =
@@ -70,7 +70,7 @@ private[ravel] object EqualityApi:
           throw new UnsupportedOperationException("allClose requires Float or Double")
     }
 
-  private def toDouble[A](array: NDArray[A, ?], index: Int): Double =
+  private def toDouble[A](array: ArraySource[A, ?], index: Int): Double =
     array.dtype.tag match
       case DType.FloatTag => ProbeApi.get(array.storage, index).asInstanceOf[Float].toDouble
       case DType.DoubleTag => ProbeApi.get(array.storage, index).asInstanceOf[Double]

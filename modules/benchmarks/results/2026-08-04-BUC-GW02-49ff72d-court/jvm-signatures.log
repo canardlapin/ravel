@@ -1,0 +1,10 @@
+$ sbt 'representationProbeJVM/runMain ravel.bench.OperationMatrixParity --out /private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/ravel-signatures.json --side 64,256,1024'
+[info] welcome to sbt 1.11.7 (Oracle Corporation Java 22)
+[info] loading settings for project ravel-release-49ff72d-clone-build from plugins.sbt...
+[info] loading project definition from /private/tmp/ravel-release-49ff72d-clone/project
+[info] loading settings for project root from build.sbt...
+[info] resolving key references (14023 settings) ...
+[info] set current project to ravel (in build file:/private/tmp/ravel-release-49ff72d-clone/)
+[info] running ravel.bench.OperationMatrixParity --out /private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/ravel-signatures.json --side 64,256,1024
+Wrote 237 operation-matrix signatures to /private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/ravel-signatures.json
+[success] Total time: 3 s, completed Aug 4, 2026, 8:47:49 a.m.

@@ -11,8 +11,7 @@ final case class UnsignedRangeError(
 
 /** Unsigned 8-bit integer with primitive Byte representation.
   *
-  * Arithmetic is intentionally unavailable. Cast explicitly to `Int` or
-  * `Long` before arithmetic.
+  * Arithmetic is intentionally unavailable. Cast explicitly to `Int` or `Long` before arithmetic.
   */
 opaque type UInt8 = Byte
 
@@ -46,8 +45,7 @@ object UInt8:
 
 /** Unsigned 16-bit integer with primitive Short representation.
   *
-  * Arithmetic is intentionally unavailable. Cast explicitly to `Int` or
-  * `Long` before arithmetic.
+  * Arithmetic is intentionally unavailable. Cast explicitly to `Int` or `Long` before arithmetic.
   */
 opaque type UInt16 = Short
 

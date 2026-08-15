@@ -109,3 +109,30 @@ final class ShapeLayoutSuite extends FunSuite:
       Layout.view(IArray(3), IArray(-1), 1, 3)
     }
   }
+
+  test("narrow planning normalizes negative starts and checks exact bounds") {
+    val extentFive = IArray(5)
+    assertEquals(NarrowPlan(extentFive, 0, -1, 1), NarrowPlan(0, 4, 5, 1))
+    assertEquals(NarrowPlan(extentFive, -1, -5, 5), NarrowPlan(0, 0, 5, 5))
+    assertEquals(NarrowPlan(extentFive, 0, 5, 0), NarrowPlan(0, 5, 5, 0))
+    intercept[InvalidNarrowException](NarrowPlan(extentFive, 0, 5, 1))
+    intercept[InvalidNarrowException](NarrowPlan(extentFive, 0, -6, 1))
+    intercept[InvalidNarrowException](NarrowPlan(extentFive, 0, 0, -1))
+
+    val empty = IArray(0)
+    assertEquals(NarrowPlan(empty, 0, 0, 0), NarrowPlan(0, 0, 0, 0))
+    intercept[InvalidNarrowException](NarrowPlan(empty, 0, -1, 0))
+
+    val maximumExtent = IArray(Int.MaxValue)
+    assertEquals(
+      NarrowPlan(maximumExtent, 0, Int.MaxValue, 0),
+      NarrowPlan(0, Int.MaxValue, Int.MaxValue, 0)
+    )
+    assertEquals(
+      NarrowPlan(maximumExtent, -1, -1, 1),
+      NarrowPlan(0, Int.MaxValue - 1, Int.MaxValue, 1)
+    )
+    intercept[InvalidNarrowException](NarrowPlan(maximumExtent, 0, Int.MinValue, 0))
+    intercept[InvalidNarrowException](NarrowPlan(extentFive, Int.MinValue, 0, 0))
+    intercept[InvalidNarrowException](NarrowPlan(extentFive, Int.MaxValue, 0, 0))
+  }

@@ -1,0 +1,17 @@
+diff --git a/interop-ravel/shared/src/main/scala/zarr4s/ravel/RavelInteropError.scala b/interop-ravel/shared/src/main/scala/zarr4s/ravel/RavelInteropError.scala
+index d281416..a10e0ad 100644
+--- a/interop-ravel/shared/src/main/scala/zarr4s/ravel/RavelInteropError.scala
++++ b/interop-ravel/shared/src/main/scala/zarr4s/ravel/RavelInteropError.scala
+@@ -4 +4 @@ import _root_.zarr4s.ZarrError
+-import _root_.ravel.{InvalidShape, NonContiguousLayout}
++import _root_.ravel.{CanonicalLayoutError, ShapeError}
+@@ -16,2 +16,2 @@ enum RavelInteropError:
+-  case InvalidRavelShape(error: InvalidShape)
+-  case NonCanonicalInput(error: NonContiguousLayout)
++  case InvalidRavelShape(error: ShapeError)
++  case NonCanonicalInput(error: CanonicalLayoutError)
+@@ -27,2 +27,2 @@ enum RavelInteropError:
+-    case InvalidRavelShape(error)        => error.getMessage
+-    case NonCanonicalInput(error)        => error.getMessage
++    case InvalidRavelShape(error)        => error.message
++    case NonCanonicalInput(error)        => error.message

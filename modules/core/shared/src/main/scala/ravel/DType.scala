@@ -10,6 +10,7 @@ sealed trait DType[A]:
   private[ravel] def tag: Byte
   def name: String
   def zero: A
+  def format(value: A): String
 
 /** Primitive numeric dtypes that can participate in explicit casts. */
 @implicitNotFound(
@@ -57,54 +58,73 @@ object DType:
     private[ravel] val tag = BooleanTag
     val name = "Boolean"
     val zero = false
+    def format(value: Boolean): String = value.toString
 
   given byteDType: IntegralDType[Byte] with
     private[ravel] val tag = ByteTag
     val name = "Byte"
     val zero: Byte = 0
     val one: Byte = 1
+    def format(value: Byte): String = value.toString
 
   given shortDType: IntegralDType[Short] with
     private[ravel] val tag = ShortTag
     val name = "Short"
     val zero: Short = 0
     val one: Short = 1
+    def format(value: Short): String = value.toString
 
   given uint8DType: IntegralDType[UInt8] with
     private[ravel] val tag = UInt8Tag
     val name = "UInt8"
     val zero: UInt8 = UInt8.MinValue
     val one: UInt8 = UInt8.unsafe(1)
+    def format(value: UInt8): String = value.toInt.toString
 
   given uint16DType: IntegralDType[UInt16] with
     private[ravel] val tag = UInt16Tag
     val name = "UInt16"
     val zero: UInt16 = UInt16.MinValue
     val one: UInt16 = UInt16.unsafe(1)
+    def format(value: UInt16): String = value.toInt.toString
 
   given intDType: IntegralArithmeticDType[Int] with
     private[ravel] val tag = IntTag
     val name = "Int"
     val zero = 0
     val one = 1
+    def format(value: Int): String = value.toString
 
   given longDType: IntegralArithmeticDType[Long] with
     private[ravel] val tag = LongTag
     val name = "Long"
     val zero = 0L
     val one = 1L
+    def format(value: Long): String = value.toString
 
   given floatDType: FloatingDType[Float] with
     private[ravel] val tag = FloatTag
     val name = "Float"
     val zero = 0.0f
     val one = 1.0f
+    def format(value: Float): String =
+      if value == 0.0f then if 1.0f / value == Float.NegativeInfinity then "-0.0" else "0.0"
+      else if value.isNaN then "NaN"
+      else if value == Float.PositiveInfinity then "Infinity"
+      else if value == Float.NegativeInfinity then "-Infinity"
+      else java.lang.Float.toString(value)
 
   given doubleDType: FloatingDType[Double] with
     private[ravel] val tag = DoubleTag
     val name = "Double"
     val zero = 0.0
     val one = 1.0
+    def format(value: Double): String =
+      if value == 0.0 then if 1.0 / value == Double.NegativeInfinity then "-0.0" else "0.0"
+      else if value.isNaN then "NaN"
+      else if value == Double.PositiveInfinity then "Infinity"
+      else if value == Double.NegativeInfinity then "-Infinity"
+      else java.lang.Double.toString(value)
 
   private[ravel] def castScalar[A, B](
       value: A,

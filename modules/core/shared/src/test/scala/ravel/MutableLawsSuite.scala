@@ -216,6 +216,54 @@ final class MutableLawsSuite extends FunSuite:
     assertEquals(values(output.freezeCopy()), values(left * right))
   }
 
+  test("mutable arrays are readable operands and support nonaliasing ping-pong kernels") {
+    val left = NDArray.tabulate[Int](2, 3)((row, column) => row * 10 + column).mutableCopy
+    val right = NDArray.fill(Shape(2, 3), 2).mutableCopy
+
+    val eager: Array2[Int] = left + right
+    assertEquals(values(eager), List(2, 3, 4, 12, 13, 14))
+    assertEquals(values(left.map(_ * 2)), List(0, 2, 4, 20, 22, 24))
+    assertEquals(values(left > right), List(false, false, false, true, true, true))
+    assertEquals(left.sum, 36)
+    assertEquals(values(left.cast[Double]), List(0.0, 1.0, 2.0, 10.0, 11.0, 12.0))
+    assertEquals(
+      left.convert[Double]().map(values),
+      Right(List(0.0, 1.0, 2.0, 10.0, 11.0, 12.0))
+    )
+
+    val firstOutput = MutableNDArray.zeros[Int, Rank[2]](Shape(2, 3))
+    kernel.addInto(left, right, firstOutput)
+    kernel.multiplyInto(firstOutput, left, right)
+    assertEquals(values(right.freezeCopy()), List(0, 3, 8, 120, 143, 168))
+  }
+
+  test("mutable read sources reject destination aliases before mutation") {
+    val left = NDArray.fromSeq(Shape(3), Seq(1, 2, 3)).mutableCopy
+    val right = NDArray.fromSeq(Shape(3), Seq(4, 5, 6)).mutableCopy
+    val before = values(left.freezeCopy())
+
+    intercept[IllegalArgumentException](kernel.addInto(left, right, left))
+    assertEquals(values(left.freezeCopy()), before)
+    intercept[IllegalArgumentException](kernel.mapInto(left, left)(identity))
+    assertEquals(values(left.freezeCopy()), before)
+    intercept[IllegalArgumentException](left.assign(left))
+    assertEquals(values(left.freezeCopy()), before)
+  }
+
+  test("mutable reshapeCopy and noncontiguous reshape materialize once and preserve order") {
+    val canonical = NDArray.tabulate[Int](2, 3)((row, column) => row * 10 + column).mutableCopy
+    val canonicalCopy = canonical.reshapeCopy(Shape(3, 2))
+    assertEquals(values(canonicalCopy.freezeCopy()), List(0, 1, 2, 10, 11, 12))
+    canonicalCopy(0, 0) = 99
+    assertEquals(canonical(0, 0), 0)
+
+    val transposed = canonical.transpose
+    val reshaped = transposed.reshape(Shape(6))
+    assertEquals(values(reshaped.freezeCopy()), List(0, 10, 1, 11, 2, 12))
+    reshaped(0) = 77
+    assertEquals(canonical(0, 0), 0)
+  }
+
   test("callback Into kernels preserve logical order and stop on exceptions") {
     val source = NDArray.tabulate[Int](2, 3)((i, j) => i * 10 + j).transpose
     val output = MutableNDArray.zeros[Int, Rank[2]](Shape(3, 2))

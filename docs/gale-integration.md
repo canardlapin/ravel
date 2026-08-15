@@ -66,6 +66,82 @@ mathematical vocabulary, keep the dependency direction `Gale -> Ravel`, and
 replace copy conversions with explicit zero-copy views only where ownership and
 layout constraints make them honest.
 
+### Kernel-view SPI decision: no-go for core 1.0
+
+The design gate rejects a public raw-`Double` kernel view in `ravel-core` 1.0.
+This is an ownership decision, not a claim that raw buffers are technically
+difficult to expose.
+
+`CanonicalArray[Double, R]` and `MutableCanonicalArray[Double, R]` are the
+minimal safe prototype. Refinement returns the original whole canonical array
+without a wrapper, dispatches primitive linear reads or writes at the call
+site, and exposes neither the platform buffer nor a physical address. The
+cross-platform `CanonicalAccessSuite` verifies canonical acceptance,
+noncanonical rejection, primitive access, bounds, and mutable locality. This
+surface is suitable for allocation-free scalar kernels, but it does not give
+Gale the raw substrate required by its current array loops or native backend
+handoff.
+
+A callback such as `withDoubleStorage { Array[Double] => ... }` is not a safe
+substitute. Scala cannot prevent the callback from retaining the JVM array or
+Scala.js `Float64Array`; retaining it would permit later mutation of an
+immutable `NDArray`. A nominal read-only wrapper would avoid that leak but
+would return to per-element method access and would not serve BLAS, typed-array,
+or same-storage alias checks. The mutable case is stricter: Ravel cannot prove
+that no `MutableNDArray` view or caller alias remains while Gale holds an
+“exclusive” raw destination. Borrowed input adds an external writer that Ravel
+does not control.
+
+Storage identity, physical offset, and validated reachable bounds therefore
+remain private kernel facts. Adding public descriptor copies of shape and
+strides without the raw buffer would not accelerate Gale; adding the raw buffer
+would weaken the ownership contract that core 1.0 is intended to stabilize.
+
+If this decision is revisited, the candidate belongs in a separately versioned,
+explicitly unsafe and platform-specific experimental artifact—not stable core.
+It must define non-retention or linear-lifetime enforcement, exclusive mutable
+borrowing, JVM `Array[Double]` and Scala.js `Float64Array` parity, storage
+identity, checked address bounds, and backend handoff before Gale prototypes
+against it. Until then, the supported boundary remains copy-only.
+
+### Layout and ownership compatibility
+
+The current adapter accepts logical rank-one and rank-two values, not physical
+Ravel layouts. It reads through Ravel's public checked indexing API and fills a
+fresh consuming `DVecBuilder` or row-major `DMatBuilder`. The result therefore
+owns Gale storage and retains no Ravel or external alias. Conversion in the
+other direction likewise tabulates a fresh canonical Ravel owner from the
+logical Gale view.
+
+| Ravel source or destination case | Current copy adapter | Zero-copy raw adapter under the 1.0 contract |
+|---|---|---|
+| Whole canonical rank-one or rank-two owner | Copy logical values | Reject: immutable Ravel storage must not become externally mutable or retainable |
+| Positive-stride slice or narrow view | Copy logical values in coordinate order | Reject: Gale has no public Ravel storage descriptor, offset, or checked reachable interval |
+| Negative-stride reverse view | Copy in reversed logical order | Reject: a raw backend cannot assume positive or unit strides |
+| Zero-stride broadcast view | Copy and expand the repeated logical values | Reject, especially as a destination: multiple logical coordinates alias one physical cell |
+| Rank-two transpose or permutation | Copy in Ravel logical row/column order into a row-major `DMat` | Reject: interpreting the buffer as another major order would be backend-specific and would change `DMat`'s public coordinate semantics |
+| Empty rank-one or rank-two shape, including `0 x n` and `n x 0` | Copy to a legal empty `DVec` or `DMat`; no element address is dereferenced | Reject: there is no useful buffer handoff and ownership/lifetime questions remain |
+| Borrowed Ravel input | Copy; later external mutation cannot affect Gale | Reject: the external owner may write at any time |
+| Mutable Ravel input | No direct overload; make ownership explicit with an owned copy before conversion | Reject: Ravel cannot prove that no mutable view or caller alias survives |
+| Gale `DVec` or `DMat` view to Ravel | Copy logical values into a canonical owned Ravel result | Reject: Gale storage and view lifetime remain Gale-owned |
+| Mutable Gale/Ravel destination | Fill that library's consuming builder through its public API | Reject raw handoff: neither library exposes a cross-library exclusive-borrow token |
+
+Copies make alias analysis trivial: the destination is distinct by
+construction. A zero-copy implementation would instead need public storage
+identity for every source and destination, checked physical intervals, and a
+rule for partially overlapping strided layouts. Those facts remain private.
+Ravel's `Layout` validation proves its own reachable minimum and maximum
+addresses against storage length, so the current public-indexing copy inherits
+checked access. A future descriptor would have to carry and revalidate the raw
+buffer length, base offset, shape, strides, and reachable interval with checked
+`Long` arithmetic before Gale could dereference it.
+
+This matrix deliberately does not say that Gale supports arbitrary Ravel
+layouts natively. It says that the copy adapter can normalize their logical
+values while preserving `DVec` and `DMat` indexing, orientation, ownership, and
+row-major construction semantics. With the stable-core SPI rejected, there is
+no safe zero-copy layout class to prototype or benchmark for 1.0.
+
 ## Panama and native linear algebra
 
 Foreign Function and Memory API work remains wholly Gale-owned. The committed

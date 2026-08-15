@@ -1,0 +1,1 @@
+{"actor":"codex-ravel","entity":"bd-01KZ58FMMA9YSCZ0YFN7CC19RB","kind":"reserve_open","mode":"exclusive","op":"20260804T040542.558175Z-p45144-c0000-r3574-h70fdf6","paths":["scripts/verify-external-kernel-consumer.sh","scripts/verify-external-js-consumer.sh"],"reservation_id":"rv-01KZ5F5R0XV4X19985696MCVZX","ts":"2026-08-04T04:05:42.558175Z","ttl_s":7200,"v":1}

@@ -1,0 +1,22 @@
+$ sbt ';lawsJVM/test;lawsJS/test'
+[info] welcome to sbt 1.11.7 (Oracle Corporation Java 22)
+[info] loading settings for project ravel-release-49ff72d-clone-build from plugins.sbt...
+[info] loading project definition from /private/tmp/ravel-release-49ff72d-clone/project
+[info] loading settings for project root from build.sbt...
+[info] resolving key references (14023 settings) ...
+[info] set current project to ravel (in build file:/private/tmp/ravel-release-49ff72d-clone/)
+[info] compiling 2 Scala sources to /private/tmp/ravel-release-49ff72d-clone/modules/laws/jvm/target/scala-3.7.4/test-classes ...
+[info] done compiling
+Test run ravel.laws.RavelLawsSuite started
+ravel.laws.RavelLawsSuite: finished 0.2s
+Test run ravel.laws.RavelLawsSuite finished: 0 failed, 0 ignored, 2 total 0.21s
+[info] Passed: Total 2, Failed 0, Errors 0, Passed 2
+[success] Total time: 5 s, completed Aug 4, 2026, 8:47:12 a.m.
+[info] compiling 2 Scala sources to /private/tmp/ravel-release-49ff72d-clone/modules/laws/js/target/scala-3.7.4/test-classes ...
+[info] done compiling
+[info] Fast optimizing /private/tmp/ravel-release-49ff72d-clone/modules/laws/js/target/scala-3.7.4/ravel-laws-test-fastopt
+Test run ravel.laws.RavelLawsSuite started
+ravel.laws.RavelLawsSuite: finished 0.064s
+Test run ravel.laws.RavelLawsSuite finished: 0 failed, 0 ignored, 2 total 0.064s
+[info] Passed: Total 2, Failed 0, Errors 0, Passed 2
+[success] Total time: 7 s, completed Aug 4, 2026, 8:47:20 a.m.

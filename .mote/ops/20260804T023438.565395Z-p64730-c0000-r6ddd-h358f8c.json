@@ -1,0 +1,1 @@
+{"actor":"codex-ravel","entity":"bd-01KZ58FJTENDCGQYYZKKFR6M92","kind":"reserve_open","mode":"exclusive","op":"20260804T023438.565395Z-p64730-c0000-r6ddd-h358f8c","paths":["modules/core/shared/src/test/scala/ravel/overloadrepro/ExtensionOverloadReproSuite.scala"],"reservation_id":"rv-01KZ59Z035G23H1CFBYKN97R1K","ts":"2026-08-04T02:34:38.565395Z","ttl_s":3600,"v":1}

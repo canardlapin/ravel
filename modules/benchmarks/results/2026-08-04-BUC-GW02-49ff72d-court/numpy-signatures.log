@@ -1,0 +1,2 @@
+$ /opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/bin/python3.14 modules/benchmarks/python/numpy_operation_matrix.py --side 64 --side 256 --side 1024 --signatures-only --out /private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/numpy-signatures.json
+Wrote 237 results to /private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/numpy-signatures.json

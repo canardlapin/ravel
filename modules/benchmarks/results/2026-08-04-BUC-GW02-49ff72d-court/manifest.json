@@ -1,0 +1,1284 @@
+{
+  "schema": "ravel.performance-court.manifest.v1",
+  "state": "host_blocked",
+  "created_at": "2026-08-04T12:45:47.353736+00:00",
+  "updated_at": "2026-08-04T13:01:57.635656+00:00",
+  "source": {
+    "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+    "dirty_tracked_tree": false,
+    "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+    "file_count": 143
+  },
+  "configuration": {
+    "python": "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+    "java_home": "/Users/bbuchsbaum/Library/Java/JavaVirtualMachines/openjdk-22/Contents/Home",
+    "operation_sides": [
+      64,
+      256,
+      1024
+    ],
+    "cross_runtime_sides": [
+      64,
+      256,
+      1024
+    ],
+    "numpy": {
+      "warmups": 3,
+      "samples": 9,
+      "target_ms": 150
+    },
+    "node": {
+      "warmup_ms": 200,
+      "sample_ms": 250,
+      "samples": 7
+    },
+    "jmh": {
+      "forks": 2,
+      "warmups": 5,
+      "measurements": 7,
+      "iteration_ms": 500
+    },
+    "allocation_jmh": {
+      "forks": 1,
+      "warmups": 3,
+      "measurements": 5,
+      "iteration_ms": 300,
+      "cases": [
+        "contiguous_subtract_double",
+        "inner_stride_multiply_double",
+        "broadcast_subtract_double",
+        "greater_equal_scalar_double",
+        "is_finite_double",
+        "cast_double_int",
+        "full_mean_double",
+        "axis0_mean_double",
+        "inplace_multiply_double"
+      ]
+    },
+    "host_qualification": {
+      "normalized_load_1m": 0.15,
+      "minimum_available_memory_ratio": 0.1,
+      "minimum_memory_pressure_free_ratio": 0.25,
+      "maximum_compressed_memory_ratio": 0.35,
+      "maximum_process_cpu_percent": 20.0,
+      "maximum_pageins_per_second": 100.0,
+      "maximum_decompressions_per_second": 100.0,
+      "samples": 5,
+      "interval_seconds": 2.0
+    }
+  },
+  "configuration_sha256": "beec01446c6a090b8a2f8d91a757952d634073378975e0f25415e3f3874d909e",
+  "environment": {
+    "platform": "macOS-14.3-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "logical_cpus": 14,
+    "executables": {
+      "java": {
+        "path": "/Users/bbuchsbaum/Library/Java/JavaVirtualMachines/openjdk-22/Contents/Home/bin/java",
+        "bytes": 69952,
+        "modified_ns": 1711989789516228561
+      },
+      "node": {
+        "path": "/opt/homebrew/Cellar/node/24.1.0/bin/node",
+        "bytes": 84225776,
+        "modified_ns": 1748639223738044807
+      },
+      "sbt": {
+        "path": "/opt/homebrew/Cellar/sbt/1.11.7/bin/sbt",
+        "bytes": 159,
+        "modified_ns": 1765504869195328963
+      },
+      "python": {
+        "path": "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+        "bytes": 52640,
+        "modified_ns": 1775246731532419799
+      }
+    },
+    "java": "openjdk version \"22\" 2024-03-19\nOpenJDK Runtime Environment (build 22+36-2370)\nOpenJDK 64-Bit Server VM (build 22+36-2370, mixed mode, sharing)",
+    "node": {
+      "node": "v24.1.0",
+      "v8": "13.6.233.10-node.16",
+      "arch": "arm64",
+      "platform": "darwin"
+    },
+    "python": {
+      "executable": "/opt/homebrew/opt/python@3.14/bin/python3.14",
+      "implementation": "CPython",
+      "version": "3.14.3 (main, Feb  3 2026, 15:32:20) [Clang 16.0.0 (clang-1600.0.26.6)]"
+    },
+    "numpy": {
+      "configuration": {
+        "Build Dependencies": {
+          "blas": {
+            "detection method": "system",
+            "found": true,
+            "include directory": "unknown",
+            "lib directory": "unknown",
+            "name": "accelerate",
+            "openblas configuration": "unknown",
+            "pc file directory": "unknown",
+            "version": "unknown"
+          },
+          "lapack": {
+            "detection method": "system",
+            "found": true,
+            "include directory": "unknown",
+            "lib directory": "unknown",
+            "name": "accelerate",
+            "openblas configuration": "unknown",
+            "pc file directory": "unknown",
+            "version": "unknown"
+          }
+        },
+        "Compilers": {
+          "c": {
+            "commands": "cc",
+            "linker": "ld64",
+            "name": "clang",
+            "version": "15.0.0"
+          },
+          "c++": {
+            "commands": "c++",
+            "linker": "ld64",
+            "name": "clang",
+            "version": "15.0.0"
+          },
+          "cython": {
+            "commands": "cython",
+            "linker": "cython",
+            "name": "cython",
+            "version": "3.2.4"
+          }
+        },
+        "Machine Information": {
+          "build": {
+            "cpu": "aarch64",
+            "endian": "little",
+            "family": "aarch64",
+            "system": "darwin"
+          },
+          "host": {
+            "cpu": "aarch64",
+            "endian": "little",
+            "family": "aarch64",
+            "system": "darwin"
+          }
+        },
+        "Python Information": {
+          "path": "/private/var/folders/nb/lcynqsvj2fvf0gqkbj2_nxwh0000gn/T/build-env-l3avr2pv/bin/python",
+          "version": "3.14"
+        },
+        "SIMD Extensions": {
+          "baseline": [
+            "NEON",
+            "NEON_FP16",
+            "NEON_VFPV4",
+            "ASIMD"
+          ],
+          "found": [
+            "ASIMDHP",
+            "ASIMDDP"
+          ],
+          "not found": [
+            "ASIMDFHM"
+          ]
+        }
+      },
+      "file": "/opt/homebrew/lib/python3.14/site-packages/numpy/__init__.py",
+      "version": "2.4.3"
+    }
+  },
+  "phases": {
+    "representation-proof": {
+      "status": "completed",
+      "timing": false,
+      "context_before": {
+        "verified_at": "2026-08-04T12:45:47.838549+00:00",
+        "source": {
+          "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+          "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+          "file_count": 143
+        },
+        "environment_sha256": "ba0fa527b46d2a74aedd412339a89dd92611f7e5b3bce51269bf96ab57e4aaf7"
+      },
+      "started_at": "2026-08-04T12:45:47.838712+00:00",
+      "command": [
+        "sbt",
+        "representationProof"
+      ],
+      "before_commands": [],
+      "after_commands": [],
+      "log": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/representation-proof.log",
+      "return_code": 0,
+      "context_after": {
+        "verified_at": "2026-08-04T12:46:58.742220+00:00",
+        "source": {
+          "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+          "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+          "file_count": 143
+        },
+        "environment_sha256": "ba0fa527b46d2a74aedd412339a89dd92611f7e5b3bce51269bf96ab57e4aaf7"
+      },
+      "log_receipt": {
+        "path": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/representation-proof.log",
+        "bytes": 12755,
+        "sha256": "34b9bed5868438c0e2c31259b4253b4b60008e02b448e353766da05455383598"
+      },
+      "outputs": [],
+      "finished_at": "2026-08-04T12:46:58.742536+00:00"
+    },
+    "laws-proof": {
+      "status": "completed",
+      "timing": false,
+      "context_before": {
+        "verified_at": "2026-08-04T12:46:59.671310+00:00",
+        "source": {
+          "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+          "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+          "file_count": 143
+        },
+        "environment_sha256": "ba0fa527b46d2a74aedd412339a89dd92611f7e5b3bce51269bf96ab57e4aaf7"
+      },
+      "started_at": "2026-08-04T12:46:59.671456+00:00",
+      "command": [
+        "sbt",
+        ";lawsJVM/test;lawsJS/test"
+      ],
+      "before_commands": [],
+      "after_commands": [],
+      "log": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/laws-proof.log",
+      "return_code": 0,
+      "context_after": {
+        "verified_at": "2026-08-04T12:47:20.768838+00:00",
+        "source": {
+          "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+          "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+          "file_count": 143
+        },
+        "environment_sha256": "ba0fa527b46d2a74aedd412339a89dd92611f7e5b3bce51269bf96ab57e4aaf7"
+      },
+      "log_receipt": {
+        "path": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/laws-proof.log",
+        "bytes": 1465,
+        "sha256": "da5c66c36c9a10132ce106800511fba31467f291c34561b2715a9dac60b839c3"
+      },
+      "outputs": [],
+      "finished_at": "2026-08-04T12:47:20.769199+00:00"
+    },
+    "browser-correctness": {
+      "status": "completed",
+      "timing": false,
+      "context_before": {
+        "verified_at": "2026-08-04T12:47:21.330113+00:00",
+        "source": {
+          "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+          "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+          "file_count": 143
+        },
+        "environment_sha256": "ba0fa527b46d2a74aedd412339a89dd92611f7e5b3bce51269bf96ab57e4aaf7"
+      },
+      "started_at": "2026-08-04T12:47:21.330333+00:00",
+      "command": [
+        "sbt",
+        "browserTests/test"
+      ],
+      "before_commands": [
+        [
+          "node",
+          "/Users/bbuchsbaum/.local/share/agent-policy/browser-automation-guard.mjs",
+          "--audit"
+        ]
+      ],
+      "after_commands": [
+        [
+          "node",
+          "/Users/bbuchsbaum/.local/share/agent-policy/browser-automation-guard.mjs",
+          "--audit"
+        ]
+      ],
+      "log": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/browser-correctness.log",
+      "return_code": 0,
+      "context_after": {
+        "verified_at": "2026-08-04T12:47:40.215864+00:00",
+        "source": {
+          "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+          "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+          "file_count": 143
+        },
+        "environment_sha256": "ba0fa527b46d2a74aedd412339a89dd92611f7e5b3bce51269bf96ab57e4aaf7"
+      },
+      "log_receipt": {
+        "path": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/browser-correctness.log",
+        "bytes": 1898,
+        "sha256": "e07b407dd44f81a4001d9409b53f4307cebcb7b06cb660e56c0f76a882d8f6e3"
+      },
+      "outputs": [],
+      "finished_at": "2026-08-04T12:47:40.216214+00:00"
+    },
+    "jvm-signatures": {
+      "status": "completed",
+      "timing": false,
+      "context_before": {
+        "verified_at": "2026-08-04T12:47:40.735794+00:00",
+        "source": {
+          "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+          "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+          "file_count": 143
+        },
+        "environment_sha256": "ba0fa527b46d2a74aedd412339a89dd92611f7e5b3bce51269bf96ab57e4aaf7"
+      },
+      "started_at": "2026-08-04T12:47:40.735941+00:00",
+      "command": [
+        "sbt",
+        "representationProbeJVM/runMain ravel.bench.OperationMatrixParity --out /private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/ravel-signatures.json --side 64,256,1024"
+      ],
+      "before_commands": [],
+      "after_commands": [],
+      "log": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/jvm-signatures.log",
+      "return_code": 0,
+      "context_after": {
+        "verified_at": "2026-08-04T12:47:50.229979+00:00",
+        "source": {
+          "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+          "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+          "file_count": 143
+        },
+        "environment_sha256": "ba0fa527b46d2a74aedd412339a89dd92611f7e5b3bce51269bf96ab57e4aaf7"
+      },
+      "log_receipt": {
+        "path": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/jvm-signatures.log",
+        "bytes": 1090,
+        "sha256": "3a9d2d072ac689a3a7d4aba7adbe7b23d0d0b253f460ea0360a90c72398e0984"
+      },
+      "outputs": [
+        {
+          "path": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/ravel-signatures.json",
+          "bytes": 99226,
+          "sha256": "7f6913edd74b8df9eb28d9e0acec921874cbe245579548b6462b96e2eef6dae2"
+        }
+      ],
+      "finished_at": "2026-08-04T12:47:50.230511+00:00"
+    },
+    "numpy-signatures": {
+      "status": "completed",
+      "timing": false,
+      "context_before": {
+        "verified_at": "2026-08-04T12:47:50.716999+00:00",
+        "source": {
+          "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+          "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+          "file_count": 143
+        },
+        "environment_sha256": "ba0fa527b46d2a74aedd412339a89dd92611f7e5b3bce51269bf96ab57e4aaf7"
+      },
+      "started_at": "2026-08-04T12:47:50.717206+00:00",
+      "command": [
+        "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+        "modules/benchmarks/python/numpy_operation_matrix.py",
+        "--side",
+        "64",
+        "--side",
+        "256",
+        "--side",
+        "1024",
+        "--signatures-only",
+        "--out",
+        "/private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/numpy-signatures.json"
+      ],
+      "before_commands": [],
+      "after_commands": [],
+      "log": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/numpy-signatures.log",
+      "return_code": 0,
+      "context_after": {
+        "verified_at": "2026-08-04T12:47:57.580278+00:00",
+        "source": {
+          "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+          "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+          "file_count": 143
+        },
+        "environment_sha256": "ba0fa527b46d2a74aedd412339a89dd92611f7e5b3bce51269bf96ab57e4aaf7"
+      },
+      "log_receipt": {
+        "path": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/numpy-signatures.log",
+        "bytes": 479,
+        "sha256": "f06b875dd0f6920fc3901979fe004e293de0cffae712a74319f94e2a5ef3eb32"
+      },
+      "outputs": [
+        {
+          "path": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/numpy-signatures.json",
+          "bytes": 99106,
+          "sha256": "6da19e85f11a12fc9ff69b009a45a28b7c6ce031b7a3ab43c045a29afde40f79"
+        }
+      ],
+      "finished_at": "2026-08-04T12:47:57.580834+00:00"
+    },
+    "numpy-parity": {
+      "status": "completed",
+      "timing": false,
+      "context_before": {
+        "verified_at": "2026-08-04T12:47:58.349313+00:00",
+        "source": {
+          "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+          "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+          "file_count": 143
+        },
+        "environment_sha256": "ba0fa527b46d2a74aedd412339a89dd92611f7e5b3bce51269bf96ab57e4aaf7"
+      },
+      "started_at": "2026-08-04T12:47:58.349454+00:00",
+      "command": [
+        "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+        "modules/benchmarks/python/compare_operation_matrix.py",
+        "--numpy",
+        "/private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/numpy-signatures.json",
+        "--signatures",
+        "/private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/ravel-signatures.json",
+        "--parity-only"
+      ],
+      "before_commands": [],
+      "after_commands": [],
+      "log": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/numpy-parity.log",
+      "return_code": 0,
+      "context_after": {
+        "verified_at": "2026-08-04T12:47:59.152916+00:00",
+        "source": {
+          "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+          "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+          "file_count": 143
+        },
+        "environment_sha256": "ba0fa527b46d2a74aedd412339a89dd92611f7e5b3bce51269bf96ab57e4aaf7"
+      },
+      "log_receipt": {
+        "path": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/numpy-parity.log",
+        "bytes": 502,
+        "sha256": "6eb65edb8f56bcdb4ac66008184cf5cafd4b026a59b4db8ec4295d37fef04b31"
+      },
+      "outputs": [],
+      "finished_at": "2026-08-04T12:47:59.153330+00:00"
+    },
+    "jvm-cross-runtime-signatures": {
+      "status": "completed",
+      "timing": false,
+      "context_before": {
+        "verified_at": "2026-08-04T12:47:59.818349+00:00",
+        "source": {
+          "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+          "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+          "file_count": 143
+        },
+        "environment_sha256": "ba0fa527b46d2a74aedd412339a89dd92611f7e5b3bce51269bf96ab57e4aaf7"
+      },
+      "started_at": "2026-08-04T12:47:59.818485+00:00",
+      "command": [
+        "sbt",
+        "representationProbeJVM/runMain ravel.bench.CrossRuntimeCourt --signatures-only --sides 64,256,1024 --out /private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/jvm-cross-runtime-signatures.json"
+      ],
+      "before_commands": [],
+      "after_commands": [],
+      "log": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/jvm-cross-runtime-signatures.log",
+      "return_code": 0,
+      "context_after": {
+        "verified_at": "2026-08-04T12:48:08.162511+00:00",
+        "source": {
+          "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+          "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+          "file_count": 143
+        },
+        "environment_sha256": "ba0fa527b46d2a74aedd412339a89dd92611f7e5b3bce51269bf96ab57e4aaf7"
+      },
+      "log_receipt": {
+        "path": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/jvm-cross-runtime-signatures.log",
+        "bytes": 1170,
+        "sha256": "5b5df031707e07d763b2cd66c6635b28ad2e326c166529fd8a192a04b2d5f923"
+      },
+      "outputs": [
+        {
+          "path": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/jvm-cross-runtime-signatures.json",
+          "bytes": 41168,
+          "sha256": "03c18f8e6ebff07a9c698b38e3a228262d7f253dd9fd2b42610ba77054083cdb"
+        }
+      ],
+      "finished_at": "2026-08-04T12:48:08.162961+00:00"
+    },
+    "scala-js-full-link": {
+      "status": "completed",
+      "timing": false,
+      "context_before": {
+        "verified_at": "2026-08-04T12:48:08.656957+00:00",
+        "source": {
+          "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+          "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+          "file_count": 143
+        },
+        "environment_sha256": "ba0fa527b46d2a74aedd412339a89dd92611f7e5b3bce51269bf96ab57e4aaf7"
+      },
+      "started_at": "2026-08-04T12:48:08.657096+00:00",
+      "command": [
+        "sbt",
+        "representationProbeJS/fullLinkJS"
+      ],
+      "before_commands": [],
+      "after_commands": [],
+      "log": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/scala-js-full-link.log",
+      "return_code": 0,
+      "context_after": {
+        "verified_at": "2026-08-04T12:48:15.629271+00:00",
+        "source": {
+          "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+          "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+          "file_count": 143
+        },
+        "environment_sha256": "ba0fa527b46d2a74aedd412339a89dd92611f7e5b3bce51269bf96ab57e4aaf7"
+      },
+      "log_receipt": {
+        "path": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/scala-js-full-link.log",
+        "bytes": 544,
+        "sha256": "6d23f1460c65c5c30675dd6843d4607504440d5cc70cee5189ff4da1777773c6"
+      },
+      "outputs": [],
+      "finished_at": "2026-08-04T12:48:15.629587+00:00"
+    },
+    "scala-js-signatures": {
+      "status": "completed",
+      "timing": false,
+      "context_before": {
+        "verified_at": "2026-08-04T12:48:16.116416+00:00",
+        "source": {
+          "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+          "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+          "file_count": 143
+        },
+        "environment_sha256": "ba0fa527b46d2a74aedd412339a89dd92611f7e5b3bce51269bf96ab57e4aaf7"
+      },
+      "started_at": "2026-08-04T12:48:16.116994+00:00",
+      "command": [
+        "node",
+        "--expose-gc",
+        "/private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/js/target/scala-3.7.4/ravel-representation-probe-js-opt/main.js",
+        "--signatures-only",
+        "--sides",
+        "64,256,1024",
+        "--out",
+        "/private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/scala-js-signatures.json"
+      ],
+      "before_commands": [],
+      "after_commands": [],
+      "log": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/scala-js-signatures.log",
+      "return_code": 0,
+      "context_after": {
+        "verified_at": "2026-08-04T12:48:17.891006+00:00",
+        "source": {
+          "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+          "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+          "file_count": 143
+        },
+        "environment_sha256": "ba0fa527b46d2a74aedd412339a89dd92611f7e5b3bce51269bf96ab57e4aaf7"
+      },
+      "log_receipt": {
+        "path": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/scala-js-signatures.log",
+        "bytes": 496,
+        "sha256": "fbc4c25be5f78a545151040f26c8cde497207f0548e96cf6195a6cf0ff9812ac"
+      },
+      "outputs": [
+        {
+          "path": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/scala-js-signatures.json",
+          "bytes": 41037,
+          "sha256": "798e93c825da21ee81d96124decf8d8e7dafe1cd9b582de4c6cf6d65ee595ccd"
+        }
+      ],
+      "finished_at": "2026-08-04T12:48:17.891528+00:00"
+    },
+    "cross-runtime-parity": {
+      "status": "completed",
+      "timing": false,
+      "context_before": {
+        "verified_at": "2026-08-04T12:48:18.420403+00:00",
+        "source": {
+          "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+          "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+          "file_count": 143
+        },
+        "environment_sha256": "ba0fa527b46d2a74aedd412339a89dd92611f7e5b3bce51269bf96ab57e4aaf7"
+      },
+      "started_at": "2026-08-04T12:48:18.420570+00:00",
+      "command": [
+        "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+        "modules/benchmarks/python/compare_cross_runtime_court.py",
+        "--jvm",
+        "/private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/jvm-cross-runtime-signatures.json",
+        "--js",
+        "/private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/scala-js-signatures.json"
+      ],
+      "before_commands": [],
+      "after_commands": [],
+      "log": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/cross-runtime-parity.log",
+      "return_code": 0,
+      "context_after": {
+        "verified_at": "2026-08-04T12:48:18.959778+00:00",
+        "source": {
+          "head": "49ff72deba137d51c345a3f71ca58f26ab02db4f",
+          "sha256": "4835f6dc14bb593e6e39ba6a562ab1ab90abbff4b71c40e24ffb78a2661c7251",
+          "file_count": 143
+        },
+        "environment_sha256": "ba0fa527b46d2a74aedd412339a89dd92611f7e5b3bce51269bf96ab57e4aaf7"
+      },
+      "log_receipt": {
+        "path": "modules/benchmarks/results/2026-08-04-BUC-GW02-49ff72d-court/cross-runtime-parity.log",
+        "bytes": 482,
+        "sha256": "3bc425f8df26f751cbdcffc4886f9458c566174f4d88c5ea96e94c85e915368e"
+      },
+      "outputs": [],
+      "finished_at": "2026-08-04T12:48:18.960034+00:00"
+    },
+    "jvm-timings": {
+      "status": "pending",
+      "timing": true,
+      "host_qualification": {
+        "qualified": false,
+        "limits": {
+          "normalized_load_1m": 0.15,
+          "minimum_available_memory_ratio": 0.1,
+          "minimum_memory_pressure_free_ratio": 0.25,
+          "maximum_compressed_memory_ratio": 0.35,
+          "maximum_process_cpu_percent": 20.0,
+          "maximum_pageins_per_second": 100.0,
+          "maximum_decompressions_per_second": 100.0
+        },
+        "snapshots": [
+          {
+            "captured_at": "2026-08-04T13:01:49.140022+00:00",
+            "logical_cpus": 14,
+            "load_1m": 6.35009765625,
+            "normalized_load_1m": 0.45357840401785715,
+            "available_memory_ratio": 0.26592424180772567,
+            "compressed_memory_ratio": 0.357718997531467,
+            "busiest_process_pid": 75103,
+            "busiest_process_cpu_percent": 87.0,
+            "busiest_process_command": "/bin/zsh",
+            "memory_pressure_free_ratio": 0.46,
+            "pageins": 74855689,
+            "pageouts": 993069,
+            "swapins": 1677208,
+            "swapouts": 3103533,
+            "compressions": 881950486,
+            "decompressions": 664312213
+          },
+          {
+            "captured_at": "2026-08-04T13:01:51.253029+00:00",
+            "logical_cpus": 14,
+            "load_1m": 6.35009765625,
+            "normalized_load_1m": 0.45357840401785715,
+            "available_memory_ratio": 0.25383970472547746,
+            "compressed_memory_ratio": 0.33285268147786456,
+            "busiest_process_pid": 75185,
+            "busiest_process_cpu_percent": 74.1,
+            "busiest_process_command": "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/150.0.7871.187/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+            "memory_pressure_free_ratio": 0.47,
+            "pageins": 74857512,
+            "pageouts": 993069,
+            "swapins": 1677208,
+            "swapouts": 3103533,
+            "compressions": 881950486,
+            "decompressions": 664432062
+          },
+          {
+            "captured_at": "2026-08-04T13:01:53.379676+00:00",
+            "logical_cpus": 14,
+            "load_1m": 6.35009765625,
+            "normalized_load_1m": 0.45357840401785715,
+            "available_memory_ratio": 0.2610333760579427,
+            "compressed_memory_ratio": 0.33091778225368923,
+            "busiest_process_pid": 75185,
+            "busiest_process_cpu_percent": 70.8,
+            "busiest_process_command": "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/150.0.7871.187/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+            "memory_pressure_free_ratio": 0.49,
+            "pageins": 74857702,
+            "pageouts": 993069,
+            "swapins": 1677208,
+            "swapouts": 3103533,
+            "compressions": 881950486,
+            "decompressions": 664438444
+          },
+          {
+            "captured_at": "2026-08-04T13:01:55.508330+00:00",
+            "logical_cpus": 14,
+            "load_1m": 6.08154296875,
+            "normalized_load_1m": 0.4343959263392857,
+            "available_memory_ratio": 0.2645759582519531,
+            "compressed_memory_ratio": 0.33075544569227433,
+            "busiest_process_pid": 75185,
+            "busiest_process_cpu_percent": 67.2,
+            "busiest_process_command": "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/150.0.7871.187/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+            "memory_pressure_free_ratio": 0.49,
+            "pageins": 74858023,
+            "pageouts": 993069,
+            "swapins": 1677208,
+            "swapouts": 3103533,
+            "compressions": 881950486,
+            "decompressions": 664439162
+          },
+          {
+            "captured_at": "2026-08-04T13:01:57.634421+00:00",
+            "logical_cpus": 14,
+            "load_1m": 6.08154296875,
+            "normalized_load_1m": 0.4343959263392857,
+            "available_memory_ratio": 0.2634544372558594,
+            "compressed_memory_ratio": 0.3306189643012153,
+            "busiest_process_pid": 75185,
+            "busiest_process_cpu_percent": 69.6,
+            "busiest_process_command": "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/150.0.7871.187/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+            "memory_pressure_free_ratio": 0.49,
+            "pageins": 74858280,
+            "pageouts": 993069,
+            "swapins": 1677208,
+            "swapouts": 3103533,
+            "compressions": 881950486,
+            "decompressions": 664439817
+          }
+        ],
+        "failures": [
+          {
+            "sample": 1,
+            "reasons": [
+              "normalized load 0.454 exceeds 0.150",
+              "compressed memory 35.8% exceeds 35.0%",
+              "busiest process CPU 87.0% exceeds 20.0%"
+            ]
+          },
+          {
+            "sample": 2,
+            "reasons": [
+              "normalized load 0.454 exceeds 0.150",
+              "busiest process CPU 74.1% exceeds 20.0%",
+              "pageins 862.8/s exceed 100.0/s",
+              "decompressions 56719.6/s exceed 100.0/s"
+            ],
+            "elapsed_seconds": 2.1130082080489956
+          },
+          {
+            "sample": 3,
+            "reasons": [
+              "normalized load 0.454 exceeds 0.150",
+              "busiest process CPU 70.8% exceeds 20.0%",
+              "decompressions 3001.0/s exceed 100.0/s"
+            ],
+            "elapsed_seconds": 2.126634832995478
+          },
+          {
+            "sample": 4,
+            "reasons": [
+              "normalized load 0.434 exceeds 0.150",
+              "busiest process CPU 67.2% exceeds 20.0%",
+              "pageins 150.8/s exceed 100.0/s",
+              "decompressions 337.3/s exceed 100.0/s"
+            ],
+            "elapsed_seconds": 2.1286319170030765
+          },
+          {
+            "sample": 5,
+            "reasons": [
+              "normalized load 0.434 exceeds 0.150",
+              "busiest process CPU 69.6% exceeds 20.0%",
+              "pageins 120.9/s exceed 100.0/s",
+              "decompressions 308.1/s exceed 100.0/s"
+            ],
+            "elapsed_seconds": 2.126072832965292
+          }
+        ],
+        "phase": "jvm-timings"
+      }
+    },
+    "numpy-timings": {
+      "status": "pending",
+      "timing": true
+    },
+    "jvm-allocation": {
+      "status": "pending",
+      "timing": true
+    },
+    "scala-js-timings": {
+      "status": "pending",
+      "timing": true
+    },
+    "scala-js-baseline-summary": {
+      "status": "pending",
+      "timing": false
+    },
+    "scala-js-gc-diagnostic": {
+      "status": "pending",
+      "timing": true
+    },
+    "jvm-numpy-report": {
+      "status": "pending",
+      "timing": false
+    }
+  },
+  "host_qualifications": [
+    {
+      "qualified": false,
+      "limits": {
+        "normalized_load_1m": 0.15,
+        "minimum_available_memory_ratio": 0.1,
+        "minimum_memory_pressure_free_ratio": 0.25,
+        "maximum_compressed_memory_ratio": 0.35,
+        "maximum_process_cpu_percent": 20.0,
+        "maximum_pageins_per_second": 100.0,
+        "maximum_decompressions_per_second": 100.0
+      },
+      "snapshots": [
+        {
+          "captured_at": "2026-08-04T12:48:19.480480+00:00",
+          "logical_cpus": 14,
+          "load_1m": 15.03271484375,
+          "normalized_load_1m": 1.0737653459821428,
+          "available_memory_ratio": 0.2737685309516059,
+          "compressed_memory_ratio": 0.31741248236762154,
+          "busiest_process_pid": 159,
+          "busiest_process_cpu_percent": 49.5,
+          "busiest_process_command": "/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+          "memory_pressure_free_ratio": 0.49,
+          "pageins": 74478827,
+          "pageouts": 990652,
+          "swapins": 1676680,
+          "swapouts": 3103533,
+          "compressions": 879741754,
+          "decompressions": 662533510
+        },
+        {
+          "captured_at": "2026-08-04T12:48:21.591981+00:00",
+          "logical_cpus": 14,
+          "load_1m": 15.03271484375,
+          "normalized_load_1m": 1.0737653459821428,
+          "available_memory_ratio": 0.27693472968207467,
+          "compressed_memory_ratio": 0.31667666965060765,
+          "busiest_process_pid": 35751,
+          "busiest_process_cpu_percent": 64.2,
+          "busiest_process_command": "/System/Library/PrivateFrameworks/CacheDelete.framework/deleted",
+          "memory_pressure_free_ratio": 0.5,
+          "pageins": 74479185,
+          "pageouts": 990652,
+          "swapins": 1676680,
+          "swapouts": 3103533,
+          "compressions": 879741754,
+          "decompressions": 662536133
+        },
+        {
+          "captured_at": "2026-08-04T12:48:23.729238+00:00",
+          "logical_cpus": 14,
+          "load_1m": 13.98876953125,
+          "normalized_load_1m": 0.9991978236607143,
+          "available_memory_ratio": 0.2760993109809028,
+          "compressed_memory_ratio": 0.31649186876085067,
+          "busiest_process_pid": 35751,
+          "busiest_process_cpu_percent": 64.8,
+          "busiest_process_command": "/System/Library/PrivateFrameworks/CacheDelete.framework/deleted",
+          "memory_pressure_free_ratio": 0.5,
+          "pageins": 74479383,
+          "pageouts": 990652,
+          "swapins": 1676680,
+          "swapouts": 3103533,
+          "compressions": 879741754,
+          "decompressions": 662536889
+        },
+        {
+          "captured_at": "2026-08-04T12:48:25.847507+00:00",
+          "logical_cpus": 14,
+          "load_1m": 13.98876953125,
+          "normalized_load_1m": 0.9991978236607143,
+          "available_memory_ratio": 0.2772691514756944,
+          "compressed_memory_ratio": 0.316170162624783,
+          "busiest_process_pid": 18487,
+          "busiest_process_cpu_percent": 71.4,
+          "busiest_process_command": "/usr/libexec/aned",
+          "memory_pressure_free_ratio": 0.51,
+          "pageins": 74479704,
+          "pageouts": 990652,
+          "swapins": 1676680,
+          "swapouts": 3103533,
+          "compressions": 879741754,
+          "decompressions": 662538525
+        },
+        {
+          "captured_at": "2026-08-04T12:48:27.955957+00:00",
+          "logical_cpus": 14,
+          "load_1m": 13.98876953125,
+          "normalized_load_1m": 0.9991978236607143,
+          "available_memory_ratio": 0.27385372585720485,
+          "compressed_memory_ratio": 0.3159412807888455,
+          "busiest_process_pid": 159,
+          "busiest_process_cpu_percent": 53.8,
+          "busiest_process_command": "/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+          "memory_pressure_free_ratio": 0.51,
+          "pageins": 74493595,
+          "pageouts": 990652,
+          "swapins": 1676680,
+          "swapouts": 3103533,
+          "compressions": 879741754,
+          "decompressions": 662540054
+        }
+      ],
+      "failures": [
+        {
+          "sample": 1,
+          "reasons": [
+            "normalized load 1.074 exceeds 0.150",
+            "busiest process CPU 49.5% exceeds 20.0%"
+          ]
+        },
+        {
+          "sample": 2,
+          "reasons": [
+            "normalized load 1.074 exceeds 0.150",
+            "busiest process CPU 64.2% exceeds 20.0%",
+            "pageins 169.5/s exceed 100.0/s",
+            "decompressions 1242.2/s exceed 100.0/s"
+          ],
+          "elapsed_seconds": 2.111502500018105
+        },
+        {
+          "sample": 3,
+          "reasons": [
+            "normalized load 0.999 exceeds 0.150",
+            "busiest process CPU 64.8% exceeds 20.0%",
+            "decompressions 353.7/s exceed 100.0/s"
+          ],
+          "elapsed_seconds": 2.137228999985382
+        },
+        {
+          "sample": 4,
+          "reasons": [
+            "normalized load 0.999 exceeds 0.150",
+            "busiest process CPU 71.4% exceeds 20.0%",
+            "pageins 151.5/s exceed 100.0/s",
+            "decompressions 772.3/s exceed 100.0/s"
+          ],
+          "elapsed_seconds": 2.118242166005075
+        },
+        {
+          "sample": 5,
+          "reasons": [
+            "normalized load 0.999 exceeds 0.150",
+            "busiest process CPU 53.8% exceeds 20.0%",
+            "pageins 6588.3/s exceed 100.0/s",
+            "decompressions 725.2/s exceed 100.0/s"
+          ],
+          "elapsed_seconds": 2.108429249958135
+        }
+      ],
+      "phase": "jvm-timings"
+    },
+    {
+      "qualified": false,
+      "limits": {
+        "normalized_load_1m": 0.15,
+        "minimum_available_memory_ratio": 0.1,
+        "minimum_memory_pressure_free_ratio": 0.25,
+        "maximum_compressed_memory_ratio": 0.35,
+        "maximum_process_cpu_percent": 20.0,
+        "maximum_pageins_per_second": 100.0,
+        "maximum_decompressions_per_second": 100.0
+      },
+      "snapshots": [
+        {
+          "captured_at": "2026-08-04T12:54:32.593418+00:00",
+          "logical_cpus": 14,
+          "load_1m": 10.98876953125,
+          "normalized_load_1m": 0.784912109375,
+          "available_memory_ratio": 0.30132505628797746,
+          "compressed_memory_ratio": 0.358986324734158,
+          "busiest_process_pid": 57878,
+          "busiest_process_cpu_percent": 79.7,
+          "busiest_process_command": "/bin/zsh",
+          "memory_pressure_free_ratio": 0.47,
+          "pageins": 74723421,
+          "pageouts": 992557,
+          "swapins": 1676822,
+          "swapouts": 3103533,
+          "compressions": 881494257,
+          "decompressions": 663884400
+        },
+        {
+          "captured_at": "2026-08-04T12:54:34.696917+00:00",
+          "logical_cpus": 14,
+          "load_1m": 10.1884765625,
+          "normalized_load_1m": 0.7277483258928571,
+          "available_memory_ratio": 0.2995067172580295,
+          "compressed_memory_ratio": 0.3580525716145833,
+          "busiest_process_pid": 54202,
+          "busiest_process_cpu_percent": 96.3,
+          "busiest_process_command": "/Users/bbuchsbaum/Library/Java/JavaVirtualMachines/openjdk-22/Contents/Home/bin/java",
+          "memory_pressure_free_ratio": 0.46,
+          "pageins": 74723823,
+          "pageouts": 992557,
+          "swapins": 1676822,
+          "swapouts": 3103533,
+          "compressions": 881494257,
+          "decompressions": 663889060
+        },
+        {
+          "captured_at": "2026-08-04T12:54:36.843816+00:00",
+          "logical_cpus": 14,
+          "load_1m": 10.1884765625,
+          "normalized_load_1m": 0.7277483258928571,
+          "available_memory_ratio": 0.2978189256456163,
+          "compressed_memory_ratio": 0.3575909932454427,
+          "busiest_process_pid": 543,
+          "busiest_process_cpu_percent": 40.2,
+          "busiest_process_command": "/System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal",
+          "memory_pressure_free_ratio": 0.46,
+          "pageins": 74724077,
+          "pageouts": 992557,
+          "swapins": 1676826,
+          "swapouts": 3103533,
+          "compressions": 881494257,
+          "decompressions": 663891754
+        },
+        {
+          "captured_at": "2026-08-04T12:54:38.978502+00:00",
+          "logical_cpus": 14,
+          "load_1m": 9.69287109375,
+          "normalized_load_1m": 0.6923479352678571,
+          "available_memory_ratio": 0.2970852322048611,
+          "compressed_memory_ratio": 0.35689078436957467,
+          "busiest_process_pid": 543,
+          "busiest_process_cpu_percent": 40.4,
+          "busiest_process_command": "/System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal",
+          "memory_pressure_free_ratio": 0.46,
+          "pageins": 74724434,
+          "pageouts": 992557,
+          "swapins": 1676826,
+          "swapouts": 3103533,
+          "compressions": 881494257,
+          "decompressions": 663895546
+        },
+        {
+          "captured_at": "2026-08-04T12:54:41.077985+00:00",
+          "logical_cpus": 14,
+          "load_1m": 9.69287109375,
+          "normalized_load_1m": 0.6923479352678571,
+          "available_memory_ratio": 0.2930026584201389,
+          "compressed_memory_ratio": 0.3559405008951823,
+          "busiest_process_pid": 58199,
+          "busiest_process_cpu_percent": 94.7,
+          "busiest_process_command": "mote",
+          "memory_pressure_free_ratio": 0.46,
+          "pageins": 74724662,
+          "pageouts": 992557,
+          "swapins": 1676826,
+          "swapouts": 3103533,
+          "compressions": 881494257,
+          "decompressions": 663899965
+        }
+      ],
+      "failures": [
+        {
+          "sample": 1,
+          "reasons": [
+            "normalized load 0.785 exceeds 0.150",
+            "compressed memory 35.9% exceeds 35.0%",
+            "busiest process CPU 79.7% exceeds 20.0%"
+          ]
+        },
+        {
+          "sample": 2,
+          "reasons": [
+            "normalized load 0.728 exceeds 0.150",
+            "compressed memory 35.8% exceeds 35.0%",
+            "busiest process CPU 96.3% exceeds 20.0%",
+            "pageins 191.1/s exceed 100.0/s",
+            "decompressions 2215.4/s exceed 100.0/s"
+          ],
+          "elapsed_seconds": 2.103503000049386
+        },
+        {
+          "sample": 3,
+          "reasons": [
+            "normalized load 0.728 exceeds 0.150",
+            "compressed memory 35.8% exceeds 35.0%",
+            "busiest process CPU 40.2% exceeds 20.0%",
+            "pageins 118.3/s exceed 100.0/s",
+            "decompressions 1254.9/s exceed 100.0/s",
+            "swapins changed by 4"
+          ],
+          "elapsed_seconds": 2.1468691249610856
+        },
+        {
+          "sample": 4,
+          "reasons": [
+            "normalized load 0.692 exceeds 0.150",
+            "compressed memory 35.7% exceeds 35.0%",
+            "busiest process CPU 40.4% exceeds 20.0%",
+            "pageins 167.2/s exceed 100.0/s",
+            "decompressions 1776.4/s exceed 100.0/s"
+          ],
+          "elapsed_seconds": 2.134658541996032
+        },
+        {
+          "sample": 5,
+          "reasons": [
+            "normalized load 0.692 exceeds 0.150",
+            "compressed memory 35.6% exceeds 35.0%",
+            "busiest process CPU 94.7% exceeds 20.0%",
+            "pageins 108.6/s exceed 100.0/s",
+            "decompressions 2104.9/s exceed 100.0/s"
+          ],
+          "elapsed_seconds": 2.0994301669998094
+        }
+      ],
+      "phase": "jvm-timings"
+    },
+    {
+      "qualified": false,
+      "limits": {
+        "normalized_load_1m": 0.15,
+        "minimum_available_memory_ratio": 0.1,
+        "minimum_memory_pressure_free_ratio": 0.25,
+        "maximum_compressed_memory_ratio": 0.35,
+        "maximum_process_cpu_percent": 20.0,
+        "maximum_pageins_per_second": 100.0,
+        "maximum_decompressions_per_second": 100.0
+      },
+      "snapshots": [
+        {
+          "captured_at": "2026-08-04T13:01:49.140022+00:00",
+          "logical_cpus": 14,
+          "load_1m": 6.35009765625,
+          "normalized_load_1m": 0.45357840401785715,
+          "available_memory_ratio": 0.26592424180772567,
+          "compressed_memory_ratio": 0.357718997531467,
+          "busiest_process_pid": 75103,
+          "busiest_process_cpu_percent": 87.0,
+          "busiest_process_command": "/bin/zsh",
+          "memory_pressure_free_ratio": 0.46,
+          "pageins": 74855689,
+          "pageouts": 993069,
+          "swapins": 1677208,
+          "swapouts": 3103533,
+          "compressions": 881950486,
+          "decompressions": 664312213
+        },
+        {
+          "captured_at": "2026-08-04T13:01:51.253029+00:00",
+          "logical_cpus": 14,
+          "load_1m": 6.35009765625,
+          "normalized_load_1m": 0.45357840401785715,
+          "available_memory_ratio": 0.25383970472547746,
+          "compressed_memory_ratio": 0.33285268147786456,
+          "busiest_process_pid": 75185,
+          "busiest_process_cpu_percent": 74.1,
+          "busiest_process_command": "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/150.0.7871.187/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "memory_pressure_free_ratio": 0.47,
+          "pageins": 74857512,
+          "pageouts": 993069,
+          "swapins": 1677208,
+          "swapouts": 3103533,
+          "compressions": 881950486,
+          "decompressions": 664432062
+        },
+        {
+          "captured_at": "2026-08-04T13:01:53.379676+00:00",
+          "logical_cpus": 14,
+          "load_1m": 6.35009765625,
+          "normalized_load_1m": 0.45357840401785715,
+          "available_memory_ratio": 0.2610333760579427,
+          "compressed_memory_ratio": 0.33091778225368923,
+          "busiest_process_pid": 75185,
+          "busiest_process_cpu_percent": 70.8,
+          "busiest_process_command": "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/150.0.7871.187/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "memory_pressure_free_ratio": 0.49,
+          "pageins": 74857702,
+          "pageouts": 993069,
+          "swapins": 1677208,
+          "swapouts": 3103533,
+          "compressions": 881950486,
+          "decompressions": 664438444
+        },
+        {
+          "captured_at": "2026-08-04T13:01:55.508330+00:00",
+          "logical_cpus": 14,
+          "load_1m": 6.08154296875,
+          "normalized_load_1m": 0.4343959263392857,
+          "available_memory_ratio": 0.2645759582519531,
+          "compressed_memory_ratio": 0.33075544569227433,
+          "busiest_process_pid": 75185,
+          "busiest_process_cpu_percent": 67.2,
+          "busiest_process_command": "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/150.0.7871.187/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "memory_pressure_free_ratio": 0.49,
+          "pageins": 74858023,
+          "pageouts": 993069,
+          "swapins": 1677208,
+          "swapouts": 3103533,
+          "compressions": 881950486,
+          "decompressions": 664439162
+        },
+        {
+          "captured_at": "2026-08-04T13:01:57.634421+00:00",
+          "logical_cpus": 14,
+          "load_1m": 6.08154296875,
+          "normalized_load_1m": 0.4343959263392857,
+          "available_memory_ratio": 0.2634544372558594,
+          "compressed_memory_ratio": 0.3306189643012153,
+          "busiest_process_pid": 75185,
+          "busiest_process_cpu_percent": 69.6,
+          "busiest_process_command": "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/150.0.7871.187/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "memory_pressure_free_ratio": 0.49,
+          "pageins": 74858280,
+          "pageouts": 993069,
+          "swapins": 1677208,
+          "swapouts": 3103533,
+          "compressions": 881950486,
+          "decompressions": 664439817
+        }
+      ],
+      "failures": [
+        {
+          "sample": 1,
+          "reasons": [
+            "normalized load 0.454 exceeds 0.150",
+            "compressed memory 35.8% exceeds 35.0%",
+            "busiest process CPU 87.0% exceeds 20.0%"
+          ]
+        },
+        {
+          "sample": 2,
+          "reasons": [
+            "normalized load 0.454 exceeds 0.150",
+            "busiest process CPU 74.1% exceeds 20.0%",
+            "pageins 862.8/s exceed 100.0/s",
+            "decompressions 56719.6/s exceed 100.0/s"
+          ],
+          "elapsed_seconds": 2.1130082080489956
+        },
+        {
+          "sample": 3,
+          "reasons": [
+            "normalized load 0.454 exceeds 0.150",
+            "busiest process CPU 70.8% exceeds 20.0%",
+            "decompressions 3001.0/s exceed 100.0/s"
+          ],
+          "elapsed_seconds": 2.126634832995478
+        },
+        {
+          "sample": 4,
+          "reasons": [
+            "normalized load 0.434 exceeds 0.150",
+            "busiest process CPU 67.2% exceeds 20.0%",
+            "pageins 150.8/s exceed 100.0/s",
+            "decompressions 337.3/s exceed 100.0/s"
+          ],
+          "elapsed_seconds": 2.1286319170030765
+        },
+        {
+          "sample": 5,
+          "reasons": [
+            "normalized load 0.434 exceeds 0.150",
+            "busiest process CPU 69.6% exceeds 20.0%",
+            "pageins 120.9/s exceed 100.0/s",
+            "decompressions 308.1/s exceed 100.0/s"
+          ],
+          "elapsed_seconds": 2.126072832965292
+        }
+      ],
+      "phase": "jvm-timings"
+    }
+  ]
+}

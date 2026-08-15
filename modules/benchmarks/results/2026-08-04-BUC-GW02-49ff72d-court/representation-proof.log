@@ -1,0 +1,207 @@
+$ sbt representationProof
+[info] welcome to sbt 1.11.7 (Oracle Corporation Java 22)
+[info] loading settings for project ravel-release-49ff72d-clone-build from plugins.sbt...
+[info] loading project definition from /private/tmp/ravel-release-49ff72d-clone/project
+[info] loading settings for project root from build.sbt...
+[info] resolving key references (14023 settings) ...
+[info] set current project to ravel (in build file:/private/tmp/ravel-release-49ff72d-clone/)
+[info] compiling 43 Scala sources to /private/tmp/ravel-release-49ff72d-clone/modules/core/jvm/target/scala-3.7.4/classes ...
+[info] done compiling
+[info] compiling 31 Scala sources to /private/tmp/ravel-release-49ff72d-clone/modules/core/jvm/target/scala-3.7.4/test-classes ...
+[info] done compiling
+Test run ravel.ScalarIndexingSuite started
+ravel.ScalarIndexingSuite: finished 0.059s
+Test run ravel.ScalarIndexingSuite finished: 0 failed, 0 ignored, 10 total 0.083s
+Test run ravel.RankIndexOwnershipSuite started
+ravel.RankIndexOwnershipSuite: finished 0.019s
+Test run ravel.RankIndexOwnershipSuite finished: 0 failed, 0 ignored, 10 total 0.019s
+Test run ravel.ViewLawsSuite started
+ravel.ViewLawsSuite: finished 0.029s
+Test run ravel.ViewLawsSuite finished: 0 failed, 0 ignored, 10 total 0.029s
+Test run ravel.MutableReshapeAllocationSuite started
+ravel.MutableReshapeAllocationSuite: finished 0.05s
+Test run ravel.MutableReshapeAllocationSuite finished: 0 failed, 0 ignored, 2 total 0.05s
+Test run ravel.PhaseBSuite started
+ravel.PhaseBSuite: finished 0.021s
+Test run ravel.PhaseBSuite finished: 0 failed, 0 ignored, 6 total 0.021s
+Test run ravel.overloadrepro.ExtensionOverloadReproSuite started
+ravel.overloadrepro.ExtensionOverloadReproSuite: finished 0.004s
+Test run ravel.overloadrepro.ExtensionOverloadReproSuite finished: 0 failed, 0 ignored, 5 total 0.004s
+Test run ravel.UnsignedAllocationSuite started
+ravel.UnsignedAllocationSuite: finished 0.186s
+Test run ravel.UnsignedAllocationSuite finished: 0 failed, 0 ignored, 2 total 0.186s
+Test run ravel.internal.RepresentationSuite started
+ravel.internal.RepresentationSuite: finished 0.024s
+Test run ravel.internal.RepresentationSuite finished: 0 failed, 0 ignored, 3 total 0.024s
+Test run ravel.BooleanReductionSuite started
+ravel.BooleanReductionSuite: finished 0.025s
+Test run ravel.BooleanReductionSuite finished: 0 failed, 0 ignored, 8 total 0.025s
+Test run ravel.ReductionLawsSuite started
+ravel.ReductionLawsSuite: finished 0.114s
+Test run ravel.ReductionLawsSuite finished: 0 failed, 0 ignored, 19 total 0.114s
+Test run ravel.jvm.JvmInteropSuite started
+ravel.jvm.JvmInteropSuite: finished 0.005s
+Test run ravel.jvm.JvmInteropSuite finished: 0 failed, 0 ignored, 9 total 0.006s
+Test run ravel.MultiAxisReductionAllocationSuite started
+ravel.MultiAxisReductionAllocationSuite: finished 0.082s
+Test run ravel.MultiAxisReductionAllocationSuite finished: 0 failed, 0 ignored, 1 total 0.082s
+Test run ravel.DTypeCastSuite started
+ravel.DTypeCastSuite: finished 0.01s
+Test run ravel.DTypeCastSuite finished: 0 failed, 0 ignored, 12 total 0.011s
+Test run ravel.ModelBasedLayoutCompositionSuite started
+ravel.ModelBasedLayoutCompositionSuite: finished 0.453s
+Test run ravel.ModelBasedLayoutCompositionSuite finished: 0 failed, 0 ignored, 5 total 0.453s
+Test run ravel.CanonicalAccessSuite started
+ravel.CanonicalAccessSuite: finished 0.006s
+Test run ravel.CanonicalAccessSuite finished: 0 failed, 0 ignored, 7 total 0.006s
+Test run ravel.GeneratedLayoutPropertiesSuite started
+ravel.GeneratedLayoutPropertiesSuite: finished 0.072s
+Test run ravel.GeneratedLayoutPropertiesSuite finished: 0 failed, 0 ignored, 6 total 0.072s
+Test run ravel.jvm.JvmBorrowedOwnershipSuite started
+ravel.jvm.JvmBorrowedOwnershipSuite: finished 0.011s
+Test run ravel.jvm.JvmBorrowedOwnershipSuite finished: 0 failed, 0 ignored, 5 total 0.012s
+Test run ravel.ElementLoopKindSuite started
+ravel.ElementLoopKindSuite: finished 0.003s
+Test run ravel.ElementLoopKindSuite finished: 0 failed, 0 ignored, 3 total 0.003s
+Test run ravel.BorrowedEqualitySuite started
+ravel.BorrowedEqualitySuite: finished 0.009s
+Test run ravel.BorrowedEqualitySuite finished: 0 failed, 0 ignored, 9 total 0.009s
+RAVEL-CONVERSION JVM baseline: allocated=1049584 B, output=1048576 B
+Test run ravel.PolicyCastPerformanceSuite started
+ravel.PolicyCastPerformanceSuite: finished 0.616s
+Test run ravel.PolicyCastPerformanceSuite finished: 0 failed, 0 ignored, 1 total 0.616s
+Test run ravel.MutableLawsSuite started
+ravel.MutableLawsSuite: finished 0.013s
+Test run ravel.MutableLawsSuite finished: 0 failed, 0 ignored, 17 total 0.013s
+Test run ravel.BroadcastKernelLawsSuite started
+ravel.BroadcastKernelLawsSuite: finished 0.016s
+Test run ravel.BroadcastKernelLawsSuite finished: 0 failed, 0 ignored, 13 total 0.017s
+Test run ravel.consumer.ArrayBuilderSuite started
+ravel.consumer.ArrayBuilderSuite: finished 0.005s
+Test run ravel.consumer.ArrayBuilderSuite finished: 0 failed, 0 ignored, 7 total 0.006s
+Test run ravel.ShapeLayoutSuite started
+ravel.ShapeLayoutSuite: finished 0.008s
+Test run ravel.ShapeLayoutSuite finished: 0 failed, 0 ignored, 10 total 0.008s
+Test run ravel.BooleanReductionAllocationSuite started
+ravel.BooleanReductionAllocationSuite: finished 0.16s
+Test run ravel.BooleanReductionAllocationSuite finished: 0 failed, 0 ignored, 2 total 0.161s
+Test run ravel.ErrorContractSuite started
+ravel.ErrorContractSuite: finished 0.009s
+Test run ravel.ErrorContractSuite finished: 0 failed, 0 ignored, 5 total 0.01s
+Test run ravel.CopyKernelsSuite started
+ravel.CopyKernelsSuite: finished 0.002s
+Test run ravel.CopyKernelsSuite finished: 0 failed, 0 ignored, 3 total 0.002s
+Test run ravel.ApiHardeningSuite started
+ravel.ApiHardeningSuite: finished 0.003s
+Test run ravel.ApiHardeningSuite finished: 0 failed, 0 ignored, 8 total 0.003s
+Test run ravel.AxesSuite started
+ravel.AxesSuite: finished 0.004s
+Test run ravel.AxesSuite finished: 0 failed, 0 ignored, 5 total 0.004s
+Test run ravel.internal.JvmRepresentationSuite started
+ravel.internal.JvmRepresentationSuite: finished 0.002s
+Test run ravel.internal.JvmRepresentationSuite finished: 0 failed, 0 ignored, 1 total 0.002s
+[info] Passed: Total 204, Failed 0, Errors 0, Passed 204
+[success] Total time: 32 s, completed Aug 4, 2026, 8:46:26 a.m.
+[info] compiling 43 Scala sources to /private/tmp/ravel-release-49ff72d-clone/modules/core/js/target/scala-3.7.4/classes ...
+[info] done compiling
+[info] compiling 26 Scala sources to /private/tmp/ravel-release-49ff72d-clone/modules/core/js/target/scala-3.7.4/test-classes ...
+[info] done compiling
+[info] Fast optimizing /private/tmp/ravel-release-49ff72d-clone/modules/core/js/target/scala-3.7.4/ravel-core-test-fastopt
+Test run ravel.js.JsBorrowedOwnershipSuite started
+ravel.js.JsBorrowedOwnershipSuite: finished 0.021s
+Test run ravel.js.JsBorrowedOwnershipSuite finished: 0 failed, 0 ignored, 5 total 0.021s
+Test run ravel.ScalarIndexingSuite started
+ravel.ScalarIndexingSuite: finished 0.004s
+Test run ravel.ScalarIndexingSuite finished: 0 failed, 0 ignored, 10 total 0.004s
+Test run ravel.RankIndexOwnershipSuite started
+ravel.RankIndexOwnershipSuite: finished 0.003s
+Test run ravel.RankIndexOwnershipSuite finished: 0 failed, 0 ignored, 10 total 0.003s
+Test run ravel.ViewLawsSuite started
+ravel.ViewLawsSuite: finished 0.006s
+Test run ravel.ViewLawsSuite finished: 0 failed, 0 ignored, 10 total 0.006s
+Test run ravel.PhaseBSuite started
+ravel.PhaseBSuite: finished 0.005s
+Test run ravel.PhaseBSuite finished: 0 failed, 0 ignored, 6 total 0.005s
+Test run ravel.overloadrepro.ExtensionOverloadReproSuite started
+ravel.overloadrepro.ExtensionOverloadReproSuite: finished 0.001s
+Test run ravel.overloadrepro.ExtensionOverloadReproSuite finished: 0 failed, 0 ignored, 5 total 0.001s
+Test run ravel.internal.JsRepresentationSuite started
+ravel.internal.JsRepresentationSuite: finished 0.001s
+Test run ravel.internal.JsRepresentationSuite finished: 0 failed, 0 ignored, 4 total 0.001s
+Test run ravel.internal.RepresentationSuite started
+ravel.internal.RepresentationSuite: finished 0.001s
+Test run ravel.internal.RepresentationSuite finished: 0 failed, 0 ignored, 3 total 0.001s
+Test run ravel.BooleanReductionSuite started
+ravel.BooleanReductionSuite: finished 0.004s
+Test run ravel.BooleanReductionSuite finished: 0 failed, 0 ignored, 8 total 0.004s
+Test run ravel.ReductionLawsSuite started
+ravel.ReductionLawsSuite: finished 0.058s
+Test run ravel.ReductionLawsSuite finished: 0 failed, 0 ignored, 19 total 0.058s
+Test run ravel.DTypeCastSuite started
+ravel.DTypeCastSuite: finished 0.004s
+Test run ravel.DTypeCastSuite finished: 0 failed, 0 ignored, 12 total 0.004s
+Test run ravel.ModelBasedLayoutCompositionSuite started
+ravel.ModelBasedLayoutCompositionSuite: finished 0.582s
+Test run ravel.ModelBasedLayoutCompositionSuite finished: 0 failed, 0 ignored, 5 total 0.582s
+Test run ravel.CanonicalAccessSuite started
+ravel.CanonicalAccessSuite: finished 0.002s
+Test run ravel.CanonicalAccessSuite finished: 0 failed, 0 ignored, 7 total 0.002s
+Test run ravel.GeneratedLayoutPropertiesSuite started
+ravel.GeneratedLayoutPropertiesSuite: finished 0.042s
+Test run ravel.GeneratedLayoutPropertiesSuite finished: 0 failed, 0 ignored, 6 total 0.042s
+Test run ravel.ElementLoopKindSuite started
+ravel.ElementLoopKindSuite: finished 0.003s
+Test run ravel.ElementLoopKindSuite finished: 0 failed, 0 ignored, 3 total 0.003s
+Test run ravel.BorrowedEqualitySuite started
+ravel.BorrowedEqualitySuite: finished 0.001s
+Test run ravel.BorrowedEqualitySuite finished: 0 failed, 0 ignored, 9 total 0.001s
+Test run ravel.MutableLawsSuite started
+ravel.MutableLawsSuite: finished 0.007s
+Test run ravel.MutableLawsSuite finished: 0 failed, 0 ignored, 17 total 0.007s
+Test run ravel.BroadcastKernelLawsSuite started
+ravel.BroadcastKernelLawsSuite: finished 0.007s
+Test run ravel.BroadcastKernelLawsSuite finished: 0 failed, 0 ignored, 13 total 0.007s
+Test run ravel.consumer.ArrayBuilderSuite started
+ravel.consumer.ArrayBuilderSuite: finished 0.001s
+Test run ravel.consumer.ArrayBuilderSuite finished: 0 failed, 0 ignored, 7 total 0.001s
+Test run ravel.ShapeLayoutSuite started
+ravel.ShapeLayoutSuite: finished 0.001s
+Test run ravel.ShapeLayoutSuite finished: 0 failed, 0 ignored, 10 total 0.001s
+Test run ravel.ErrorContractSuite started
+ravel.ErrorContractSuite: finished 0.001s
+Test run ravel.ErrorContractSuite finished: 0 failed, 0 ignored, 5 total 0.001s
+Test run ravel.CopyKernelsSuite started
+ravel.CopyKernelsSuite: finished 0.001s
+Test run ravel.CopyKernelsSuite finished: 0 failed, 0 ignored, 3 total 0.001s
+Test run ravel.ApiHardeningSuite started
+ravel.ApiHardeningSuite: finished 0.002s
+Test run ravel.ApiHardeningSuite finished: 0 failed, 0 ignored, 8 total 0.002s
+Test run ravel.js.JsInteropSuite started
+ravel.js.JsInteropSuite: finished 0.002s
+Test run ravel.js.JsInteropSuite finished: 0 failed, 0 ignored, 7 total 0.002s
+Test run ravel.AxesSuite started
+ravel.AxesSuite: finished 0.001s
+Test run ravel.AxesSuite finished: 0 failed, 0 ignored, 5 total 0.001s
+[info] Passed: Total 197, Failed 0, Errors 0, Passed 197
+[success] Total time: 20 s, completed Aug 4, 2026, 8:46:46 a.m.
+[info] compiling 12 Scala sources to /private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/jvm/target/scala-3.7.4/classes ...
+[info] done compiling
+[info] compiling 1 Scala source to /private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/jvm/target/scala-3.7.4/test-classes ...
+[info] done compiling
+Test run ravel.bench.CrossRuntimeCourtSuite started
+ravel.bench.CrossRuntimeCourtSuite: finished 0.084s
+Test run ravel.bench.CrossRuntimeCourtSuite finished: 0 failed, 0 ignored, 6 total 0.086s
+[info] Passed: Total 6, Failed 0, Errors 0, Passed 6
+[success] Total time: 3 s, completed Aug 4, 2026, 8:46:50 a.m.
+[info] compiling 4 Scala sources to /private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/js/target/scala-3.7.4/classes ...
+[info] done compiling
+[info] compiling 1 Scala source to /private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/js/target/scala-3.7.4/test-classes ...
+[info] done compiling
+[info] Fast optimizing /private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/js/target/scala-3.7.4/ravel-representation-probe-js-test-fastopt
+Test run ravel.bench.CrossRuntimeCourtSuite started
+ravel.bench.CrossRuntimeCourtSuite: finished 0.024s
+Test run ravel.bench.CrossRuntimeCourtSuite finished: 0 failed, 0 ignored, 6 total 0.024s
+[info] Passed: Total 6, Failed 0, Errors 0, Passed 6
+[success] Total time: 5 s, completed Aug 4, 2026, 8:46:55 a.m.
+[info] Full optimizing /private/tmp/ravel-release-49ff72d-clone/modules/benchmarks/js/target/scala-3.7.4/ravel-representation-probe-js-opt
+[success] Total time: 2 s, completed Aug 4, 2026, 8:46:57 a.m.

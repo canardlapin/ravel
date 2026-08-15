@@ -1,9 +1,39 @@
 # Release engineering gates
 
-Ravel is an early 0.1-level project. The tooling below is useful scaffolding,
-not evidence that a 1.0 freeze or Maven Central publication is imminent. The
-critical product gate remains NumPy semantic parity
-([numpy-benchmarks.md](numpy-benchmarks.md)).
+The stable release scope is `ravel-core` for the JVM and Scala.js. The laws,
+packed, and stencil modules remain cross-tested source modules and are not
+published under the 1.0 compatibility promise.
+
+## Authoritative gate
+
+Run the same command used by protected-branch CI and tag publication:
+
+```sh
+bash scripts/release-gate.sh
+```
+
+The command fails on candidate worktree changes (ignoring Mote's append-only
+operation receipts) and records phase logs, runtime versions, the exact
+candidate commit, completion status, and checksums under
+`target/release-gate/<commit>/`. On an exact `v*` tag it tests that tag's
+version; otherwise it uses `1.0.0-SNAPSHOT`. It verifies:
+
+- the core-only publication matrix;
+- formatting, all-module compilation, and core MiMa;
+- JVM, Node, real-Chromium, full-link, and representation tests;
+- executable documentation and generated API docs;
+- exact NumPy semantic parity and the comparison-helper unit tests;
+- exact-version JVM and Scala.js POM, binary, source, and API jar contents;
+- local publication of both core platforms; and
+- fresh external JVM and Scala.js projects resolved only from those local
+  artifacts;
+- pinned Gale JVM and Scala.js integration suites; and
+- a pinned zarr4s adapter plus a fresh, offline JVM and Scala.js storage
+  workflow.
+
+Tag publication invokes this exact entry point before `ci-release`, so any
+failure prevents signing or publication. CI uploads its receipt directory even
+when a phase fails.
 
 ## Formatting
 
@@ -19,13 +49,16 @@ semantic failures.
 
 ## Binary compatibility
 
-`sbt-mima-plugin` is enabled on `ravel-core` and `ravel-laws`. Until a first
-tagged Central release exists, `mimaPreviousArtifacts` is empty and
+The 1.0 compatibility gate covers only `ravel-core`. Until a first tagged
+Central release exists, `mimaPreviousArtifacts` is empty and
 `mimaFailOnNoPrevious` is false, so `sbt mimaCheck` is a no-op scaffolding
 gate.
 
-After a first tagged publication someday, set previous artifacts before cutting
-follow-on releases.
+The exact `1.0.0` tag has no predecessor. The first dynver build after that tag
+(`1.0.0+N...`) and every later 1.x build automatically select the JVM and
+Scala.js `1.0.0` artifacts as `mimaPreviousArtifacts` and set
+`mimaFailOnNoPrevious := true`. `verifyMimaBaselinePolicy` tests this transition
+without claiming that the still-unpublished baseline can already be resolved.
 
 ## Coverage diagnostics
 
@@ -47,10 +80,16 @@ sbt verifyPublishArtifacts
 bash scripts/verify-publish-artifacts.sh
 ```
 
-The script checks that generated POMs use `io.github.canardlapin`, the
-`ravel-core` / `ravel-laws` artifact ids (JVM and `_sjs1`), Apache-2.0
-metadata, and that `ravel-core` does not compile-depend on MUnit or ship Gale
-packages.
+The build first verifies its eight-row module/platform matrix and writes that
+same matrix to `target/release/publication-manifest.tsv`. The script derives
+its expected set from the published rows, then checks exact-version JVM and
+Scala.js POMs, binaries, source jars, and API jars; coordinates; Apache-2.0
+metadata; test dependency scopes; and core package boundaries. Negative tests
+prove that omitting a selected platform or its files cannot pass.
+`ravel-laws`, `ravel-packed`, and `ravel-stencil` have
+`publish / skip := true` and are not 1.0 artifacts. Laws has no main-source API;
+its generated MUnit, ScalaCheck, and Discipline checks compile only in Test and
+receive no downstream coordinate or MiMa baseline.
 
 For sibling Gale verification against local snapshots:
 
@@ -60,16 +99,33 @@ sbt publishLocalSnapshot
 sbt interopRavelTest
 ```
 
-`publishLocalSnapshot` forces `1.0.0-SNAPSHOT`, matching Gale's current
-`ravelVersion`.
+`publishLocalSnapshot` forces `1.0.0-SNAPSHOT` for core only, matching Gale's
+current `ravelVersion`. It cannot publish experimental modules under that
+version. The authoritative gate's fresh JVM and Scala.js consumers resolve in
+offline mode after local publication, so they cannot substitute a remote
+artifact for the generated candidate coordinate.
 
-## Combined local gate
+The authoritative sibling check is:
+
+```sh
+bash scripts/verify-sibling-consumers.sh
+```
+
+It pins exact Gale and zarr4s revisions, runs their real public-API workflows
+against both candidate platforms, rejects Ravel internal imports, and verifies
+the resolved local-Ivy classpaths. See
+[`consumer-validation.md`](consumer-validation.md) for the tested workflows,
+copy and ownership boundaries, required zarr4s error migration, and the reason
+image4s is not counted as a core-only artifact consumer yet.
+
+## Component diagnostics
 
 ```sh
 sbt releaseEngineeringGate
-bash scripts/numpy-parity-gate.sh
 ```
 
-`releaseEngineeringGate` runs formatting, MiMa scaffolding, POM packaging, and
-`testAll`. Always also run the NumPy parity script before treating numerical
-work as done.
+`releaseEngineeringGate` is the sbt-only subset. The shell entry point is
+authoritative because NumPy parity, artifact inspection, and fresh consumer
+projects cannot be expressed honestly as sbt-only checks. The sibling phase
+may fetch its pinned public commits when local sibling checkouts are not
+available, so an isolated CI runner requires network access for that phase.

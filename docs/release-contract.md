@@ -2,6 +2,15 @@
 
 This page separates public guarantees from current implementation details.
 
+## 1.0 artifact boundary
+
+The 1.0 compatibility and publication promise applies only to `ravel-core`,
+cross-published for the JVM and Scala.js. `ravel-laws`, `ravel-packed`, and
+`ravel-stencil` all set `publish / skip := true`; a core 1.0 tag cannot publish
+them. Packed and stencil remain experimental source APIs. Laws is an internal
+generated test harness with no main-source API. Any future public artifact
+requires an explicitly separate design and release line.
+
 ## Public guarantees
 
 - Shapes contain nonnegative `Int` dimensions. Size products, canonical
@@ -10,13 +19,34 @@ This page separates public guarantees from current implementation details.
 - A rank-zero shape contains one scalar. A shape with any zero dimension
   contains no elements.
 - Negative axes are accepted and normalized against the current rank.
+- Static ranks one through four expose only their matching coordinate arity;
+  rank-two arrays expose `transpose`. Dynamic rank uses `at`, `updateAt`, and
+  the checked `transpose2D` refinement. `RankMismatch` is pure error data, not
+  an exception.
+- Checked shape, slice, canonical-layout, exact-narrow, and axis-permutation
+  boundaries return `RavelError` values. Throwing view conveniences use typed
+  Ravel exceptions and never report a duplicate permutation or rank mismatch
+  as `InvalidAxis`.
 - Structural operations document whether they return a view or a copy.
   `reshapeView` never copies silently.
 - Owned arrays do not leak their mutable backing buffer.
 - Borrowed external storage remains visible as `BorrowedNDArray` through every
-  structural view.
+  structural view. Borrowed arrays expose `reshapeView` and `reshapeCopy`, but
+  no convenience `reshape` whose ownership would depend on layout.
 - Built-in numerical operations execute eagerly and allocate one contiguous
-  owned output.
+  owned output. Array-valued reductions allocate even when an empty axis list
+  leaves the logical values unchanged.
+- Unary `+` is an eager owned copy for owned, borrowed, and mutable readable
+  inputs; it is not an identity view.
+- `Axes` normalizes and validates a multi-axis reduction once. Sum, product,
+  min, max, mean, Boolean `all`, Boolean `any`, and `countTrue` plan the full
+  axis set without sequential intermediates; keep-dimensions variants replace
+  every selected extent by one. Multi-axis arg reductions are not part of the
+  1.0 contract.
+- Owned, borrowed, and mutable arrays may all be read operands. Reusable-output
+  kernels reject destination/input storage aliasing before mutation. Mutable
+  copying reshape paths allocate one output buffer rather than freezing into an
+  output-sized intermediate.
 - Generic callbacks execute once per logical output element in logical
   row-major order. Ravel does not fuse, reorder, or promise unboxed callback
   execution.
@@ -29,12 +59,19 @@ This page separates public guarantees from current implementation details.
   keeps low bits; floating-to-integral conversion truncates toward zero,
   maps NaN to zero, and clamps infinities and out-of-range values before any
   final `Byte` or `Short` narrowing.
+- `DType.format` defines logical scalar presentation. In particular, `UInt8`
+  and `UInt16` render as unsigned magnitudes while floating NaN, infinity, and
+  signed zero retain their ordinary Scala spelling.
 - `sum` preserves the input arithmetic dtype. The supported widened sums are
   `Int` to `Long` and `Float` to `Double`.
 - Floating sum and mean use logical row-major blocks of 128 values and a fixed
   adjacent-pair merge schedule on both platforms.
-- Empty sum is positive zero and empty product is one. Empty floating mean is
-  NaN. Empty minimum, maximum, and arg reductions throw `EmptyReduction`.
+  Within a multi-axis output fiber, selected source axes are traversed in
+  ascending source-axis order with the final selected axis varying fastest;
+  caller axis order cannot change the result bits.
+- Empty sum is positive zero and empty product is one. Empty Boolean `all` is
+  true, `any` is false, and `countTrue` is zero. Empty floating mean is NaN.
+  Empty minimum, maximum, and arg reductions throw `EmptyReduction`.
 - NaNs propagate through minimum, maximum, sum, and mean. Arg reductions choose
   the first logical NaN; ordinary ties choose the first logical value.
   Minimum chooses negative zero and maximum chooses positive zero.
@@ -77,20 +114,17 @@ matrix. Gale owns matrix and vector semantics.
 
 ## Verification
 
-While Ravel is a 0.1-level project, the critical numerical gate is NumPy
-semantic parity. The full local checklist is:
+The complete local candidate gate is:
 
 ```sh
-bash scripts/numpy-parity-gate.sh
-sbt fmtCheck
-sbt mimaCheck
-sbt testAll
-sbt browserTests/test
-sbt testAllFull
-sbt representationProof
-sbt verifyPublishArtifacts
-bash scripts/verify-publish-artifacts.sh
+bash scripts/release-gate.sh
 ```
+
+Protected-branch CI and tag publication invoke that same command. It includes
+formatting, compilation, core MiMa, all JVM/Node/Chromium tests, optimized
+Scala.js links, representation proof, NumPy parity, documentation, artifact
+inspection, and fresh JVM and Scala.js consumer builds. A tag cannot reach
+`ci-release` unless the command succeeds.
 
 Diagnostic JVM coverage (`sbt coverageReportJvm`) and the Gale sibling
 `interopRavelTest` gate are documented in

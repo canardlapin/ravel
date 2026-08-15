@@ -33,8 +33,7 @@ type BroadcastRank[X <: AnyRank, Y <: AnyRank] <: AnyRank = (X, Y) match
 
 /** Result rank for scalar-or-array operands accepted by readable arithmetic. */
 type OperandRank[A, R <: AnyRank, B] <: AnyRank = B match
-  case BorrowedNDArray[A, rank] => BroadcastRank[R, rank]
-  case NDArray[A, rank] => BroadcastRank[R, rank]
+  case ReadableArray[A, rank] => BroadcastRank[R, rank]
   case _ => R
 
 /** Evidence that a rank-lowering operation cannot produce a negative rank. */

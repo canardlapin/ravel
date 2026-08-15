@@ -31,6 +31,13 @@ private[ravel] object MutableLayout:
   ): MutableLayout =
     proven(ViewLayout.slice(layout.underlying, axis, slice, bufferLength))
 
+  def narrow(
+      layout: MutableLayout,
+      plan: NarrowPlan,
+      bufferLength: Int
+  ): MutableLayout =
+    proven(ViewLayout.narrow(layout.underlying, plan, bufferLength))
+
   def reverse(
       layout: MutableLayout,
       axis: Int,
@@ -40,10 +47,10 @@ private[ravel] object MutableLayout:
 
   def permute(
       layout: MutableLayout,
-      order: Seq[Int],
+      plan: PermutationPlan,
       bufferLength: Int
   ): MutableLayout =
-    proven(ViewLayout.permute(layout.underlying, order, bufferLength))
+    proven(ViewLayout.permute(layout.underlying, plan, bufferLength))
 
   def newAxis(
       layout: MutableLayout,

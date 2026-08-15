@@ -1053,9 +1053,9 @@ private[ravel] object ElementKernels:
         compareDouble(operation, plan, boolean, x, y)
       case _ => throw new IllegalArgumentException("comparison dtype mismatch")
 
-  /** Specialized contiguous scalar path for ordered Float/Double compares.
-    * Returns false when the storage type is not one of the specialized types;
-    * callers retain the general broadcast implementation in that case.
+  /** Specialized contiguous scalar path for ordered Float/Double compares. Returns false when the
+    * storage type is not one of the specialized types; callers retain the general broadcast
+    * implementation in that case.
     */
   def orderedCompareContiguousScalar[A](
       operation: Byte,

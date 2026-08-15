@@ -1,9 +1,11 @@
 package ravel.packed
 
+import ravel.Shape
+
 /** Closed family of supported sub-byte code widths.
   *
-  * Thirty-two is divisible by every member, so a code never straddles a word
-  * boundary and every read is one shift and one mask.
+  * Thirty-two is divisible by every member, so a code never straddles a word boundary and every
+  * read is one shift and one mask.
   */
 enum PackedBits(val bits: Int) derives CanEqual:
   case B1 extends PackedBits(1)
@@ -28,9 +30,9 @@ enum PackedError derives CanEqual:
   case InvalidCode(index: Int, code: Int, maxCode: Int)
   case WordLengthMismatch(expected: Int, actual: Int)
   case NonCanonicalTail(word: Int)
-  case InvalidAxis(axis: Int, rank: Int)
-  case InvalidRange(axis: Int, start: Int, length: Int, extent: Int)
-  case ShapeMismatch(left: Vector[Int], right: Vector[Int])
+  case ByteLengthOverflow(requiredBytes: Long)
+  case InvalidByteFormat(detail: String)
+  case ShapeMismatch(left: Shape[?], right: Shape[?])
   case BitsMismatch(left: PackedBits, right: PackedBits)
   case NotOneBit(bits: PackedBits)
 
@@ -39,17 +41,17 @@ enum PackedError derives CanEqual:
       case InvalidShape(detail) =>
         detail
       case InvalidCode(index, code, maxCode) =>
-        s"code $code at linear index $index exceeds maximum $maxCode"
+        s"code $code at linear index $index is outside [0, $maxCode]"
       case WordLengthMismatch(expected, actual) =>
         s"expected $expected backing words, got $actual"
       case NonCanonicalTail(word) =>
         s"unused tail bits must be zero, got 0x${word.toHexString}"
-      case InvalidAxis(axis, rank) =>
-        s"axis $axis is outside rank $rank"
-      case InvalidRange(axis, start, length, extent) =>
-        s"range [$start, ${start + length}) is outside axis $axis extent $extent"
+      case ByteLengthOverflow(requiredBytes) =>
+        s"packed byte representation needs $requiredBytes bytes, above the portable Int limit"
+      case InvalidByteFormat(detail) =>
+        s"invalid packed byte representation: $detail"
       case ShapeMismatch(left, right) =>
-        s"shapes ${left.mkString("(", ",", ")")} and ${right.mkString("(", ",", ")")} differ"
+        s"shapes $left and $right differ"
       case BitsMismatch(left, right) =>
         s"code widths $left and $right differ"
       case NotOneBit(bits) =>

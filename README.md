@@ -31,7 +31,7 @@ values. The subtraction broadcasts `columnMeans` across rows and returns a new
 owned array; it does not mutate `samples`.
 
 Ravel is not released yet. To run this example from another project, clone this
-repository and publish development snapshots locally:
+repository and publish the core development snapshots locally:
 
 ```sh
 sbt testAll
@@ -61,7 +61,7 @@ coordinate, not a public release.
 - Reuse mutable destinations and low-level kernels when measured code needs to
   control output allocation.
 
-Two narrower modules serve library authors:
+Two experimental source modules serve library authors:
 
 - `ravel-packed` stores one-, two-, or four-bit codes and performs wordwise
   set algebra over one-bit arrays. It is parallel to `NDArray`, not another
@@ -81,11 +81,13 @@ for executable workflows.
 | `ravel-core` | Dense arrays, views, computation, mutation, and platform interop | Ordinary entry point |
 | `ravel-packed` | Compact one-, two-, and four-bit codes | Independent packed representation |
 | `ravel-stencil` | Neighborhood traversal over `NDArray` values | Depends on `ravel-core` |
-| `ravel-laws` | Reusable MUnit and ScalaCheck laws for Ravel implementations | Test-support module depending on `ravel-core` |
+| `ravel-laws` | Internal generated repository tests | Unpublished test harness with no main-source API or downstream coordinate |
 
 All four are cross-built for the JVM and Scala.js in the current source tree.
-Their names describe intended future artifacts; none is currently available
-from Maven Central.
+The 1.0 publication matrix contains only `ravel-core` for the JVM and
+Scala.js. `ravel-packed` and `ravel-stencil` remain unpublished experimental
+source modules. `ravel-laws` is an internal test-only harness: its generated
+properties carry no binary-compatibility or downstream conformance promise.
 
 ## Mental model
 
@@ -159,22 +161,13 @@ On Scala.js, `Boolean`, the fixed-width integers other than `Long`, `Float`, and
 ## Verify the source
 
 ```sh
-sbt compileAll
-sbt testAll
-sbt browserTests/test
-sbt testAllFull
-sbt representationProof
-bash scripts/numpy-parity-gate.sh
-sbt docsCheck
-sbt fmtCheck
+bash scripts/release-gate.sh
 ```
 
-`testAll` runs core, laws, stencil, and packed suites on the JVM and Node.
-`browserTests/test` exercises Scala.js interop in headless Chromium.
-`docsCheck` compiles all module Scaladoc surfaces, executes the JVM mdoc
-examples, validates Laika navigation and links, and assembles the local site.
-These local gates do not establish artifact publication or a stable
-compatibility promise.
+The release gate is the same entry point used by CI and tag publication. It
+checks all source modules and both core platforms, then verifies NumPy parity,
+documentation, artifact contents, and fresh JVM and Scala.js consumers. It
+writes receipts under `target/release-gate/<commit>/`.
 
 The current build uses Scala 3.7.4. CI is configured for Temurin JDK 21 and
 Node 22; other compiler and runtime combinations are outside the current

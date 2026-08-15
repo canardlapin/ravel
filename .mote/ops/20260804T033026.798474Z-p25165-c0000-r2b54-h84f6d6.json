@@ -1,0 +1,1 @@
+{"actor":"codex-ravel","entity":"bd-01KZ58FKMC0ZF7NQ6YAZRD51N4","kind":"reserve_open","mode":"exclusive","op":"20260804T033026.798474Z-p25165-c0000-r2b54-h84f6d6","paths":["modules/core/jvm/src/test/scala/ravel/MultiAxisReductionAllocationSuite.scala"],"reservation_id":"rv-01KZ5D55VE2XE5D15NRBXYPMQT","ts":"2026-08-04T03:30:26.798474Z","ttl_s":3600,"v":1}

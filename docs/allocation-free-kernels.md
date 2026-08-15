@@ -23,9 +23,9 @@ The overloads preserve the logical coordinates of:
 - broadcast immutable views.
 
 Negative element indices count from the end of their axis. An index below
-`-dimension` or at least `dimension` throws `InvalidIndex.OutOfBounds`. Calling
-a fixed-rank overload with the wrong number of coordinates throws
-`InvalidIndex.ArityMismatch`.
+`-dimension` or at least `dimension` throws `InvalidIndex.OutOfBounds`. A
+fixed-rank call with the wrong number of coordinates is rejected at compile
+time.
 `at(IArray[Int])` remains the arbitrary-rank alternative.
 
 Mutable views write the same underlying logical element selected by their
@@ -87,3 +87,8 @@ public `ravel-core` APIs:
 ```sh
 bash scripts/verify-external-kernel-consumer.sh
 ```
+
+Reusable-output kernels accept owned, borrowed, and mutable readable sources.
+They validate result shape, whole contiguous destination layout, and storage
+nonaliasing before mutation. Mutable `reshapeCopy` and noncontiguous `reshape`
+allocate exactly one primitive destination and bounded metadata.

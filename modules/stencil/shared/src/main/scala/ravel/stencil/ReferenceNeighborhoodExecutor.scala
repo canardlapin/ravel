@@ -15,10 +15,8 @@ object ReferenceNeighborhoodExecutor extends NeighborhoodExecutor:
       destination: MutableNDArray[B, R],
       spec: NeighborhoodSpec,
       reducer: NeighborhoodReducer[A, Acc, B],
-      constant: A,
-      policy: StencilExecutionPolicy = StencilExecutionPolicy()
+      constant: A
   ): Unit =
-    val _ = policy
     spec.validate()
     val rank = source.rank
     if destination.rank != rank then
@@ -29,6 +27,7 @@ object ReferenceNeighborhoodExecutor extends NeighborhoodExecutor:
       throw IllegalArgumentException(
         s"spatialAxes ${spec.spatialAxes} exceeds array rank $rank"
       )
+    StencilArithmetic.requirePositiveSpatialExtents(spec.spatialAxes, source.shape(_))
     val batchAxes = rank - spec.spatialAxes
     var axis = 0
     while axis < spec.spatialAxes do
@@ -60,7 +59,11 @@ object ReferenceNeighborhoodExecutor extends NeighborhoodExecutor:
         var outside = false
         while spatial < spec.spatialAxes && !outside do
           val logical =
-            spec.outputOrigin(spatial) + destIndices(spatial) + offset(spatial)
+            StencilArithmetic.logicalCoordinate(
+              spec.outputOrigin(spatial),
+              destIndices(spatial),
+              offset(spatial)
+            )
           BorderIndex.map(logical, sourceExtents(spatial), spec.border) match
             case MappedIndex.Inside(mapped) =>
               sourceIndices(spatial) = mapped

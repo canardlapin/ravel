@@ -63,7 +63,20 @@ val integral: Array2[Int] = bounded.cast[Int]
 integral
 ```
 
-## Reduce all elements or one axis
+Unary `+` takes an eager owned snapshot. This is deliberate even for an owned
+input, and isolates the result when the readable source is borrowed or mutable.
+Array previews use the dtype's logical formatter, so unsigned values are shown
+as magnitudes such as `255` and `65535`, not their signed storage bits.
+
+```scala mdoc
+val unsigned = NDArray.fromSeq(
+  Shape(2),
+  Seq(UInt8.unsafe(255), UInt8.unsafe(128))
+)
+unsigned
+```
+
+## Reduce all elements or selected axes
 
 Scalar reductions consume every logical element. Axis reductions remove that
 axis from the static rank; `*Keep`/`*KeepDims` variants retain a singleton
@@ -75,6 +88,40 @@ grid.mean
 grid.sum(axis = 0)
 grid.meanKeep(axis = 1).shape
 ```
+
+Validate a dynamic axis set once with `Axes`. Sum, product, min, max, and mean
+all accept the same value; their `*Keep`/`*KeepDims` overloads preserve the
+input rank with every selected extent replaced by one.
+
+```scala mdoc
+val bothAxes = Axes.from(grid.rank, 0, -1).toOption.get
+grid.sum(bothAxes)
+grid.sumKeepDims(bothAxes).shape
+```
+
+Boolean arrays use the same axis contract for `all`, `any`, and `countTrue`:
+
+```scala mdoc
+val mask = NDArray.fromSeq(
+  Shape(2, 3),
+  Seq(true, false, true, true, true, false)
+)
+mask.all
+mask.any(axis = 0)
+mask.countTrue(axis = 1)
+```
+
+An empty Boolean domain has explicit identities: `all` is true, `any` is
+false, and `countTrue` is zero. `countTrue` returns `Int` because every Ravel
+array is already bounded by the portable `Int` element limit.
+
+Negative axes are normalized once and duplicates are rejected as pure
+`AxesError` values. Execution plans the complete reduction once, without a
+sequential intermediate for each axis. An empty `Axes` value creates an owned
+Boolean copy for `all` and `any`; `countTrue` creates an owned `Int` array of
+zeros and ones. The `sumAxes`, `productAxes`, `minAxes`, `maxAxes`,
+`meanAxes`, `allAxes`, `anyAxes`, and `countTrueAxes` varargs methods are
+throwing conveniences around the same validation.
 
 Empty min/max/arg reductions throw `EmptyReduction`. Keep code explicit:
 
@@ -90,6 +137,13 @@ grid.argMax
 grid.argMax(axis = 1)
 ```
 
-Floating sums and means use Ravel's deterministic logical-order schedule on
-both platforms. See [Dtypes and ranks](../reference/dtype-rank.md) for empty,
-NaN, widening, and integer-division behavior.
+`argMin` and `argMax` support a scalar result or one axis. Multi-axis arg
+semantics are intentionally deferred because a stable result needs an explicit
+coordinate or flattened-index contract.
+
+For multiple axes, each floating output fiber traverses selected source axes in
+ascending source-axis order, with the last selected axis varying fastest. The
+usual 128-element blocks and pairwise merge are then applied to that direct
+fiber. Caller axis order therefore cannot alter floating bits. See
+[Dtypes and ranks](../reference/dtype-rank.md) for empty, NaN, widening, and
+integer-division behavior.

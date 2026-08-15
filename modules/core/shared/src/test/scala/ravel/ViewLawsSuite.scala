@@ -37,6 +37,31 @@ final class ViewLawsSuite extends FunSuite:
     assert(Slice.from(Range.inclusive(Int.MaxValue, Int.MaxValue)).isLeft)
   }
 
+  test("narrow is exact, supports negative starts, and shares owned and mutable storage") {
+    val source = NDArray.tabulate[Int](5)(identity)
+    assertEquals(values(source.narrow(0, -1, 1)), List(4))
+    assertEquals(values(source.narrow(0, -5, 5)), List(0, 1, 2, 3, 4))
+    assertEquals(values(source.narrow(0, 5, 0)), Nil)
+    intercept[InvalidNarrowException](source.narrow(0, 5, 1))
+    intercept[InvalidNarrowException](source.narrow(0, -6, 1))
+    intercept[InvalidNarrowException](source.narrow(0, 0, -1))
+
+    val empty = NDArray.zeros[Int](0).narrow(0, 0, 0)
+    assertEquals(empty.shape, Shape(0))
+
+    val composed =
+      NDArray
+        .tabulate[Int](2, 5)((row, column) => row * 10 + column)
+        .reverse(-1)
+        .narrow(-1, -2, 2)
+    assertEquals(values(composed), List(1, 0, 11, 10))
+
+    val mutable = source.mutableCopy
+    val mutableLast = mutable.narrow(-1, -1, 1)
+    mutableLast(0) = 99
+    assertEquals(mutable(4), 99)
+  }
+
   test("axis permutation, insertion, and squeeze preserve typed ranks") {
     val source = NDArray.tabulate[Int](2, 3)((i, j) => i * 10 + j)
     val transposed = source.transpose
@@ -48,7 +73,7 @@ final class ViewLawsSuite extends FunSuite:
     assertEquals(values(swappedTwice), values(source))
     assertEquals(inserted.shape.toString, "(2, 3, 1)")
     assertEquals(values(squeezed), values(source))
-    intercept[InvalidAxis](source.permuteAxes(0, 0))
+    intercept[InvalidPermutationException](source.permuteAxes(0, 0))
     intercept[InvalidAxis](source.newAxis(3))
     intercept[InvalidShape](source.squeeze(0))
   }

@@ -44,6 +44,8 @@ out-of-range values before any final `Byte` or `Short` narrowing.
 | `Array4[A]` | `NDArray[A, Rank[4]]` |
 | `AnyNDArray[A]` | `NDArray[A, AnyRank]` |
 
-Dimension sizes are always runtime `Int` values. Static rank exists to make
-axis-adding and axis-dropping APIs more precise, not to encode dimensions in
-types.
+Dimension sizes are always runtime `Int` values. Static rank selects the
+matching one-through-four coordinate `apply` and mutable `update` arity, makes
+rank-two `transpose` available, and refines axis-adding and axis-dropping APIs.
+Dynamic and higher ranks use `at` / `updateAt`; dynamic rank uses the checked
+`transpose2D` refinement.

@@ -19,6 +19,13 @@ propagate; arg reductions choose the first logical NaN. Ordinary ties choose
 the first logical occurrence. Min chooses negative zero and max chooses
 positive zero.
 
+Boolean arrays provide `all`, `any`, and `countTrue` as scalar, one-axis, and
+validated multi-axis reductions. Their empty-domain identities are true,
+false, and zero respectively. `all` and `any` return Boolean arrays for axis
+reductions; `countTrue` returns `Int` arrays. Each multi-axis form plans the
+selected axes once, and every array-valued result owns its storage even when
+the selected `Axes` value is empty.
+
 ## Mutable arrays
 
 `MutableNDArray` is the only ordinary mutation surface. `mutableCopy` and

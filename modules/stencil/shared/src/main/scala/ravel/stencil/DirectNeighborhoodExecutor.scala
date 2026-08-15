@@ -19,10 +19,9 @@ object DirectNeighborhoodExecutor extends NeighborhoodExecutor:
   def prepare[A, B, R <: AnyRank](
       source: NDArray[A, R],
       destination: MutableNDArray[B, R],
-      spec: NeighborhoodSpec,
-      policy: StencilExecutionPolicy = StencilExecutionPolicy()
+      spec: NeighborhoodSpec
   ): PreparedDirectNeighborhoodExecutor =
-    PreparedDirectNeighborhoodExecutor.prepare(source, destination, spec, policy)
+    PreparedDirectNeighborhoodExecutor.prepare(source, destination, spec)
 
   /** Prepare a reusable workspace for mutable-to-mutable ping-pong passes. */
   def prepare[A, B, R <: AnyRank](
@@ -32,23 +31,14 @@ object DirectNeighborhoodExecutor extends NeighborhoodExecutor:
   ): PreparedDirectNeighborhoodExecutor =
     PreparedDirectNeighborhoodExecutor.prepare(source, destination, spec)
 
-  def prepare[A, B, R <: AnyRank](
-      source: MutableNDArray[A, R],
-      destination: MutableNDArray[B, R],
-      spec: NeighborhoodSpec,
-      policy: StencilExecutionPolicy
-  ): PreparedDirectNeighborhoodExecutor =
-    PreparedDirectNeighborhoodExecutor.prepare(source, destination, spec, policy)
-
   def run[A, Acc, B, R <: AnyRank](
       source: NDArray[A, R],
       destination: MutableNDArray[B, R],
       spec: NeighborhoodSpec,
       reducer: NeighborhoodReducer[A, Acc, B],
-      constant: A,
-      policy: StencilExecutionPolicy = StencilExecutionPolicy()
+      constant: A
   ): Unit =
-    val context = Context.validate(source, destination, spec, policy)
+    val context = Context.validate(source, destination, spec)
     val destinationIndices = new Array[Int](context.rank)
     var linear = 0
     while linear < destination.size do
@@ -81,10 +71,9 @@ object DirectNeighborhoodExecutor extends NeighborhoodExecutor:
       destination: MutableNDArray[Double, R],
       spec: NeighborhoodSpec,
       reducer: DoubleNeighborhoodReducer,
-      constant: Double,
-      policy: StencilExecutionPolicy = StencilExecutionPolicy()
+      constant: Double
   ): Unit =
-    val context = Context.validate(source, destination, spec, policy)
+    val context = Context.validate(source, destination, spec)
     val destinationIndices = new Array[Int](context.rank)
     var linear = 0
     while linear < destination.size do
@@ -117,10 +106,9 @@ object DirectNeighborhoodExecutor extends NeighborhoodExecutor:
       destination: MutableNDArray[Boolean, R],
       spec: NeighborhoodSpec,
       reducer: BooleanNeighborhoodReducer,
-      constant: Boolean,
-      policy: StencilExecutionPolicy = StencilExecutionPolicy()
+      constant: Boolean
   ): Unit =
-    val context = Context.validate(source, destination, spec, policy)
+    val context = Context.validate(source, destination, spec)
     val destinationIndices = new Array[Int](context.rank)
     var linear = 0
     while linear < destination.size do
@@ -156,10 +144,8 @@ object DirectNeighborhoodExecutor extends NeighborhoodExecutor:
     def validate[A, B, R <: AnyRank](
         source: NDArray[A, R],
         destination: MutableNDArray[B, R],
-        spec: NeighborhoodSpec,
-        policy: StencilExecutionPolicy
+        spec: NeighborhoodSpec
     ): Context =
-      val _ = policy
       spec.validate()
       val rank = source.rank
       if destination.rank != rank then
@@ -170,6 +156,7 @@ object DirectNeighborhoodExecutor extends NeighborhoodExecutor:
         throw IllegalArgumentException(
           s"spatialAxes ${spec.spatialAxes} exceeds array rank $rank"
         )
+      StencilArithmetic.requirePositiveSpatialExtents(spec.spatialAxes, source.shape(_))
       var axis = 0
       while axis < spec.spatialAxes do
         if destination.shape(axis) != spec.outputSpatialShape(axis) then
@@ -199,7 +186,11 @@ object DirectNeighborhoodExecutor extends NeighborhoodExecutor:
       var axis = 0
       while axis < spec.spatialAxes do
         val logical =
-          spec.outputOrigin(axis) + destinationIndices(axis) + offset(axis)
+          StencilArithmetic.logicalCoordinate(
+            spec.outputOrigin(axis),
+            destinationIndices(axis),
+            offset(axis)
+          )
         val mapped =
           BorderIndex.direct(
             logical,
