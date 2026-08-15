@@ -1,8 +1,9 @@
 # Availability and project scope
 
 Ravel is an early, source-available project. No Maven Central artifacts or
-stable release are currently claimed. Local `1.0.0-SNAPSHOT` publication is a
-`ravel-core` integration convenience, not a released version.
+stable release are currently claimed. Local `0.1.0-SNAPSHOT` publication is a
+`ravel-core` integration convenience, not a released version. The first public
+cut is 0.1; a 1.0 stability promise waits on real consumer use.
 
 ## Supported development surface
 
@@ -17,7 +18,7 @@ All four modules are cross-built for the JVM and Scala.js in the current
 source tree. The executable guide runs on the JVM; repository suites and API
 compilation provide the separate Scala.js evidence.
 
-The enforced 1.0 publication matrix contains only `ravel-core`. Packed and
+The enforced 0.1 publication matrix contains only `ravel-core`. Packed and
 stencil set `publish / skip := true` and remain experimental source APIs. Laws
 is also publish-skipped, but is narrower still: it compiles only repository
 test sources and exposes no consumer API.

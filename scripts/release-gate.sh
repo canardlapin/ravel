@@ -13,7 +13,7 @@ if [[ -z "$candidate_version" ]]; then
   if [[ "$exact_tag" == v* ]]; then
     candidate_version="${exact_tag#v}"
   else
-    candidate_version="1.0.0-SNAPSHOT"
+    candidate_version="0.1.0-SNAPSHOT"
   fi
 fi
 if [[ ! "$candidate_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
@@ -41,6 +41,7 @@ run_numpy_helper_tests() {
   local numpy_venv="${NUMPY_PARITY_VENV:-target/access-patterns/venv}"
   "$numpy_venv/bin/python" modules/benchmarks/python/test_compare_access_patterns.py
   "$numpy_venv/bin/python" modules/benchmarks/python/test_operation_matrix.py
+  "$numpy_venv/bin/python" modules/benchmarks/python/test_common_ops.py
 }
 
 {

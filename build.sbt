@@ -41,15 +41,26 @@ ThisBuild / Test / parallelExecution := false
 // site plugin focused on mdoc/Laika generation rather than a gh-pages branch.
 ThisBuild / tlSitePublishBranch := None
 
-// MiMa: no previous artifact until 1.0.0 is published to Central.
-// The first commit after the 1.0.0 tag receives a dynver 1.0.0+N version, which
-// automatically turns the published 1.0.0 artifact into a required baseline.
+// MiMa: no previous artifact until 0.1.0 is published. Later 0.1.x / 0.2+
+// builds require that 0.1.0 baseline. A future 1.0.0 tag starts a new
+// stability line after field use; later 1.x builds then require 1.0.0.
 ThisBuild / mimaFailOnNoPrevious := false
 
-def requiresCore10MimaBaseline(currentVersion: String): Boolean =
-  currentVersion.matches(raw"1\.0\.0\+[0-9]+.*") ||
+def mimaBaselineRevision(currentVersion: String): Option[String] =
+  if (
+    currentVersion.matches(raw"0\.1\.0\+[0-9]+.*") ||
+    currentVersion.matches(raw"0\.1\.[1-9][0-9]*(?:[-+].*)?") ||
+    currentVersion.matches(raw"0\.[2-9][0-9]*\.[0-9]+(?:[-+].*)?")
+  ) Some("0.1.0")
+  else if (
+    currentVersion.matches(raw"1\.0\.0\+[0-9]+.*") ||
     currentVersion.matches(raw"1\.0\.[1-9][0-9]*(?:[-+].*)?") ||
     currentVersion.matches(raw"1\.[1-9][0-9]*\.[0-9]+(?:[-+].*)?")
+  ) Some("1.0.0")
+  else None
+
+def requiresPublishedMimaBaseline(currentVersion: String): Boolean =
+  mimaBaselineRevision(currentVersion).isDefined
 
 lazy val commonSettings = Seq(
   libraryDependencies ++= Seq(
@@ -62,15 +73,15 @@ lazy val commonSettings = Seq(
 lazy val coreReleaseSettings = Seq(
   publish / skip := false,
   mimaPreviousArtifacts := {
-    if (requiresCore10MimaBaseline(version.value)) {
-      Set(projectID.value.withRevision("1.0.0"))
-    } else Set.empty
+    mimaBaselineRevision(version.value).toSet.map { revision =>
+      projectID.value.withRevision(revision)
+    }
   },
-  mimaFailOnNoPrevious := requiresCore10MimaBaseline(version.value)
+  mimaFailOnNoPrevious := requiresPublishedMimaBaseline(version.value)
 )
 
 // These modules remain source-visible and cross-tested, but they are not part
-// of the ravel-core 1.0 compatibility or publication promise.
+// of the ravel-core 0.1 compatibility or publication promise.
 lazy val experimentalModuleSettings = Seq(
   publish / skip := true
 )
@@ -228,7 +239,7 @@ lazy val docsBundle = taskKey[File](
 )
 
 lazy val verifyCoreReleaseMatrix = taskKey[Unit](
-  "Fail unless only ravel-core is publishable for the 1.0 release line."
+  "Fail unless only ravel-core is publishable for the 0.1 release line."
 )
 
 lazy val releaseModuleMatrix =
@@ -241,7 +252,7 @@ lazy val writePublishedArtifactsManifest = taskKey[File](
 )
 
 lazy val verifyMimaBaselinePolicy = taskKey[Unit](
-  "Verify that the 1.0.0 tag has no predecessor and every later 1.x build requires it."
+  "Verify that 0.1.0 is the first baseline and that a later 1.0.0 line starts cleanly."
 )
 
 // Public guide inputs live under docs/user. The other docs/ files are internal
@@ -376,7 +387,7 @@ lazy val root = project
       val actualModules = matrix.map(_._1).toSet
       if (actualModules != requiredSkip.keySet) {
         sys.error(
-          "Release module matrix did not match the required 1.0 module set: " +
+          "Release module matrix did not match the required 0.1 module set: " +
             s"actual=${actualModules.toSeq.sorted.mkString(",")}, " +
             s"required=${requiredSkip.keySet.toSeq.sorted.mkString(",")}"
         )
@@ -387,7 +398,7 @@ lazy val root = project
       }
       if (mismatches.nonEmpty) {
         sys.error(
-          "Invalid ravel-core 1.0 publication matrix:\n" + mismatches.mkString("\n")
+          "Invalid ravel-core 0.1 publication matrix:\n" + mismatches.mkString("\n")
         )
       }
       val coreNames = matrix.collect {
@@ -410,7 +421,7 @@ lazy val root = project
         sys.error("Invalid core artifact names:\n" + invalidNames.mkString("\n"))
       }
       streams.value.log.info(
-        "verified core-only 1.0 publication matrix: ravel-core JVM and Scala.js"
+        "verified core-only 0.1 publication matrix: ravel-core JVM and Scala.js"
       )
     },
     writePublishedArtifactsManifest := {
@@ -453,24 +464,29 @@ lazy val root = project
     },
     verifyMimaBaselinePolicy := {
       val cases = Seq(
-        "0.1.0-SNAPSHOT" -> false,
-        "1.0.0-M1" -> false,
-        "1.0.0-RC2" -> false,
-        "1.0.0" -> false,
-        "1.0.0+1-next-SNAPSHOT" -> true,
-        "1.0.1" -> true,
-        "1.1.0-RC1" -> true,
-        "2.0.0" -> false
+        "0.1.0-SNAPSHOT" -> None,
+        "0.1.0" -> None,
+        "0.1.0+1-next-SNAPSHOT" -> Some("0.1.0"),
+        "0.1.1" -> Some("0.1.0"),
+        "0.2.0" -> Some("0.1.0"),
+        "1.0.0-M1" -> None,
+        "1.0.0-RC2" -> None,
+        "1.0.0" -> None,
+        "1.0.0+1-next-SNAPSHOT" -> Some("1.0.0"),
+        "1.0.1" -> Some("1.0.0"),
+        "1.1.0-RC1" -> Some("1.0.0"),
+        "2.0.0" -> None
       )
       val failures = cases.collect {
-        case (candidate, required) if requiresCore10MimaBaseline(candidate) != required =>
-          s"$candidate baseline policy was ${requiresCore10MimaBaseline(candidate)}, required $required"
+        case (candidate, expected)
+            if mimaBaselineRevision(candidate) != expected =>
+          s"$candidate baseline was ${mimaBaselineRevision(candidate)}, required $expected"
       }
       if (failures.nonEmpty) {
-        sys.error("Invalid ravel-core 1.0 MiMa policy:\n" + failures.mkString("\n"))
+        sys.error("Invalid ravel-core MiMa policy:\n" + failures.mkString("\n"))
       }
       streams.value.log.info(
-        "verified MiMa policy: 1.0.0 becomes the required baseline after its exact tag"
+        "verified MiMa policy: 0.1.0 is the first baseline; 1.0.0 starts a later stability line"
       )
     }
   )
@@ -507,7 +523,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "publishLocalSnapshot",
-  """;verifyCoreReleaseMatrix;set ThisBuild / version := "1.0.0-SNAPSHOT"; coreJVM/publishLocal; coreJS/publishLocal"""
+  """;verifyCoreReleaseMatrix;set ThisBuild / version := "0.1.0-SNAPSHOT"; coreJVM/publishLocal; coreJS/publishLocal"""
 )
 addCommandAlias(
   "releaseEngineeringGate",
@@ -515,7 +531,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "numpyParitySignatures",
-  """;representationProbeJVM/runMain ravel.bench.AccessPatternParity --out target/access-patterns/parity/ravel-signatures.json --side 32,64;representationProbeJVM/runMain ravel.bench.OperationMatrixParity --out target/operation-matrix/parity/ravel-signatures.json --side 32,64"""
+  """;representationProbeJVM/runMain ravel.bench.AccessPatternParity --out target/access-patterns/parity/ravel-signatures.json --side 32,64;representationProbeJVM/runMain ravel.bench.OperationMatrixParity --out target/operation-matrix/parity/ravel-signatures.json --side 32,64;representationProbeJVM/runMain ravel.bench.CommonOpsParity --out target/common-ops/parity/ravel-signatures.json"""
 )
 // Compile both platform API surfaces, execute every mdoc example, render Laika,
 // validate guide links, and place the JVM API references in the deployable site.

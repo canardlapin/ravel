@@ -2,7 +2,7 @@
 set -euo pipefail
 
 project_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-candidate_version="${RAVEL_CANDIDATE_VERSION:-1.0.0-SNAPSHOT}"
+candidate_version="${RAVEL_CANDIDATE_VERSION:-0.1.0-SNAPSHOT}"
 if [[ ! "$candidate_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
   echo "invalid RAVEL_CANDIDATE_VERSION: $candidate_version" >&2
   exit 1

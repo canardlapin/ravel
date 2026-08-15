@@ -1,15 +1,17 @@
-# Ravel 1.0 contract
+# Ravel 0.1 contract
 
 This page separates public guarantees from current implementation details.
+The first published cut is 0.1. A 1.0 stability promise is deferred until
+ravel-core has proven itself in sibling consumers and other real projects.
 
-## 1.0 artifact boundary
+## 0.1 artifact boundary
 
-The 1.0 compatibility and publication promise applies only to `ravel-core`,
-cross-published for the JVM and Scala.js. `ravel-laws`, `ravel-packed`, and
-`ravel-stencil` all set `publish / skip := true`; a core 1.0 tag cannot publish
-them. Packed and stencil remain experimental source APIs. Laws is an internal
-generated test harness with no main-source API. Any future public artifact
-requires an explicitly separate design and release line.
+The 0.1 publication matrix contains only `ravel-core`, cross-published for the
+JVM and Scala.js. `ravel-laws`, `ravel-packed`, and `ravel-stencil` all set
+`publish / skip := true`; a core 0.1 tag cannot publish them. Packed and
+stencil remain experimental source APIs. Laws is an internal generated test
+harness with no main-source API. Any future public artifact requires an
+explicitly separate design and release line.
 
 ## Public guarantees
 

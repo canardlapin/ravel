@@ -1,0 +1,1 @@
+{"actor":"codex-ravel","entity":"bd-01KZ589BA58697K90QV034J1TV","kind":"note","note_kind":"decision","op":"20260815T142138.271257Z-p84168-c0000-ra7b8-h74b71f","text":"API freeze remains a 1.0 gate, not a 0.1 gate. 0.1 may still change after publication; 1.0 is the first stability promise.","ts":"2026-08-15T14:21:38.271257Z","v":1}

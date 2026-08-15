@@ -107,7 +107,7 @@ including dtype, layout class, and reusable-workspace status. Its shared
 conformance matrix covers every border mode, canonical/reversed/permuted/sliced
 rank-three and rank-four inputs, immutable and mutable sources, and empty
 outputs on JVM and Scala.js. Stencil remains unpublished and is not part of the
-core 1.0 performance promise.
+core 0.1 publication matrix or a later 1.0 performance promise.
 
 ## Publication boundary
 

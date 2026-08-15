@@ -2,7 +2,7 @@ package ravel
 
 import scala.annotation.implicitNotFound
 
-/** Closed primitive storage family supported by Ravel 1.0. */
+/** Closed primitive storage family supported by ravel-core 0.1. */
 @implicitNotFound(
   "No DType evidence for ${A}. Use Boolean, Byte, UInt8, Short, UInt16, Int, Long, Float, or Double."
 )

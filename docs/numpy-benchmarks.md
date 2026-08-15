@@ -17,9 +17,16 @@ must confirm a target before an implementation claim is accepted.
 ## Correctness gate (required)
 
 A change that alters public numerical results must keep Ravel and NumPy
-signatures aligned: logical size, C-layout vs view classification, sum, and
-position-weighted sum. The weighted signature distinguishes layouts such as a
-transpose that an ordinary sum cannot distinguish.
+aligned on two gates:
+
+- the access-pattern and operation-matrix **checksum** signatures: logical
+  size, C-layout vs view classification, sum, and position-weighted sum;
+- the **elementwise common-ops oracle** for the 0.1 public surface: every
+  logical value on small empty, rank-1, rank-2, rank-3, and broadcast
+  fixtures, including Boolean, UInt8, and UInt16.
+
+The checksum matrix remains the performance locator. The common-ops oracle is
+the 0.1 correctness bar for local bugs the checksums can miss.
 
 Run the CI-shaped gate locally (small sides, no JMH):
 
@@ -28,12 +35,13 @@ bash scripts/numpy-parity-gate.sh
 # optional: NUMPY_PARITY_SIDES=32,64,128 bash scripts/numpy-parity-gate.sh
 ```
 
-That script emits Ravel signatures via `AccessPatternParity` and
-`OperationMatrixParity`, emits both matched NumPy suites with
-`--signatures-only`, and validates both comparisons before reporting success.
-CI runs the same job on sides `32,64`. Helper unit tests live in
-`modules/benchmarks/python/test_compare_access_patterns.py` and
-`modules/benchmarks/python/test_operation_matrix.py`.
+That script emits Ravel signatures via `AccessPatternParity`,
+`OperationMatrixParity`, and `CommonOpsParity`, emits the matched NumPy
+suites, and validates all three comparisons before reporting success. CI runs
+the checksum suites on sides `32,64`. Helper unit tests live in
+`modules/benchmarks/python/test_compare_access_patterns.py`,
+`modules/benchmarks/python/test_operation_matrix.py`, and
+`modules/benchmarks/python/test_common_ops.py`.
 
 The matrix validates the case family, input and result dtype, input layout,
 logical work, result size/layout, and two logical-order result signatures.

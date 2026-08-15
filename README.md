@@ -42,7 +42,7 @@ Then add the JVM dependency:
 
 ```scala
 libraryDependencies +=
-  "io.github.canardlapin" %% "ravel-core" % "1.0.0-SNAPSHOT"
+  "io.github.canardlapin" %% "ravel-core" % "0.1.0-SNAPSHOT"
 ```
 
 Use `%%%` for a Scala.js project. The version above is a local integration
@@ -84,10 +84,12 @@ for executable workflows.
 | `ravel-laws` | Internal generated repository tests | Unpublished test harness with no main-source API or downstream coordinate |
 
 All four are cross-built for the JVM and Scala.js in the current source tree.
-The 1.0 publication matrix contains only `ravel-core` for the JVM and
-Scala.js. `ravel-packed` and `ravel-stencil` remain unpublished experimental
-source modules. `ravel-laws` is an internal test-only harness: its generated
-properties carry no binary-compatibility or downstream conformance promise.
+The first public cut is `ravel-core` 0.1 for the JVM and Scala.js. A 1.0
+stability promise comes later, after the library has been used in sibling
+consumers and other real projects. `ravel-packed` and `ravel-stencil` remain
+unpublished experimental source modules. `ravel-laws` is an internal test-only
+harness: its generated properties carry no binary-compatibility or downstream
+conformance promise.
 
 ## Mental model
 
@@ -165,9 +167,10 @@ bash scripts/release-gate.sh
 ```
 
 The release gate is the same entry point used by CI and tag publication. It
-checks all source modules and both core platforms, then verifies NumPy parity,
-documentation, artifact contents, and fresh JVM and Scala.js consumers. It
-writes receipts under `target/release-gate/<commit>/`.
+checks all source modules and both core platforms, then verifies NumPy
+checksum parity, the elementwise common-ops oracle, documentation, artifact
+contents, and fresh JVM and Scala.js consumers. It writes receipts under
+`target/release-gate/<commit>/`.
 
 The current build uses Scala 3.7.4. CI is configured for Temurin JDK 21 and
 Node 22; other compiler and runtime combinations are outside the current

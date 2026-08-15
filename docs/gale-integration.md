@@ -66,7 +66,7 @@ mathematical vocabulary, keep the dependency direction `Gale -> Ravel`, and
 replace copy conversions with explicit zero-copy views only where ownership and
 layout constraints make them honest.
 
-### Kernel-view SPI decision: no-go for core 1.0
+### Kernel-view SPI decision: no-go for published core
 
 The design gate rejects a public raw-`Double` kernel view in `ravel-core` 1.0.
 This is an ownership decision, not a claim that raw buffers are technically
@@ -95,7 +95,7 @@ does not control.
 Storage identity, physical offset, and validated reachable bounds therefore
 remain private kernel facts. Adding public descriptor copies of shape and
 strides without the raw buffer would not accelerate Gale; adding the raw buffer
-would weaken the ownership contract that core 1.0 is intended to stabilize.
+would weaken the ownership contract that published core is intended to stabilize.
 
 If this decision is revisited, the candidate belongs in a separately versioned,
 explicitly unsafe and platform-specific experimental artifact—not stable core.

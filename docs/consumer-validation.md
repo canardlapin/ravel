@@ -60,7 +60,7 @@ does not modify the sibling checkout.
 
 The current image4s build uses sbt `ProjectRef` source dependencies on
 `ravel-core`, `ravel-packed`, and `ravel-stencil`. Packed and stencil are
-deliberately excluded from Ravel's 1.0 publication matrix. An image4s source
+deliberately excluded from Ravel's 0.1 publication matrix. An image4s source
 build would therefore test a broader unpublished workspace, not the released
 `ravel-core` artifact. The gate uses zarr4s as the second substantial artifact
 consumer until image4s can consume the stable module boundary from published

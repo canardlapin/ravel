@@ -32,7 +32,7 @@ site, orders its navigation, and rejects broken internal links.
 | N-dimensional neighborhood traversal | `ravel-stencil` | Stencil execution operates over core arrays but leaves image meaning to higher layers. |
 | Repository conformance checks | `ravel-laws` | Internal generated tests; there is no downstream laws artifact. |
 
-Only `ravel-core` is slated for 1.0 publication. Packed and stencil are
+Only `ravel-core` is slated for 0.1 publication. Packed and stencil are
 experimental source modules. Laws is an internal test harness; the repository
 cross-runs it on both platforms without exposing a main-source API.
 

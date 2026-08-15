@@ -9,7 +9,7 @@ sbt publishLocalSnapshot
 ```
 
 The second command publishes development-only `ravel-core`
-`1.0.0-SNAPSHOT` artifacts to your local Ivy repository. The other source
+`0.1.0-SNAPSHOT` artifacts to your local Ivy repository. The other source
 modules remain experimental and are deliberately not published under the core
 version. Choose the smallest source surface that owns your task:
 
@@ -20,14 +20,14 @@ version. Choose the smallest source surface that owns your task:
 | `ravel-stencil` | Neighborhood execution over core arrays |
 | `ravel-laws` | Internal repository conformance tests; not a consumer module |
 
-Only `ravel-core` is in the 1.0 artifact matrix. The other rows describe APIs
+Only `ravel-core` is in the 0.1 artifact matrix. The other rows describe APIs
 available when working from this repository.
 
 A separate Scala 3 project can then depend on the JVM core module:
 
 ```scala
 libraryDependencies +=
-  "io.github.canardlapin" %% "ravel-core" % "1.0.0-SNAPSHOT"
+  "io.github.canardlapin" %% "ravel-core" % "0.1.0-SNAPSHOT"
 ```
 
 For Scala.js, use the same `%%%` dependency syntax you use for other

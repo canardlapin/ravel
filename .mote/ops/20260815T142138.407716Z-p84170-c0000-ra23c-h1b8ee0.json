@@ -1,0 +1,1 @@
+{"actor":"codex-ravel","entity":"bd-01KZ58FN9PMY12870T29H0G5E8","kind":"note","note_kind":"decision","op":"20260815T142138.407716Z-p84170-c0000-ra23c-h1b8ee0","text":"Performance floor ratification stays a 1.0 concern. 0.1 requires the elementwise NumPy oracle plus the existing checksum matrix, not a frozen 1.0 performance promise.","ts":"2026-08-15T14:21:38.407716Z","v":1}

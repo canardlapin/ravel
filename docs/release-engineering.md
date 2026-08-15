@@ -2,7 +2,8 @@
 
 The stable release scope is `ravel-core` for the JVM and Scala.js. The laws,
 packed, and stencil modules remain cross-tested source modules and are not
-published under the 1.0 compatibility promise.
+published under the 0.1 publication matrix. A 1.0 compatibility promise is
+deferred until ravel-core has been used in the wild.
 
 ## Authoritative gate
 
@@ -16,13 +17,13 @@ The command fails on candidate worktree changes (ignoring Mote's append-only
 operation receipts) and records phase logs, runtime versions, the exact
 candidate commit, completion status, and checksums under
 `target/release-gate/<commit>/`. On an exact `v*` tag it tests that tag's
-version; otherwise it uses `1.0.0-SNAPSHOT`. It verifies:
+version; otherwise it uses `0.1.0-SNAPSHOT`. It verifies:
 
 - the core-only publication matrix;
 - formatting, all-module compilation, and core MiMa;
 - JVM, Node, real-Chromium, full-link, and representation tests;
 - executable documentation and generated API docs;
-- exact NumPy semantic parity and the comparison-helper unit tests;
+- NumPy checksum parity, the elementwise common-ops oracle, and helper tests;
 - exact-version JVM and Scala.js POM, binary, source, and API jar contents;
 - local publication of both core platforms; and
 - fresh external JVM and Scala.js projects resolved only from those local
@@ -99,9 +100,10 @@ sbt publishLocalSnapshot
 sbt interopRavelTest
 ```
 
-`publishLocalSnapshot` forces `1.0.0-SNAPSHOT` for core only, matching Gale's
-current `ravelVersion`. It cannot publish experimental modules under that
-version. The authoritative gate's fresh JVM and Scala.js consumers resolve in
+`publishLocalSnapshot` forces `0.1.0-SNAPSHOT` for core only. Sibling
+consumer checks rewrite the isolated Gale pin to that candidate version. It
+cannot publish experimental modules under that version. The authoritative
+gate's fresh JVM and Scala.js consumers resolve in
 offline mode after local publication, so they cannot substitute a remote
 artifact for the generated candidate coordinate.
 

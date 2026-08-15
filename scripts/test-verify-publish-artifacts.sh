@@ -5,7 +5,7 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 
 source_manifest="${RAVEL_PUBLICATION_MANIFEST:-target/release/publication-manifest.tsv}"
-candidate_version="${RAVEL_CANDIDATE_VERSION:-1.0.0-SNAPSHOT}"
+candidate_version="${RAVEL_CANDIDATE_VERSION:-0.1.0-SNAPSHOT}"
 fixture_root="$(mktemp -d "${TMPDIR:-/tmp}/ravel-artifact-verifier.XXXXXX")"
 trap 'rm -rf "$fixture_root"' EXIT
 

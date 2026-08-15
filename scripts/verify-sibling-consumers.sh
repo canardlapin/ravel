@@ -3,7 +3,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
-candidate_version="${RAVEL_CANDIDATE_VERSION:-1.0.0-SNAPSHOT}"
+candidate_version="${RAVEL_CANDIDATE_VERSION:-0.1.0-SNAPSHOT}"
 gale_revision="98508f8d36ceedfb3a7cb4ea18807116fa6af66b"
 zarr_revision="b7c9840fdd4e5676a58acb4ae516dfdaad9bd177"
 zarr_version="0.1.0-ravel-consumer-${zarr_revision:0:7}"
