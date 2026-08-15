@@ -52,6 +52,12 @@ class CommonOpsTest(unittest.TestCase):
                 "short_arg_min",
                 "rank2_long_add",
                 "float_sum_as_double",
+                "byte_convert_int32",
+                "double_convert_int32_nearest_even",
+                "double_convert_int32_floor",
+                "int32_convert_int8_reject",
+                "double_convert_int32_nan_reject",
+                "reversed_int32_convert_int8_reject",
             }
             <= names
         )

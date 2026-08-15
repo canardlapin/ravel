@@ -10,6 +10,28 @@ from typing import Any, Callable
 
 import numpy as np
 
+RAVEL_DTYPE_NAMES = {
+    "int8": "Byte",
+    "uint8": "UInt8",
+    "int16": "Short",
+    "uint16": "UInt16",
+    "int32": "Int",
+    "int64": "Long",
+    "float32": "Float",
+    "float64": "Double",
+}
+
+INTEGRAL_RANGES = {
+    "int8": (-128, 127),
+    "uint8": (0, 255),
+    "int16": (-32768, 32767),
+    "uint16": (0, 65535),
+    "int32": (-2147483648, 2147483647),
+    "int64": (-9223372036854775808, 9223372036854775807),
+}
+
+FLOAT32_MAX = float(np.finfo(np.float32).max)
+
 
 def encode_number(value: float) -> float | str:
     if np.isnan(value):
@@ -22,6 +44,8 @@ def encode_number(value: float) -> float | str:
 
 
 def encode_values(result: Any) -> tuple[str, str, list[int], list[Any]]:
+    if isinstance(result, dict) and result.get("kind") == "error":
+        return "error", "none", [], list(result["values"])
     array = np.asarray(result)
     if array.shape == () and not isinstance(result, np.ndarray):
         scalar = result.item() if hasattr(result, "item") else result
@@ -48,6 +72,73 @@ def encode_values(result: Any) -> tuple[str, str, list[int], list[Any]]:
     else:
         values = [encode_number(float(value)) for value in flat]
     return "array", layout, [int(dim) for dim in array.shape], values
+
+
+def numpy_dtype_name(dtype: np.dtype) -> str:
+    if dtype == np.bool_:
+        return "bool"
+    return np.dtype(dtype).name
+
+
+def round_floating(values: np.ndarray, rounding: str) -> np.ndarray:
+    if rounding == "nearest_even":
+        return np.rint(values)
+    if rounding == "toward_zero":
+        return np.trunc(values)
+    if rounding == "floor":
+        return np.floor(values)
+    if rounding == "ceiling":
+        return np.ceil(values)
+    raise ValueError(f"unsupported rounding: {rounding}")
+
+
+def ravel_convert(
+    source: np.ndarray,
+    target_dtype: str,
+    rounding: str = "nearest_even",
+) -> Any:
+    """Mirror Ravel convert(..., Overflow.Reject) against a NumPy fixture."""
+    array = np.asarray(source)
+    source_name = RAVEL_DTYPE_NAMES[numpy_dtype_name(array.dtype)]
+    target_name = RAVEL_DTYPE_NAMES[target_dtype]
+    flat = np.ascontiguousarray(array).reshape(-1)
+    source_integral = np.issubdtype(array.dtype, np.integer)
+    target_integral = target_dtype in INTEGRAL_RANGES
+
+    for logical, value in enumerate(flat):
+        if target_integral:
+            if source_integral:
+                candidate = int(value)
+            else:
+                number = float(value)
+                if not np.isfinite(number):
+                    return {
+                        "kind": "error",
+                        "values": ["non_finite", logical, source_name, target_name],
+                    }
+                candidate = int(round_floating(np.array(number), rounding).item())
+            low, high = INTEGRAL_RANGES[target_dtype]
+            if candidate < low or candidate > high:
+                return {
+                    "kind": "error",
+                    "values": ["out_of_range", logical, source_name, target_name],
+                }
+        elif (
+            target_dtype == "float32"
+            and not source_integral
+            and np.isfinite(float(value))
+            and (float(value) > FLOAT32_MAX or float(value) < -FLOAT32_MAX)
+        ):
+            return {
+                "kind": "error",
+                "values": ["out_of_range", logical, source_name, target_name],
+            }
+
+    if target_integral and not source_integral:
+        return np.ascontiguousarray(
+            round_floating(array, rounding).astype(target_dtype, order="C")
+        )
+    return np.ascontiguousarray(array.astype(target_dtype, order="C"))
 
 
 class Fixture:
@@ -141,6 +232,24 @@ class Fixture:
         self.double_non_finite[1, 1] = np.inf
         self.float_left = self.double_left.astype(np.float32)
         self.float_right = self.double_right.astype(np.float32)
+
+        self.convert_round = np.array([2.5, 3.5, -2.5, -3.5], dtype=np.float64)
+        self.convert_toward = np.array([1.9, -1.9], dtype=np.float64)
+        self.convert_inrange_uint8 = np.array([0, 128, 255], dtype=np.int32)
+        self.convert_inrange_uint8_float = np.array(
+            [0.4, 200.4, 255.0], dtype=np.float64
+        )
+        self.convert_wide_int = np.array([127, 128, 0], dtype=np.int32)
+        self.convert_neg_int = np.array([1, -1, 2], dtype=np.int32)
+        self.convert_wide_uint16 = np.array([200, 300], dtype=np.uint16)
+        self.convert_wide_long = np.array([1, np.int64(2**31)], dtype=np.int64)
+        self.convert_overflow_byte = np.array([1.0, 128.0, 2.0], dtype=np.float64)
+        self.convert_nan = np.array([1.0, np.nan, 3.0], dtype=np.float64)
+        self.convert_inf = np.array([1.0, np.inf], dtype=np.float64)
+        self.convert_huge_double = np.array([1.0, 1.0e40], dtype=np.float64)
+        self.convert_overflow_float = np.array([1.0, 200.0], dtype=np.float32)
+        self.convert_int_overflow = np.array([[1, 2, 200], [3, 4, 5]], dtype=np.int32)
+        self.convert_int_overflow_reversed = self.convert_int_overflow[:, ::-1]
 
 
 def cases(fixture: Fixture) -> list[dict[str, Any]]:
@@ -876,6 +985,276 @@ def cases(fixture: Fixture) -> list[dict[str, Any]]:
             "contiguous",
             "floating",
             lambda: float(f.float_left.astype(np.float64).sum()),
+        ),
+        row(
+            "byte_convert_int32",
+            "convert",
+            "int8",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.byte_left, "int32"),
+        ),
+        row(
+            "byte_convert_int64",
+            "convert",
+            "int8",
+            "int64",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.byte_left, "int64"),
+        ),
+        row(
+            "uint8_convert_int32",
+            "convert",
+            "uint8",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.uint8_left, "int32"),
+        ),
+        row(
+            "uint16_convert_int64",
+            "convert",
+            "uint16",
+            "int64",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.uint16_left, "int64"),
+        ),
+        row(
+            "int32_convert_int64",
+            "convert",
+            "int32",
+            "int64",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.int2_left, "int64"),
+        ),
+        row(
+            "int32_convert_float64",
+            "convert",
+            "int32",
+            "float64",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.int2_left, "float64"),
+        ),
+        row(
+            "uint8_convert_float32",
+            "convert",
+            "uint8",
+            "float32",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.uint8_left, "float32"),
+        ),
+        row(
+            "short_convert_int8",
+            "convert",
+            "int16",
+            "int8",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.short_left, "int8"),
+        ),
+        row(
+            "uint8_convert_int8",
+            "convert",
+            "uint8",
+            "int8",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.uint8_left, "int8"),
+        ),
+        row(
+            "uint16_convert_uint8",
+            "convert",
+            "uint16",
+            "uint8",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.uint16_left, "uint8"),
+        ),
+        row(
+            "int32_convert_uint8_inrange",
+            "convert",
+            "int32",
+            "uint8",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.convert_inrange_uint8, "uint8"),
+        ),
+        row(
+            "long_convert_int32",
+            "convert",
+            "int64",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.long_left, "int32"),
+        ),
+        row(
+            "float32_convert_float64",
+            "convert",
+            "float32",
+            "float64",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.float_left, "float64"),
+        ),
+        row(
+            "float64_convert_float32_inrange",
+            "convert",
+            "float64",
+            "float32",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.double_left, "float32"),
+        ),
+        row(
+            "reversed_int32_convert_int8",
+            "convert",
+            "int32",
+            "int8",
+            "reversed",
+            "exact",
+            lambda: ravel_convert(f.int_reversed, "int8"),
+        ),
+        row(
+            "double_convert_int32_nearest_even",
+            "convert",
+            "float64",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.convert_round, "int32"),
+        ),
+        row(
+            "double_convert_int32_toward_zero",
+            "convert",
+            "float64",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.convert_toward, "int32", rounding="toward_zero"),
+        ),
+        row(
+            "double_convert_int32_floor",
+            "convert",
+            "float64",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.convert_toward, "int32", rounding="floor"),
+        ),
+        row(
+            "double_convert_int32_ceiling",
+            "convert",
+            "float64",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.convert_toward, "int32", rounding="ceiling"),
+        ),
+        row(
+            "double_convert_uint8_inrange",
+            "convert",
+            "float64",
+            "uint8",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.convert_inrange_uint8_float, "uint8"),
+        ),
+        row(
+            "int32_convert_int8_reject",
+            "convert",
+            "int32",
+            "int8",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.convert_wide_int, "int8"),
+        ),
+        row(
+            "int32_convert_uint8_reject",
+            "convert",
+            "int32",
+            "uint8",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.convert_neg_int, "uint8"),
+        ),
+        row(
+            "uint16_convert_uint8_reject",
+            "convert",
+            "uint16",
+            "uint8",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.convert_wide_uint16, "uint8"),
+        ),
+        row(
+            "long_convert_int32_reject",
+            "convert",
+            "int64",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.convert_wide_long, "int32"),
+        ),
+        row(
+            "double_convert_int8_reject",
+            "convert",
+            "float64",
+            "int8",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.convert_overflow_byte, "int8"),
+        ),
+        row(
+            "double_convert_int32_nan_reject",
+            "convert",
+            "float64",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.convert_nan, "int32"),
+        ),
+        row(
+            "double_convert_int32_inf_reject",
+            "convert",
+            "float64",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.convert_inf, "int32"),
+        ),
+        row(
+            "double_convert_float32_reject",
+            "convert",
+            "float64",
+            "float32",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.convert_huge_double, "float32"),
+        ),
+        row(
+            "float32_convert_int8_reject",
+            "convert",
+            "float32",
+            "int8",
+            "contiguous",
+            "exact",
+            lambda: ravel_convert(f.convert_overflow_float, "int8"),
+        ),
+        row(
+            "reversed_int32_convert_int8_reject",
+            "convert",
+            "int32",
+            "int8",
+            "reversed",
+            "exact",
+            lambda: ravel_convert(f.convert_int_overflow_reversed, "int8"),
         ),
     ]
 

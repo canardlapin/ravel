@@ -663,6 +663,255 @@ object CommonOpsParity:
         "float64",
         "contiguous",
         () => f.floatLeft.sumAs[Double]
+      ),
+      exact(
+        "byte_convert_int32",
+        "convert",
+        "int8",
+        "int32",
+        "contiguous",
+        () => f.byteLeft.convert[Int]()
+      ),
+      exact(
+        "byte_convert_int64",
+        "convert",
+        "int8",
+        "int64",
+        "contiguous",
+        () => f.byteLeft.convert[Long]()
+      ),
+      exact(
+        "uint8_convert_int32",
+        "convert",
+        "uint8",
+        "int32",
+        "contiguous",
+        () => f.uint8Left.convert[Int]()
+      ),
+      exact(
+        "uint16_convert_int64",
+        "convert",
+        "uint16",
+        "int64",
+        "contiguous",
+        () => f.uint16Left.convert[Long]()
+      ),
+      exact(
+        "int32_convert_int64",
+        "convert",
+        "int32",
+        "int64",
+        "contiguous",
+        () => f.int2Left.convert[Long]()
+      ),
+      exact(
+        "int32_convert_float64",
+        "convert",
+        "int32",
+        "float64",
+        "contiguous",
+        () => f.int2Left.convert[Double]()
+      ),
+      exact(
+        "uint8_convert_float32",
+        "convert",
+        "uint8",
+        "float32",
+        "contiguous",
+        () => f.uint8Left.convert[Float]()
+      ),
+      exact(
+        "short_convert_int8",
+        "convert",
+        "int16",
+        "int8",
+        "contiguous",
+        () => f.shortLeft.convert[Byte]()
+      ),
+      exact(
+        "uint8_convert_int8",
+        "convert",
+        "uint8",
+        "int8",
+        "contiguous",
+        () => f.uint8Left.convert[Byte]()
+      ),
+      exact(
+        "uint16_convert_uint8",
+        "convert",
+        "uint16",
+        "uint8",
+        "contiguous",
+        () => f.uint16Left.convert[UInt8]()
+      ),
+      exact(
+        "int32_convert_uint8_inrange",
+        "convert",
+        "int32",
+        "uint8",
+        "contiguous",
+        () => f.convertInRangeUInt8.convert[UInt8]()
+      ),
+      exact(
+        "long_convert_int32",
+        "convert",
+        "int64",
+        "int32",
+        "contiguous",
+        () => f.longLeft.convert[Int]()
+      ),
+      exact(
+        "float32_convert_float64",
+        "convert",
+        "float32",
+        "float64",
+        "contiguous",
+        () => f.floatLeft.convert[Double]()
+      ),
+      exact(
+        "float64_convert_float32_inrange",
+        "convert",
+        "float64",
+        "float32",
+        "contiguous",
+        () => f.doubleLeft.convert[Float]()
+      ),
+      exact(
+        "reversed_int32_convert_int8",
+        "convert",
+        "int32",
+        "int8",
+        "reversed",
+        () => f.intReversed.convert[Byte]()
+      ),
+      exact(
+        "double_convert_int32_nearest_even",
+        "convert",
+        "float64",
+        "int32",
+        "contiguous",
+        () => f.convertRound.convert[Int]()
+      ),
+      exact(
+        "double_convert_int32_toward_zero",
+        "convert",
+        "float64",
+        "int32",
+        "contiguous",
+        () =>
+          f.convertToward.convert[Int](
+            ConversionPolicy(Rounding.TowardZero, Overflow.Reject)
+          )
+      ),
+      exact(
+        "double_convert_int32_floor",
+        "convert",
+        "float64",
+        "int32",
+        "contiguous",
+        () =>
+          f.convertToward.convert[Int](
+            ConversionPolicy(Rounding.Floor, Overflow.Reject)
+          )
+      ),
+      exact(
+        "double_convert_int32_ceiling",
+        "convert",
+        "float64",
+        "int32",
+        "contiguous",
+        () =>
+          f.convertToward.convert[Int](
+            ConversionPolicy(Rounding.Ceiling, Overflow.Reject)
+          )
+      ),
+      exact(
+        "double_convert_uint8_inrange",
+        "convert",
+        "float64",
+        "uint8",
+        "contiguous",
+        () => f.convertInRangeUInt8Float.convert[UInt8]()
+      ),
+      exact(
+        "int32_convert_int8_reject",
+        "convert",
+        "int32",
+        "int8",
+        "contiguous",
+        () => f.convertWideInt.convert[Byte]()
+      ),
+      exact(
+        "int32_convert_uint8_reject",
+        "convert",
+        "int32",
+        "uint8",
+        "contiguous",
+        () => f.convertNegInt.convert[UInt8]()
+      ),
+      exact(
+        "uint16_convert_uint8_reject",
+        "convert",
+        "uint16",
+        "uint8",
+        "contiguous",
+        () => f.convertWideUInt16.convert[UInt8]()
+      ),
+      exact(
+        "long_convert_int32_reject",
+        "convert",
+        "int64",
+        "int32",
+        "contiguous",
+        () => f.convertWideLong.convert[Int]()
+      ),
+      exact(
+        "double_convert_int8_reject",
+        "convert",
+        "float64",
+        "int8",
+        "contiguous",
+        () => f.convertOverflowByte.convert[Byte]()
+      ),
+      exact(
+        "double_convert_int32_nan_reject",
+        "convert",
+        "float64",
+        "int32",
+        "contiguous",
+        () => f.convertNan.convert[Int]()
+      ),
+      exact(
+        "double_convert_int32_inf_reject",
+        "convert",
+        "float64",
+        "int32",
+        "contiguous",
+        () => f.convertInf.convert[Int]()
+      ),
+      exact(
+        "double_convert_float32_reject",
+        "convert",
+        "float64",
+        "float32",
+        "contiguous",
+        () => f.convertHugeDouble.convert[Float]()
+      ),
+      exact(
+        "float32_convert_int8_reject",
+        "convert",
+        "float32",
+        "int8",
+        "contiguous",
+        () => f.convertOverflowFloat.convert[Byte]()
+      ),
+      exact(
+        "reversed_int32_convert_int8_reject",
+        "convert",
+        "int32",
+        "int8",
+        "reversed",
+        () => f.convertIntOverflowReversed.convert[Byte]()
       )
     )
 
@@ -800,6 +1049,37 @@ object CommonOpsParity:
     val floatRight: Array2[Float] =
       doubleRight.cast[Float]
 
+    val convertRound: Array1[Double] =
+      NDArray.fromSeq(Shape(4), Seq(2.5, 3.5, -2.5, -3.5))
+    val convertToward: Array1[Double] =
+      NDArray.fromSeq(Shape(2), Seq(1.9, -1.9))
+    val convertInRangeUInt8: Array1[Int] =
+      NDArray.fromSeq(Shape(3), Seq(0, 128, 255))
+    val convertInRangeUInt8Float: Array1[Double] =
+      NDArray.fromSeq(Shape(3), Seq(0.4, 200.4, 255.0))
+    val convertWideInt: Array1[Int] =
+      NDArray.fromSeq(Shape(3), Seq(127, 128, 0))
+    val convertNegInt: Array1[Int] =
+      NDArray.fromSeq(Shape(3), Seq(1, -1, 2))
+    val convertWideUInt16: Array1[UInt16] =
+      NDArray.fromSeq(Shape(2), Seq(UInt16.unsafe(200), UInt16.unsafe(300)))
+    val convertWideLong: Array1[Long] =
+      NDArray.fromSeq(Shape(2), Seq(1L, Int.MaxValue.toLong + 1L))
+    val convertOverflowByte: Array1[Double] =
+      NDArray.fromSeq(Shape(3), Seq(1.0, 128.0, 2.0))
+    val convertNan: Array1[Double] =
+      NDArray.fromSeq(Shape(3), Seq(1.0, Double.NaN, 3.0))
+    val convertInf: Array1[Double] =
+      NDArray.fromSeq(Shape(2), Seq(1.0, Double.PositiveInfinity))
+    val convertHugeDouble: Array1[Double] =
+      NDArray.fromSeq(Shape(2), Seq(1.0, 1.0e40))
+    val convertOverflowFloat: Array1[Float] =
+      NDArray.fromSeq(Shape(2), Seq(1.0f, 200.0f))
+    val convertIntOverflow: Array2[Int] =
+      NDArray.fromSeq(Shape(2, 3), Seq(1, 2, 200, 3, 4, 5))
+    val convertIntOverflowReversed: Array2[Int] =
+      convertIntOverflow.reverse(1)
+
   private def parseArgs(args: Array[String]): Config =
     var config = Config()
     var index = 0
@@ -833,6 +1113,10 @@ object CommonOpsParity:
 
   private def encode(value: Any): Encoded =
     value match
+      case Left(error: ConversionError) =>
+        Encoded("error", "none", "[]", conversionErrorValues(error))
+      case Right(inner) =>
+        encode(inner)
       case array: NDArray[?, ?] =>
         Encoded(
           "array",
@@ -893,6 +1177,13 @@ object CommonOpsParity:
             throw new IllegalArgumentException(
               s"unsupported common-ops element: ${other.getClass.getName}"
             )
+
+  private def conversionErrorValues(error: ConversionError): String =
+    error match
+      case ConversionError.OutOfRange(index, source, target) =>
+        s"""["out_of_range", $index, ${jsonString(source)}, ${jsonString(target)}]"""
+      case ConversionError.NonFiniteToIntegral(index, source, target) =>
+        s"""["non_finite", $index, ${jsonString(source)}, ${jsonString(target)}]"""
 
   private def numberJson(value: Double): String =
     if value.isNaN then "\"nan\""
