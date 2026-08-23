@@ -185,18 +185,15 @@ final class PackedArray[+R <: AnyRank] private[packed] (
       var sample = layout.offset.toLong
       while axis >= 0 do
         val extent = layout.shape(axis)
-        sample = Layout.checkedAdd(
-          sample,
-          Layout.checkedMultiply(
-            (remaining % extent).toLong,
-            layout.strides(axis).toLong,
-            s"packed logical linear axis $axis"
-          ),
-          s"packed logical linear axis $axis"
-        )
+        sample +=
+          (remaining % extent).toLong * layout.strides(axis).toLong
         remaining /= extent
         axis -= 1
-      Layout.checkedInt(sample, "packed logical linear index")
+      // Layout construction has already proved that every reachable physical
+      // address fits Int and lies within the retained sample capacity. Keep
+      // this hot logical traversal primitive; checked diagnostic arithmetic
+      // here would allocate one context String per axis and sample.
+      sample.toInt
 
   private def readSample(sample: Int): Int =
     val wordIndex = sample / bits.codesPerWord

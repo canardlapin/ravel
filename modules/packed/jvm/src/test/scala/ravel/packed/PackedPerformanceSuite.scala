@@ -42,6 +42,48 @@ final class PackedPerformanceSuite extends FunSuite:
       )
     }
 
+  test("logical code traversal has constant allocation for canonical and transformed layouts"):
+    val edge = 256
+    val source =
+      packedRight(
+        PackedArray.tabulate(Shape(edge, edge), PackedBits.B4)(index =>
+          (index * 11) & PackedBits.B4.mask
+        )
+      )
+    val layouts =
+      Vector(
+        "canonical" -> source,
+        "reversed" -> source.reverse(0),
+        "narrowed" -> source.narrow(1, 17, 128)
+      )
+
+    layouts.foreach { (name, packed) =>
+      def scan(): Unit =
+        var checksum = 0L
+        var linear = 0
+        while linear < packed.size do
+          checksum += packed.codeAt(linear).toLong
+          linear += 1
+        retainedLong = checksum
+
+      var warmup = 0
+      while warmup < 10 do
+        scan()
+        warmup += 1
+      val allocated =
+        Vector.fill(7)(allocatedBytes(scan())).sorted.apply(3)
+
+      assert(
+        allocated <= 256L,
+        s"$name logical code traversal allocated $allocated B"
+      )
+      println(
+        s"RAVEL-PACKED JVM baseline: case=logical-code-$name, " +
+          s"samples=${packed.size}, allocated=$allocated B, " +
+          s"checksum=$retainedLong"
+      )
+    }
+
   test("specialized wordwise mask operations beat Boolean expansion baselines"):
     val samples = 1 << 20
     val leftPacked =
