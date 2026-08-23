@@ -164,6 +164,36 @@ final class BroadcastKernelLawsSuite extends FunSuite:
     assertEquals(values(view.map(_ * 2)), List(20, 22, 24, 26, 40, 42, 44, 46))
   }
 
+  test("specialized primitive map pairs preserve callback results") {
+    val ints = NDArray.fromSeq(Shape(3), Seq(0, 1, 2))
+    assertEquals(values(ints.map(_ % 2 == 0)), List(true, false, true))
+    assertEquals(values(ints.map(_ + 1)), List(1, 2, 3))
+    assertEquals(values(ints.map(_.toLong + 1L)), List(1L, 2L, 3L))
+    assertEquals(values(ints.map(_.toFloat + 1.0f)), List(1.0f, 2.0f, 3.0f))
+    assertEquals(values(ints.map(_.toDouble + 1.0)), List(1.0, 2.0, 3.0))
+
+    val longs = NDArray.fromSeq(Shape(3), Seq(0L, 1L, 2L))
+    assertEquals(values(longs.map(_ % 2L == 0L)), List(true, false, true))
+    assertEquals(values(longs.map(_.toInt + 1)), List(1, 2, 3))
+    assertEquals(values(longs.map(_ + 1L)), List(1L, 2L, 3L))
+    assertEquals(values(longs.map(_.toFloat + 1.0f)), List(1.0f, 2.0f, 3.0f))
+    assertEquals(values(longs.map(_.toDouble + 1.0)), List(1.0, 2.0, 3.0))
+
+    val floats = NDArray.fromSeq(Shape(3), Seq(0.0f, 1.0f, 2.0f))
+    assertEquals(values(floats.map(_ < 2.0f)), List(true, true, false))
+    assertEquals(values(floats.map(_.toInt + 1)), List(1, 2, 3))
+    assertEquals(values(floats.map(_.toLong + 1L)), List(1L, 2L, 3L))
+    assertEquals(values(floats.map(_ + 1.0f)), List(1.0f, 2.0f, 3.0f))
+    assertEquals(values(floats.map(_.toDouble + 1.0)), List(1.0, 2.0, 3.0))
+
+    val doubles = NDArray.fromSeq(Shape(3), Seq(0.0, 1.0, 2.0))
+    assertEquals(values(doubles.map(_ < 2.0)), List(true, true, false))
+    assertEquals(values(doubles.map(_.toInt + 1)), List(1, 2, 3))
+    assertEquals(values(doubles.map(_.toLong + 1L)), List(1L, 2L, 3L))
+    assertEquals(values(doubles.map(_.toFloat + 1.0f)), List(1.0f, 2.0f, 3.0f))
+    assertEquals(values(doubles.map(_ + 1.0)), List(1.0, 2.0, 3.0))
+  }
+
   test("callback exceptions stop evaluation and empty callbacks are not invoked") {
     val source = NDArray.tabulate[Int](5)(identity)
     var calls = 0

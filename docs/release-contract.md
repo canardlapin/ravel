@@ -97,6 +97,15 @@ unary negate/abs, scalar arithmetic, and callback `mapInto` / `zipMapInto`.
 Destinations must be whole contiguous buffers that do not alias inputs.
 `NDArray.build` fills a fresh contiguous array through a consuming
 `ArrayBuilder` sealed when the body returns.
+
+On the JVM, allocating `map` dispatches once to Scala's specialized
+`Function1` methods for `Int`, `Long`, `Float`, and `Double` inputs whose
+results are `Boolean`, `Int`, `Long`, `Float`, or `Double`. Those paths do not
+box each input or result when the callback supplies the corresponding
+specialized method, as ordinary Scala lambdas do. Other dtype pairs retain the
+generic callback fallback and may box; unboxed callbacks remain an
+implementation property rather than a public semantic guarantee.
+
 The supported external-kernel contract, including fixed Rank1-4 indexing,
 builder ownership, failure semantics, and allocation evidence, is documented
 in [allocation-free kernel APIs](allocation-free-kernels.md).

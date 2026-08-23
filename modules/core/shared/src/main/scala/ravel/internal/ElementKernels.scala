@@ -3,6 +3,108 @@ package ravel.internal
 import ravel.*
 
 private[ravel] object ElementKernels:
+  def map[A, B](
+      source: Storage[A],
+      output: Storage[B],
+      plan: LoopPlan,
+      f: A => B
+  ): Unit =
+    source match
+      case x: BooleanStorage =>
+        output match
+          case z: BooleanStorage =>
+            mapLoop(
+              plan,
+              index => PlatformBoolean.get(x, index),
+              (index, value) => PlatformBoolean.set(z, index, value)
+            )(f.asInstanceOf[Boolean => Boolean])
+          case z: IntStorage =>
+            mapLoop(plan, index => PlatformBoolean.get(x, index), z.raw.update)(
+              f.asInstanceOf[Boolean => Int]
+            )
+          case z: LongStorage =>
+            mapLoop(plan, index => PlatformBoolean.get(x, index), z.raw.update)(
+              f.asInstanceOf[Boolean => Long]
+            )
+          case z: FloatStorage =>
+            mapLoop(plan, index => PlatformBoolean.get(x, index), z.raw.update)(
+              f.asInstanceOf[Boolean => Float]
+            )
+          case z: DoubleStorage =>
+            mapLoop(plan, index => PlatformBoolean.get(x, index), z.raw.update)(
+              f.asInstanceOf[Boolean => Double]
+            )
+          case _ => genericMapLoop(plan, source, output, f)
+      case x: IntStorage =>
+        output match
+          case z: BooleanStorage =>
+            mapLoop(
+              plan,
+              x.raw.apply,
+              (index, value) => PlatformBoolean.set(z, index, value)
+            )(f.asInstanceOf[Int => Boolean])
+          case z: IntStorage =>
+            mapLoop(plan, x.raw.apply, z.raw.update)(f.asInstanceOf[Int => Int])
+          case z: LongStorage =>
+            mapLoop(plan, x.raw.apply, z.raw.update)(f.asInstanceOf[Int => Long])
+          case z: FloatStorage =>
+            mapLoop(plan, x.raw.apply, z.raw.update)(f.asInstanceOf[Int => Float])
+          case z: DoubleStorage =>
+            mapLoop(plan, x.raw.apply, z.raw.update)(f.asInstanceOf[Int => Double])
+          case _ => genericMapLoop(plan, source, output, f)
+      case x: LongStorage =>
+        output match
+          case z: BooleanStorage =>
+            mapLoop(
+              plan,
+              x.raw.apply,
+              (index, value) => PlatformBoolean.set(z, index, value)
+            )(f.asInstanceOf[Long => Boolean])
+          case z: IntStorage =>
+            mapLoop(plan, x.raw.apply, z.raw.update)(f.asInstanceOf[Long => Int])
+          case z: LongStorage =>
+            mapLoop(plan, x.raw.apply, z.raw.update)(f.asInstanceOf[Long => Long])
+          case z: FloatStorage =>
+            mapLoop(plan, x.raw.apply, z.raw.update)(f.asInstanceOf[Long => Float])
+          case z: DoubleStorage =>
+            mapLoop(plan, x.raw.apply, z.raw.update)(f.asInstanceOf[Long => Double])
+          case _ => genericMapLoop(plan, source, output, f)
+      case x: FloatStorage =>
+        output match
+          case z: BooleanStorage =>
+            mapLoop(
+              plan,
+              x.raw.apply,
+              (index, value) => PlatformBoolean.set(z, index, value)
+            )(f.asInstanceOf[Float => Boolean])
+          case z: IntStorage =>
+            mapLoop(plan, x.raw.apply, z.raw.update)(f.asInstanceOf[Float => Int])
+          case z: LongStorage =>
+            mapLoop(plan, x.raw.apply, z.raw.update)(f.asInstanceOf[Float => Long])
+          case z: FloatStorage =>
+            mapLoop(plan, x.raw.apply, z.raw.update)(f.asInstanceOf[Float => Float])
+          case z: DoubleStorage =>
+            mapLoop(plan, x.raw.apply, z.raw.update)(f.asInstanceOf[Float => Double])
+          case _ => genericMapLoop(plan, source, output, f)
+      case x: DoubleStorage =>
+        output match
+          case z: BooleanStorage =>
+            mapLoop(
+              plan,
+              x.raw.apply,
+              (index, value) => PlatformBoolean.set(z, index, value)
+            )(f.asInstanceOf[Double => Boolean])
+          case z: IntStorage =>
+            mapLoop(plan, x.raw.apply, z.raw.update)(f.asInstanceOf[Double => Int])
+          case z: LongStorage =>
+            mapLoop(plan, x.raw.apply, z.raw.update)(f.asInstanceOf[Double => Long])
+          case z: FloatStorage =>
+            mapLoop(plan, x.raw.apply, z.raw.update)(f.asInstanceOf[Double => Float])
+          case z: DoubleStorage =>
+            mapLoop(plan, x.raw.apply, z.raw.update)(f.asInstanceOf[Double => Double])
+          case _ => genericMapLoop(plan, source, output, f)
+      case _ => genericMapLoop(plan, source, output, f)
+
   def binary[A](
       operation: Byte,
       left: Storage[A],
@@ -1583,6 +1685,25 @@ private[ravel] object ElementKernels:
   )(inline operation: T => T): Unit =
     loopOffsets(plan) { (sourceIndex, _, outputIndex) =>
       output(outputIndex, operation(source(sourceIndex)))
+    }
+
+  private inline def mapLoop[A, B](
+      plan: LoopPlan,
+      inline source: Int => A,
+      inline output: (Int, B) => Unit
+  )(f: A => B): Unit =
+    loopOffsets(plan) { (sourceIndex, _, outputIndex) =>
+      output(outputIndex, f(source(sourceIndex)))
+    }
+
+  private def genericMapLoop[A, B](
+      plan: LoopPlan,
+      source: Storage[A],
+      output: Storage[B],
+      f: A => B
+  ): Unit =
+    loopOffsets(plan) { (sourceIndex, _, outputIndex) =>
+      ProbeApi.set(output, outputIndex, f(ProbeApi.get(source, sourceIndex)))
     }
 
   private inline def compareLoop[T](

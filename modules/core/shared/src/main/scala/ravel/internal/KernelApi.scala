@@ -155,21 +155,8 @@ private[ravel] object KernelApi:
       f: A => B
   )(using target: DType[B]): NDArray[B, R] =
     val output = ProbeApi.allocate[B](source.size)
-    if source.layout.isCContiguous then
-      var read = source.layout.offset
-      var write = 0
-      while write < source.size do
-        val value = f(ProbeApi.get(source.storage, read))
-        ProbeApi.set(output, write, value)
-        read += 1
-        write += 1
-    else
-      var write = 0
-      source.layout.foreachPhysicalIndex { physical =>
-        val value = f(ProbeApi.get(source.storage, physical))
-        ProbeApi.set(output, write, value)
-        write += 1
-      }
+    val plan = LoopPlan.unary(source.layout)
+    ElementKernels.map(source.storage, output, plan, f)
     new NDArray(
       output,
       Layout.contiguous(source.shape, source.size),
