@@ -157,6 +157,7 @@ On Scala.js, `Boolean`, the fixed-width integers other than `Long`, `Float`, and
   thrown exceptions, `Either` results, and recovery choices.
 - [Core API](https://canardlapin.github.io/ravel/api/) — generated Scaladoc;
   the guide’s reference index links the other module APIs.
+- [Changelog](CHANGELOG.md) — unreleased changes and tagged release history.
 - [Performance methodology](docs/numpy-benchmarks.md) — parity fixtures,
   benchmark scope, and why timing receipts are not a release claim.
 

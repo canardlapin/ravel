@@ -11,6 +11,7 @@ import scoverage.ScoverageKeys.*
 
 ThisBuild / organization := "io.github.canardlapin"
 ThisBuild / scalaVersion := "3.7.4"
+ThisBuild / versionScheme := Some("early-semver")
 ThisBuild / homepage := Some(url("https://github.com/canardlapin/ravel"))
 ThisBuild / licenses := List("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0"))
 ThisBuild / scmInfo := Some(
@@ -41,23 +42,85 @@ ThisBuild / Test / parallelExecution := false
 // site plugin focused on mdoc/Laika generation rather than a gh-pages branch.
 ThisBuild / tlSitePublishBranch := None
 
-// MiMa: no previous artifact until 0.1.0 is published. Later 0.1.x / 0.2+
-// builds require that 0.1.0 baseline. A future 1.0.0 tag starts a new
-// stability line after field use; later 1.x builds then require 1.0.0.
+// MiMa: each pre-1.0 minor starts its own compatibility line at 0.y.0.
+// Stable major lines start at x.0.0. Compare both that first baseline and the
+// immediately preceding compatible release so APIs added after the baseline
+// cannot disappear silently. The baseline becomes active only after its tag.
 ThisBuild / mimaFailOnNoPrevious := false
 
-def mimaBaselineRevision(currentVersion: String): Option[String] =
-  if (
-    currentVersion.matches(raw"0\.1\.0\+[0-9]+.*") ||
-    currentVersion.matches(raw"0\.1\.[1-9][0-9]*(?:[-+].*)?") ||
-    currentVersion.matches(raw"0\.[2-9][0-9]*\.[0-9]+(?:[-+].*)?")
-  ) Some("0.1.0")
-  else if (
-    currentVersion.matches(raw"1\.0\.0\+[0-9]+.*") ||
-    currentVersion.matches(raw"1\.0\.[1-9][0-9]*(?:[-+].*)?") ||
-    currentVersion.matches(raw"1\.[1-9][0-9]*\.[0-9]+(?:[-+].*)?")
-  ) Some("1.0.0")
-  else None
+lazy val ravelCompatibilityPreviousRelease = settingKey[Option[String]](
+  "Immediately preceding stable release when it cannot be inferred from the candidate version"
+)
+
+ThisBuild / ravelCompatibilityPreviousRelease :=
+  sys.props.get("ravel.compatibility.previous").map(_.trim).filter(_.nonEmpty)
+
+def mimaBaselineRevision(currentVersion: String): Option[String] = {
+  val semanticVersionCore = raw"([0-9]+)\.([0-9]+)\.([0-9]+)(.*)".r
+  currentVersion match {
+    case semanticVersionCore(majorText, minorText, patchText, suffix)
+        if suffix.isEmpty || suffix.startsWith("-") || suffix.startsWith("+") =>
+      val major = majorText.toInt
+      val minor = minorText.toInt
+      val patch = patchText.toInt
+      val followsBaselineTag = suffix.startsWith("+")
+      if (major == 0 && minor > 0) {
+        if (patch > 0 || followsBaselineTag) Some(s"0.$minor.0") else None
+      } else if (major > 0) {
+        if (minor > 0 || patch > 0 || followsBaselineTag) Some(s"$major.0.0") else None
+      } else None
+    case _ => None
+  }
+}
+
+def mimaImmediatePreviousRevision(currentVersion: String): Option[String] = {
+  val semanticVersionCore = raw"([0-9]+)\.([0-9]+)\.([0-9]+)(.*)".r
+  currentVersion match {
+    case semanticVersionCore(majorText, minorText, patchText, suffix)
+        if suffix.isEmpty || suffix.startsWith("-") || suffix.startsWith("+") =>
+      val major = majorText.toInt
+      val minor = minorText.toInt
+      val patch = patchText.toInt
+      if (patch > 0) Some(s"$major.$minor.${patch - 1}")
+      else if (suffix.startsWith("+") && mimaBaselineRevision(currentVersion).isDefined)
+        Some(s"$major.$minor.$patch")
+      else None
+    case _ => None
+  }
+}
+
+def requiresExplicitMimaPrevious(currentVersion: String): Boolean = {
+  val semanticVersionCore = raw"([0-9]+)\.([0-9]+)\.([0-9]+)(.*)".r
+  currentVersion match {
+    case semanticVersionCore(majorText, minorText, patchText, suffix)
+        if suffix.isEmpty || suffix.startsWith("-") || suffix.startsWith("+") =>
+      majorText.toInt > 0 &&
+      minorText.toInt > 0 &&
+      patchText.toInt == 0 &&
+      !suffix.startsWith("+")
+    case _ => false
+  }
+}
+
+def mimaPreviousRevisions(
+    currentVersion: String,
+    explicitPrevious: Option[String]
+): Either[String, Set[String]] = {
+  if (requiresExplicitMimaPrevious(currentVersion) && explicitPrevious.isEmpty) {
+    Left(
+      s"$currentVersion requires -Dravel.compatibility.previous=<version> " +
+        "so MiMa checks the immediately preceding stable release"
+    )
+  } else {
+    Right(
+      Set(
+        mimaBaselineRevision(currentVersion),
+        mimaImmediatePreviousRevision(currentVersion),
+        explicitPrevious
+      ).flatten
+    )
+  }
+}
 
 def requiresPublishedMimaBaseline(currentVersion: String): Boolean =
   mimaBaselineRevision(currentVersion).isDefined
@@ -73,7 +136,11 @@ lazy val commonSettings = Seq(
 lazy val coreReleaseSettings = Seq(
   publish / skip := false,
   mimaPreviousArtifacts := {
-    mimaBaselineRevision(version.value).toSet.map { revision =>
+    val revisions = mimaPreviousRevisions(
+      version.value,
+      (ThisBuild / ravelCompatibilityPreviousRelease).value
+    ).fold(sys.error, identity)
+    revisions.map { revision =>
       projectID.value.withRevision(revision)
     }
   },
@@ -252,7 +319,7 @@ lazy val writePublishedArtifactsManifest = taskKey[File](
 )
 
 lazy val verifyMimaBaselinePolicy = taskKey[Unit](
-  "Verify that 0.1.0 is the first baseline and that a later 1.0.0 line starts cleanly."
+  "Verify baseline, immediately preceding release, and stable-minor transition policy."
 )
 
 // Public guide inputs live under docs/user. The other docs/ files are internal
@@ -464,29 +531,37 @@ lazy val root = project
     },
     verifyMimaBaselinePolicy := {
       val cases = Seq(
-        "0.1.0-SNAPSHOT" -> None,
-        "0.1.0" -> None,
-        "0.1.0+1-next-SNAPSHOT" -> Some("0.1.0"),
-        "0.1.1" -> Some("0.1.0"),
-        "0.2.0" -> Some("0.1.0"),
-        "1.0.0-M1" -> None,
-        "1.0.0-RC2" -> None,
-        "1.0.0" -> None,
-        "1.0.0+1-next-SNAPSHOT" -> Some("1.0.0"),
-        "1.0.1" -> Some("1.0.0"),
-        "1.1.0-RC1" -> Some("1.0.0"),
-        "2.0.0" -> None
+        ("0.0.0+43-deadbeef-SNAPSHOT", None, Right(Set.empty[String])),
+        ("0.1.0-SNAPSHOT", None, Right(Set.empty[String])),
+        ("0.1.0-RC1", None, Right(Set.empty[String])),
+        ("0.1.0", None, Right(Set.empty[String])),
+        ("0.1.0+1-next-SNAPSHOT", None, Right(Set("0.1.0"))),
+        ("0.1.1", None, Right(Set("0.1.0"))),
+        ("0.1.2-RC1", None, Right(Set("0.1.0", "0.1.1"))),
+        ("0.2.0-M1", None, Right(Set.empty[String])),
+        ("0.2.1", None, Right(Set("0.2.0"))),
+        ("1.0.0", None, Right(Set.empty[String])),
+        ("1.0.2", None, Right(Set("1.0.0", "1.0.1"))),
+        ("1.1.0-RC1", Some("1.0.7"), Right(Set("1.0.0", "1.0.7"))),
+        ("1.1.0+1-next-SNAPSHOT", None, Right(Set("1.0.0", "1.1.0"))),
+        ("2.0.0", None, Right(Set.empty[String])),
+        ("not-a-version", None, Right(Set.empty[String]))
       )
       val failures = cases.collect {
-        case (candidate, expected)
-            if mimaBaselineRevision(candidate) != expected =>
-          s"$candidate baseline was ${mimaBaselineRevision(candidate)}, required $expected"
+        case (candidate, explicitPrevious, expected)
+            if mimaPreviousRevisions(candidate, explicitPrevious) != expected =>
+          s"$candidate predecessors were ${mimaPreviousRevisions(candidate, explicitPrevious)}, required $expected"
       }
+      val missingStableMinorPrevious =
+        mimaPreviousRevisions("1.1.0-RC1", None).isLeft
       if (failures.nonEmpty) {
         sys.error("Invalid ravel-core MiMa policy:\n" + failures.mkString("\n"))
       }
+      if (!missingStableMinorPrevious) {
+        sys.error("Stable minor candidates must name their immediately preceding release")
+      }
       streams.value.log.info(
-        "verified MiMa policy: 0.1.0 is the first baseline; 1.0.0 starts a later stability line"
+        "verified MiMa policy: candidates compare with the line baseline and immediately preceding release"
       )
     }
   )

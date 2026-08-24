@@ -36,6 +36,12 @@ MiMa is configured as release scaffolding but has no previous public artifact
 to compare. Treat the guide and generated APIs as documentation of the
 repository revision that produced them, not as a stable compatibility promise.
 
+After releases begin, compatible fixes, performance improvements, and public
+additions advance the patch component within one pre-1.0 `0.y` line. A
+deliberate binary, source, or semantic break starts the next `0.y.0` line with
+migration notes. Version 1.0 begins ordinary semantic versioning: patches for
+compatible fixes, minors for compatible features, and majors for public breaks.
+
 For contributors, release gates, benchmark evidence, and implementation
 contracts remain in the repository's internal `docs/` files. They are kept out
 of this public guide so user-facing navigation is not dominated by project

@@ -48,18 +48,40 @@ sbt fmtCheck   # CI gate
 CI runs `fmtCheck` before tests so formatting churn stays separate from
 semantic failures.
 
-## Binary compatibility
+## Versioning and binary compatibility
 
-The 1.0 compatibility gate covers only `ravel-core`. Until a first tagged
-Central release exists, `mimaPreviousArtifacts` is empty and
-`mimaFailOnNoPrevious` is false, so `sbt mimaCheck` is a no-op scaffolding
-gate.
+Ravel versions releases rather than individual commits. Backward-compatible
+fixes, performance improvements, and public additions increment `z` within one
+pre-1.0 `0.y.z` compatibility line. A deliberate binary, source, or semantic
+break starts the next `0.y.0` line and requires explicit migration notes. From
+1.0 onward, compatible fixes increment the patch version, compatible public
+features increment the minor version, and breaking public changes require a new
+major version.
 
-The exact `1.0.0` tag has no predecessor. The first dynver build after that tag
-(`1.0.0+N...`) and every later 1.x build automatically select the JVM and
-Scala.js `1.0.0` artifacts as `mimaPreviousArtifacts` and set
-`mimaFailOnNoPrevious := true`. `verifyMimaBaselinePolicy` tests this transition
-without claiming that the still-unpublished baseline can already be resolved.
+The first stable target is `0.1.0`. Immutable `0.1.0-Mn` or `0.1.0-RCn`
+artifacts may be published for ecosystem convergence and soak, but they do not
+establish the Ravel compatibility baseline. A change after `M1` or `RC1`
+produces `M2` or `RC2`; it does not rename the eventual stable release to
+`0.1.1`. Stable `0.1.0` establishes the first baseline after the declared soak
+gate passes.
+
+MiMa covers only published `ravel-core` artifacts. Each pre-1.0 minor line has
+its own `0.y.0` baseline: `0.1.x` compares with `0.1.0`, while `0.2.0` starts a
+new line and `0.2.x` compares with it. A candidate also compares with the
+immediately preceding patch release, so an API added in `0.1.1` cannot disappear
+from `0.1.2` merely because it was absent from `0.1.0`. Stable major lines retain
+their `x.0.0` baseline and the same immediately-preceding-release rule.
+
+The previous patch is inferred for sequential patch releases. A post-1.0 minor
+candidate such as `1.1.0-RC1` cannot infer which `1.0.z` release immediately
+precedes it, so the release court must provide
+`-Dravel.compatibility.previous=1.0.z`. The build fails closed when that value is
+missing. An exact baseline tag and its prereleases have no predecessor; the
+first dynver build after that tag activates the baseline. If an activated
+artifact cannot be resolved from Maven Central, MiMa fails closed.
+
+`verifyMimaBaselinePolicy` tests these transitions without claiming that an
+unpublished baseline can already be resolved.
 
 ## Coverage diagnostics
 

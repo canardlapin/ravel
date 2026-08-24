@@ -146,10 +146,18 @@ The Node and browser suites are separate. The browser suite verifies that it is
 running with `window` and `document` in real Chromium before testing typed-array
 borrowing and numerical behavior.
 
-There is no published binary-compatibility baseline yet. If a first tagged
-release is published later, that API becomes the baseline for subsequent
-compatible releases; incompatible public changes would then require a new major
-version.
+There is no published binary-compatibility baseline yet. After `0.y.0` is
+published, compatible fixes, performance improvements, and public additions use
+successive `0.y.z` releases. Each candidate checks both the line's `0.y.0`
+baseline and the immediately preceding compatible release. A deliberate binary,
+source, or semantic break before 1.0 starts the next `0.y.0` line and requires
+migration notes. From 1.0 onward, fixes increment the patch version, compatible
+features increment the minor version, and public breaks increment the major
+version; compatibility checks retain the major baseline and immediately
+preceding release.
+
+Published `0.1.0-Mn` and `0.1.0-RCn` candidates are immutable soak inputs but do
+not establish this promise. Stable `0.1.0` is the first baseline.
 
 See [benchmark baselines](benchmark-baselines.md) for the performance
 regression budget and [Gale integration](gale-integration.md) for the adapter
