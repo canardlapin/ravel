@@ -65,6 +65,11 @@ class CommonOpsTest(unittest.TestCase):
                 "rank2_int_sum_axis_neg1",
                 "rank2_int_sum_keepdims_neg1",
                 "empty_fiber_bool_all_axis_neg2",
+                "nan_arg_min",
+                "signed_zero_min",
+                "int_sum_overflow",
+                "long_add_overflow",
+                "clip_inf",
             }
             <= names
         )

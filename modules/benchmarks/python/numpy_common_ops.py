@@ -44,17 +44,30 @@ def encode_number(value: float) -> float | str:
     return float(value)
 
 
-def encode_values(result: Any) -> tuple[str, str, list[int], list[Any]]:
+def encode_float_bits(value: Any, dtype: np.dtype) -> str:
+    if dtype == np.float32:
+        return format(np.asarray(value, dtype=np.float32).view(np.uint32).item(), "08x")
+    return format(np.asarray(value, dtype=np.float64).view(np.uint64).item(), "016x")
+
+
+def encode_values(
+    result: Any, comparison: str = "exact"
+) -> tuple[str, str, list[int], list[Any]]:
     if isinstance(result, dict) and result.get("kind") == "error":
         return "error", "none", [], list(result["values"])
     array = np.asarray(result)
+    bits = comparison == "bits"
     if array.shape == () and not isinstance(result, np.ndarray):
         scalar = result.item() if hasattr(result, "item") else result
         if isinstance(scalar, (bool, np.bool_)):
             return "scalar", "scalar", [], [bool(scalar)]
         if isinstance(scalar, (int, np.integer)):
             return "scalar", "scalar", [], [int(scalar)]
-        return "scalar", "scalar", [], [encode_number(float(scalar))]
+        dtype = np.float32 if isinstance(scalar, np.float32) else np.float64
+        encoded = (
+            encode_float_bits(scalar, dtype) if bits else encode_number(float(scalar))
+        )
+        return "scalar", "scalar", [], [encoded]
 
     if array.shape == () and isinstance(result, np.ndarray):
         scalar = result.item()
@@ -62,7 +75,12 @@ def encode_values(result: Any) -> tuple[str, str, list[int], list[Any]]:
             return "scalar", "scalar", [], [bool(scalar)]
         if np.issubdtype(array.dtype, np.integer):
             return "scalar", "scalar", [], [int(scalar)]
-        return "scalar", "scalar", [], [encode_number(float(scalar))]
+        encoded = (
+            encode_float_bits(scalar, array.dtype)
+            if bits
+            else encode_number(float(scalar))
+        )
+        return "scalar", "scalar", [], [encoded]
 
     layout = "c_contiguous" if array.flags["C_CONTIGUOUS"] else "strided_view"
     flat = np.ascontiguousarray(array).reshape(-1)
@@ -70,6 +88,8 @@ def encode_values(result: Any) -> tuple[str, str, list[int], list[Any]]:
         values: list[Any] = [bool(value) for value in flat]
     elif np.issubdtype(array.dtype, np.integer):
         values = [int(value) for value in flat]
+    elif bits:
+        values = [encode_float_bits(value, array.dtype) for value in flat]
     else:
         values = [encode_number(float(value)) for value in flat]
     return "array", layout, [int(dim) for dim in array.shape], values
@@ -209,6 +229,26 @@ def ravel_axis_reduce(
     raise ValueError(f"unsupported axis reduction: {operation}")
 
 
+def ravel_ieee_extremum(
+    array: np.ndarray, operation: str, axis: int | None = None
+) -> Any:
+    values = np.asarray(array)
+    ufunc = np.minimum if operation == "min" else np.maximum
+    if axis is None:
+        return ufunc.reduce(values)
+    return ufunc.reduce(values, axis=axis)
+
+
+def ravel_wrap_reduce(
+    array: np.ndarray, operation: str, axis: int | None = None
+) -> Any:
+    values = np.asarray(array)
+    ufunc = np.add if operation == "sum" else np.multiply
+    if axis is None:
+        return ufunc.reduce(values, dtype=values.dtype)
+    return ufunc.reduce(values, axis=axis, dtype=values.dtype)
+
+
 class Fixture:
     def __init__(self) -> None:
         rows = np.arange(4, dtype=np.int64)[:, None]
@@ -323,6 +363,41 @@ class Fixture:
         self.convert_overflow_float = np.array([1.0, 200.0], dtype=np.float32)
         self.convert_int_overflow = np.array([[1, 2, 200], [3, 4, 5]], dtype=np.int32)
         self.convert_int_overflow_reversed = self.convert_int_overflow[:, ::-1]
+        self.nan_left = np.array([1.0, np.nan, 2.0], dtype=np.float64)
+        self.nan_right = np.array([3.0, 4.0, np.nan], dtype=np.float64)
+        self.nan_ties = np.array([3.0, np.nan, 1.0, np.nan, 1.0], dtype=np.float64)
+        self.nan_matrix = np.array(
+            [[3.0, np.nan, 1.0, 2.0], [4.0, 5.0, 5.0, -1.0]], dtype=np.float64
+        )
+        self.inf_left = np.array([np.inf, 1.0], dtype=np.float64)
+        self.inf_right = np.array([np.inf, 2.0], dtype=np.float64)
+        self.one_div = np.array([1.0, -1.0, 0.0], dtype=np.float64)
+        self.zero_div = np.array([0.0, 0.0, 0.0], dtype=np.float64)
+        self.signed_zero = np.array([0.0, -0.0], dtype=np.float64)
+        self.signed_zero_left = np.array([0.0, -0.0, -0.0], dtype=np.float64)
+        self.signed_zero_right = np.array([0.0, 0.0, -0.0], dtype=np.float64)
+        self.signed_zero_mul_left = np.array([1.0, -1.0, 1.0], dtype=np.float64)
+        self.signed_zero_mul_right = np.array([0.0, 0.0, -0.0], dtype=np.float64)
+        self.signed_zero_matrix = np.array([[0.0, 2.0], [-0.0, 1.0]], dtype=np.float64)
+        self.int_overflow = np.array([np.iinfo(np.int32).max, 1], dtype=np.int32)
+        self.int_overflow_matrix = np.array(
+            [[np.iinfo(np.int32).max, 2], [1, np.iinfo(np.int32).max]],
+            dtype=np.int32,
+        )
+        self.int_overflow_product = np.array(
+            [np.iinfo(np.int32).max, 2], dtype=np.int32
+        )
+        self.int_overflow_left = np.array([np.iinfo(np.int32).max, -1], dtype=np.int32)
+        self.int_overflow_right = np.array([1, np.iinfo(np.int32).min], dtype=np.int32)
+        self.long_overflow = np.array([np.iinfo(np.int64).max, 1], dtype=np.int64)
+        self.long_overflow_left = np.array([np.iinfo(np.int64).max, -1], dtype=np.int64)
+        self.long_overflow_right = np.array([1, np.iinfo(np.int64).min], dtype=np.int64)
+        self.clip_adversarial = np.array([np.nan, 1.0, 4.0], dtype=np.float64)
+        self.clip_inf = np.array([np.inf, -np.inf], dtype=np.float64)
+        self.int_clip_edges = np.array(
+            [np.iinfo(np.int32).min, -10, 10, np.iinfo(np.int32).max],
+            dtype=np.int32,
+        )
 
 
 def cases(fixture: Fixture) -> list[dict[str, Any]]:
@@ -335,7 +410,7 @@ def cases(fixture: Fixture) -> list[dict[str, Any]]:
         comparison: str,
         run: Callable[[], Any],
     ) -> dict[str, Any]:
-        kind, layout, shape, values = encode_values(run())
+        kind, layout, shape, values = encode_values(run(), comparison)
         return {
             "case": name,
             "family": family,
@@ -1608,7 +1683,280 @@ def cases(fixture: Fixture) -> list[dict[str, Any]]:
             "exact",
             lambda: ravel_axis_reduce(f.empty_fiber_bool, "all", -2),
         ),
+        row(
+            "nan_add",
+            "binary",
+            "float64",
+            "float64",
+            "contiguous",
+            "floating",
+            lambda: np.add(f.nan_left, f.nan_right, order="C"),
+        ),
+        row(
+            "nan_multiply",
+            "binary",
+            "float64",
+            "float64",
+            "contiguous",
+            "floating",
+            lambda: np.multiply(f.nan_left, f.nan_right, order="C"),
+        ),
+        row(
+            "nan_minimum",
+            "binary",
+            "float64",
+            "float64",
+            "contiguous",
+            "floating",
+            lambda: np.minimum(f.nan_left, f.nan_right, order="C"),
+        ),
+        row(
+            "nan_min",
+            "reduction",
+            "float64",
+            "float64",
+            "contiguous",
+            "floating",
+            lambda: ravel_ieee_extremum(f.nan_left, "min"),
+        ),
+        row(
+            "nan_max",
+            "reduction",
+            "float64",
+            "float64",
+            "contiguous",
+            "floating",
+            lambda: ravel_ieee_extremum(f.nan_left, "max"),
+        ),
+        row(
+            "nan_arg_min",
+            "reduction",
+            "float64",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: int(f.nan_ties.argmin()),
+        ),
+        row(
+            "nan_arg_max",
+            "reduction",
+            "float64",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: int(f.nan_ties.argmax()),
+        ),
+        row(
+            "nan_less",
+            "comparison",
+            "float64",
+            "bool",
+            "contiguous",
+            "exact",
+            lambda: np.less(f.nan_left, f.nan_right, order="C"),
+        ),
+        row(
+            "nan_equal",
+            "comparison",
+            "float64",
+            "bool",
+            "contiguous",
+            "exact",
+            lambda: np.equal(f.nan_left, f.nan_right, order="C"),
+        ),
+        row(
+            "nan_min_axis1",
+            "reduction",
+            "float64",
+            "float64",
+            "contiguous",
+            "floating",
+            lambda: ravel_ieee_extremum(f.nan_matrix, "min", axis=1),
+        ),
+        row(
+            "inf_minus_inf",
+            "binary",
+            "float64",
+            "float64",
+            "contiguous",
+            "floating",
+            lambda: _subtract_nonfinite(f.inf_left, f.inf_right),
+        ),
+        row(
+            "one_div_zero",
+            "binary",
+            "float64",
+            "float64",
+            "contiguous",
+            "bits",
+            lambda: _divide_nonfinite(f.one_div, f.zero_div),
+        ),
+        row(
+            "signed_zero_min",
+            "reduction",
+            "float64",
+            "float64",
+            "contiguous",
+            "bits",
+            lambda: ravel_ieee_extremum(f.signed_zero, "min"),
+        ),
+        row(
+            "signed_zero_max",
+            "reduction",
+            "float64",
+            "float64",
+            "contiguous",
+            "bits",
+            lambda: ravel_ieee_extremum(f.signed_zero, "max"),
+        ),
+        row(
+            "signed_zero_arg_min",
+            "reduction",
+            "float64",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: int(f.signed_zero.argmin()),
+        ),
+        row(
+            "signed_zero_arg_max",
+            "reduction",
+            "float64",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: int(f.signed_zero.argmax()),
+        ),
+        row(
+            "signed_zero_minimum",
+            "binary",
+            "float64",
+            "float64",
+            "contiguous",
+            "bits",
+            lambda: np.minimum(f.signed_zero_left, f.signed_zero_right, order="C"),
+        ),
+        row(
+            "signed_zero_add",
+            "binary",
+            "float64",
+            "float64",
+            "contiguous",
+            "bits",
+            lambda: np.add(f.signed_zero_left, f.signed_zero_right, order="C"),
+        ),
+        row(
+            "signed_zero_multiply",
+            "binary",
+            "float64",
+            "float64",
+            "contiguous",
+            "bits",
+            lambda: np.multiply(
+                f.signed_zero_mul_left, f.signed_zero_mul_right, order="C"
+            ),
+        ),
+        row(
+            "signed_zero_min_axis0",
+            "reduction",
+            "float64",
+            "float64",
+            "contiguous",
+            "bits",
+            lambda: ravel_ieee_extremum(f.signed_zero_matrix, "min", axis=0),
+        ),
+        row(
+            "int_sum_overflow",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_wrap_reduce(f.int_overflow, "sum"),
+        ),
+        row(
+            "int_sum_overflow_axis0",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_wrap_reduce(f.int_overflow_matrix, "sum", axis=0),
+        ),
+        row(
+            "int_product_overflow",
+            "reduction",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: ravel_wrap_reduce(f.int_overflow_product, "product"),
+        ),
+        row(
+            "int_add_overflow",
+            "binary",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: np.add(f.int_overflow_left, f.int_overflow_right, order="C"),
+        ),
+        row(
+            "long_sum_overflow",
+            "reduction",
+            "int64",
+            "int64",
+            "contiguous",
+            "exact",
+            lambda: ravel_wrap_reduce(f.long_overflow, "sum"),
+        ),
+        row(
+            "long_add_overflow",
+            "binary",
+            "int64",
+            "int64",
+            "contiguous",
+            "exact",
+            lambda: np.add(f.long_overflow_left, f.long_overflow_right, order="C"),
+        ),
+        row(
+            "clip_nan",
+            "unary",
+            "float64",
+            "float64",
+            "contiguous",
+            "floating",
+            lambda: np.clip(f.clip_adversarial, -2.0, 3.0),
+        ),
+        row(
+            "clip_inf",
+            "unary",
+            "float64",
+            "float64",
+            "contiguous",
+            "bits",
+            lambda: np.clip(f.clip_inf, -2.0, 3.0),
+        ),
+        row(
+            "int_clip_edges",
+            "unary",
+            "int32",
+            "int32",
+            "contiguous",
+            "exact",
+            lambda: np.clip(f.int_clip_edges, -10, 10).astype(np.int32, order="C"),
+        ),
     ]
+
+
+def _divide_nonfinite(left: np.ndarray, right: np.ndarray) -> np.ndarray:
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return np.divide(left, right, order="C")
+
+
+def _subtract_nonfinite(left: np.ndarray, right: np.ndarray) -> np.ndarray:
+    with np.errstate(invalid="ignore"):
+        return np.subtract(left, right, order="C")
 
 
 def run_suite() -> dict[str, Any]:

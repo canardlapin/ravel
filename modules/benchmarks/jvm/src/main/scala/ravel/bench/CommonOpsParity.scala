@@ -1160,6 +1160,238 @@ object CommonOpsParity:
         "bool",
         "contiguous",
         () => f.emptyFiberBool.all(-2)
+      ),
+      floating(
+        "nan_add",
+        "binary",
+        "float64",
+        "float64",
+        "contiguous",
+        () => f.nanLeft + f.nanRight
+      ),
+      floating(
+        "nan_multiply",
+        "binary",
+        "float64",
+        "float64",
+        "contiguous",
+        () => f.nanLeft * f.nanRight
+      ),
+      floating(
+        "nan_minimum",
+        "binary",
+        "float64",
+        "float64",
+        "contiguous",
+        () => f.nanLeft.minimum(f.nanRight)
+      ),
+      floating(
+        "nan_min",
+        "reduction",
+        "float64",
+        "float64",
+        "contiguous",
+        () => f.nanLeft.min
+      ),
+      floating(
+        "nan_max",
+        "reduction",
+        "float64",
+        "float64",
+        "contiguous",
+        () => f.nanLeft.max
+      ),
+      exact(
+        "nan_arg_min",
+        "reduction",
+        "float64",
+        "int32",
+        "contiguous",
+        () => f.nanTies.argMin
+      ),
+      exact(
+        "nan_arg_max",
+        "reduction",
+        "float64",
+        "int32",
+        "contiguous",
+        () => f.nanTies.argMax
+      ),
+      exact(
+        "nan_less",
+        "comparison",
+        "float64",
+        "bool",
+        "contiguous",
+        () => f.nanLeft < f.nanRight
+      ),
+      exact(
+        "nan_equal",
+        "comparison",
+        "float64",
+        "bool",
+        "contiguous",
+        () => f.nanLeft === f.nanRight
+      ),
+      floating(
+        "nan_min_axis1",
+        "reduction",
+        "float64",
+        "float64",
+        "contiguous",
+        () => f.nanMatrix.min(1)
+      ),
+      floating(
+        "inf_minus_inf",
+        "binary",
+        "float64",
+        "float64",
+        "contiguous",
+        () => f.infLeft - f.infRight
+      ),
+      bits(
+        "one_div_zero",
+        "binary",
+        "float64",
+        "float64",
+        "contiguous",
+        () => f.oneDiv / f.zeroDiv
+      ),
+      bits(
+        "signed_zero_min",
+        "reduction",
+        "float64",
+        "float64",
+        "contiguous",
+        () => f.signedZero.min
+      ),
+      bits(
+        "signed_zero_max",
+        "reduction",
+        "float64",
+        "float64",
+        "contiguous",
+        () => f.signedZero.max
+      ),
+      exact(
+        "signed_zero_arg_min",
+        "reduction",
+        "float64",
+        "int32",
+        "contiguous",
+        () => f.signedZero.argMin
+      ),
+      exact(
+        "signed_zero_arg_max",
+        "reduction",
+        "float64",
+        "int32",
+        "contiguous",
+        () => f.signedZero.argMax
+      ),
+      bits(
+        "signed_zero_minimum",
+        "binary",
+        "float64",
+        "float64",
+        "contiguous",
+        () => f.signedZeroLeft.minimum(f.signedZeroRight)
+      ),
+      bits(
+        "signed_zero_add",
+        "binary",
+        "float64",
+        "float64",
+        "contiguous",
+        () => f.signedZeroLeft + f.signedZeroRight
+      ),
+      bits(
+        "signed_zero_multiply",
+        "binary",
+        "float64",
+        "float64",
+        "contiguous",
+        () => f.signedZeroMulLeft * f.signedZeroMulRight
+      ),
+      bits(
+        "signed_zero_min_axis0",
+        "reduction",
+        "float64",
+        "float64",
+        "contiguous",
+        () => f.signedZeroMatrix.min(0)
+      ),
+      exact(
+        "int_sum_overflow",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.intOverflow.sum
+      ),
+      exact(
+        "int_sum_overflow_axis0",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.intOverflowMatrix.sum(0)
+      ),
+      exact(
+        "int_product_overflow",
+        "reduction",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.intOverflowProduct.product
+      ),
+      exact(
+        "int_add_overflow",
+        "binary",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.intOverflowLeft + f.intOverflowRight
+      ),
+      exact(
+        "long_sum_overflow",
+        "reduction",
+        "int64",
+        "int64",
+        "contiguous",
+        () => f.longOverflow.sum
+      ),
+      exact(
+        "long_add_overflow",
+        "binary",
+        "int64",
+        "int64",
+        "contiguous",
+        () => f.longOverflowLeft + f.longOverflowRight
+      ),
+      floating(
+        "clip_nan",
+        "unary",
+        "float64",
+        "float64",
+        "contiguous",
+        () => f.clipAdversarial.clip(-2.0, 3.0)
+      ),
+      bits(
+        "clip_inf",
+        "unary",
+        "float64",
+        "float64",
+        "contiguous",
+        () => f.clipInf.clip(-2.0, 3.0)
+      ),
+      exact(
+        "int_clip_edges",
+        "unary",
+        "int32",
+        "int32",
+        "contiguous",
+        () => f.intClipEdges.clip(-10, 10)
       )
     )
 
@@ -1182,6 +1414,16 @@ object CommonOpsParity:
       run: () => Any
   ): Case =
     Case(name, family, inputDType, resultDType, inputLayout, "floating", run)
+
+  private def bits(
+      name: String,
+      family: String,
+      inputDType: String,
+      resultDType: String,
+      inputLayout: String,
+      run: () => Any
+  ): Case =
+    Case(name, family, inputDType, resultDType, inputLayout, "bits", run)
 
   private final class Fixture:
     val emptyInt: Array1[Int] = NDArray.zeros[Int](0)
@@ -1333,6 +1575,57 @@ object CommonOpsParity:
     val convertIntOverflowReversed: Array2[Int] =
       convertIntOverflow.reverse(1)
 
+    val nanLeft: Array1[Double] =
+      NDArray.fromSeq(Shape(3), Seq(1.0, Double.NaN, 2.0))
+    val nanRight: Array1[Double] =
+      NDArray.fromSeq(Shape(3), Seq(3.0, 4.0, Double.NaN))
+    val nanTies: Array1[Double] =
+      NDArray.fromSeq(Shape(5), Seq(3.0, Double.NaN, 1.0, Double.NaN, 1.0))
+    val nanMatrix: Array2[Double] =
+      NDArray.fromSeq(Shape(2, 4), Seq(3.0, Double.NaN, 1.0, 2.0, 4.0, 5.0, 5.0, -1.0))
+    val infLeft: Array1[Double] =
+      NDArray.fromSeq(Shape(2), Seq(Double.PositiveInfinity, 1.0))
+    val infRight: Array1[Double] =
+      NDArray.fromSeq(Shape(2), Seq(Double.PositiveInfinity, 2.0))
+    val oneDiv: Array1[Double] =
+      NDArray.fromSeq(Shape(3), Seq(1.0, -1.0, 0.0))
+    val zeroDiv: Array1[Double] =
+      NDArray.fromSeq(Shape(3), Seq(0.0, 0.0, 0.0))
+    val signedZero: Array1[Double] =
+      NDArray.fromSeq(Shape(2), Seq(0.0, -0.0))
+    val signedZeroLeft: Array1[Double] =
+      NDArray.fromSeq(Shape(3), Seq(0.0, -0.0, -0.0))
+    val signedZeroRight: Array1[Double] =
+      NDArray.fromSeq(Shape(3), Seq(0.0, 0.0, -0.0))
+    val signedZeroMulLeft: Array1[Double] =
+      NDArray.fromSeq(Shape(3), Seq(1.0, -1.0, 1.0))
+    val signedZeroMulRight: Array1[Double] =
+      NDArray.fromSeq(Shape(3), Seq(0.0, 0.0, -0.0))
+    val signedZeroMatrix: Array2[Double] =
+      NDArray.fromSeq(Shape(2, 2), Seq(0.0, 2.0, -0.0, 1.0))
+    val intOverflow: Array1[Int] =
+      NDArray.fromSeq(Shape(2), Seq(Int.MaxValue, 1))
+    val intOverflowMatrix: Array2[Int] =
+      NDArray.fromSeq(Shape(2, 2), Seq(Int.MaxValue, 2, 1, Int.MaxValue))
+    val intOverflowProduct: Array1[Int] =
+      NDArray.fromSeq(Shape(2), Seq(Int.MaxValue, 2))
+    val intOverflowLeft: Array1[Int] =
+      NDArray.fromSeq(Shape(2), Seq(Int.MaxValue, -1))
+    val intOverflowRight: Array1[Int] =
+      NDArray.fromSeq(Shape(2), Seq(1, Int.MinValue))
+    val longOverflow: Array1[Long] =
+      NDArray.fromSeq(Shape(2), Seq(Long.MaxValue, 1L))
+    val longOverflowLeft: Array1[Long] =
+      NDArray.fromSeq(Shape(2), Seq(Long.MaxValue, -1L))
+    val longOverflowRight: Array1[Long] =
+      NDArray.fromSeq(Shape(2), Seq(1L, Long.MinValue))
+    val clipAdversarial: Array1[Double] =
+      NDArray.fromSeq(Shape(3), Seq(Double.NaN, 1.0, 4.0))
+    val clipInf: Array1[Double] =
+      NDArray.fromSeq(Shape(2), Seq(Double.PositiveInfinity, Double.NegativeInfinity))
+    val intClipEdges: Array1[Int] =
+      NDArray.fromSeq(Shape(4), Seq(Int.MinValue, -10, 10, Int.MaxValue))
+
   private def parseArgs(args: Array[String]): Config =
     var config = Config()
     var index = 0
@@ -1349,7 +1642,7 @@ object CommonOpsParity:
 
   private def row(operation: Case): Map[String, String] =
     val encoded =
-      try encode(operation.run())
+      try encode(operation.run(), operation.comparison)
       catch
         case error: EmptyReduction =>
           Encoded(
@@ -1373,18 +1666,19 @@ object CommonOpsParity:
 
   private final case class Encoded(kind: String, layout: String, shape: String, values: String)
 
-  private def encode(value: Any): Encoded =
+  private def encode(value: Any, comparison: String): Encoded =
+    val bits = comparison == "bits"
     value match
       case Left(error: ConversionError) =>
         Encoded("error", "none", "[]", conversionErrorValues(error))
       case Right(inner) =>
-        encode(inner)
+        encode(inner, comparison)
       case array: NDArray[?, ?] =>
         Encoded(
           "array",
           if array.isContiguous then "c_contiguous" else "strided_view",
           shapeJson(array.shape),
-          valuesJson(array.asInstanceOf[NDArray[Any, ?]])
+          valuesJson(array.asInstanceOf[NDArray[Any, ?]], bits)
         )
       case boolean: Boolean =>
         Encoded("scalar", "scalar", "[]", s"[${if boolean then "true" else "false"}]")
@@ -1397,9 +1691,19 @@ object CommonOpsParity:
       case long: Long =>
         Encoded("scalar", "scalar", "[]", s"[$long]")
       case float: Float =>
-        Encoded("scalar", "scalar", "[]", s"[${numberJson(float.toDouble)}]")
+        Encoded(
+          "scalar",
+          "scalar",
+          "[]",
+          s"[${if bits then bitsJson(float) else numberJson(float.toDouble)}]"
+        )
       case double: Double =>
-        Encoded("scalar", "scalar", "[]", s"[${numberJson(double)}]")
+        Encoded(
+          "scalar",
+          "scalar",
+          "[]",
+          s"[${if bits then bitsJson(double) else numberJson(double)}]"
+        )
       case other =>
         throw new IllegalArgumentException(
           s"unsupported common-ops result: ${other.getClass.getName}"
@@ -1408,19 +1712,19 @@ object CommonOpsParity:
   private def shapeJson(shape: Shape[?]): String =
     (0 until shape.rank).map(axis => shape(axis).toString).mkString("[", ", ", "]")
 
-  private def valuesJson(array: NDArray[Any, ?]): String =
+  private def valuesJson(array: NDArray[Any, ?], bits: Boolean): String =
     val iterator = array.elementsIterator
     val rendered = new StringBuilder
     rendered.append('[')
     var first = true
     while iterator.hasNext do
       if !first then rendered.append(", ")
-      rendered.append(elementJson(array.dtype.name, iterator.next()))
+      rendered.append(elementJson(array.dtype.name, iterator.next(), bits))
       first = false
     rendered.append(']')
     rendered.result()
 
-  private def elementJson(dtypeName: String, value: Any): String =
+  private def elementJson(dtypeName: String, value: Any, bits: Boolean): String =
     dtypeName match
       case "UInt8" =>
         value.asInstanceOf[UInt8].toInt.toString
@@ -1433,12 +1737,20 @@ object CommonOpsParity:
           case short: Short => short.toString
           case int: Int => int.toString
           case long: Long => long.toString
-          case float: Float => numberJson(float.toDouble)
-          case double: Double => numberJson(double)
+          case float: Float =>
+            if bits then bitsJson(float) else numberJson(float.toDouble)
+          case double: Double =>
+            if bits then bitsJson(double) else numberJson(double)
           case other =>
             throw new IllegalArgumentException(
               s"unsupported common-ops element: ${other.getClass.getName}"
             )
+
+  private def bitsJson(value: Double): String =
+    jsonString(f"${java.lang.Double.doubleToRawLongBits(value)}%016x")
+
+  private def bitsJson(value: Float): String =
+    jsonString(f"${java.lang.Float.floatToRawIntBits(value)}%08x")
 
   private def conversionErrorValues(error: ConversionError): String =
     error match

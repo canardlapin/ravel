@@ -53,6 +53,8 @@ def values_match(left: dict[str, Any], right: dict[str, Any]) -> bool:
         return False
     if left["result_kind"] == "error" or right["result_kind"] == "error":
         return left_values == right_values
+    if left["comparison"] == "bits":
+        return left_values == right_values
     if left["comparison"] == "exact" and left["result_dtype"] != "float32":
         return left_values == right_values
     rel_tol = 2e-6 if left["result_dtype"] == "float32" else 2e-12
