@@ -8,9 +8,48 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import compare_common_ops as comparison
 import numpy_common_ops as numpy_suite
+import numpy as np
 
 
 class CommonOpsTest(unittest.TestCase):
+    def test_elementwise_minimum_preserves_ieee_zero_rule_with_broadcast_and_nan(self) -> None:
+        for dtype in (np.float32, np.float64):
+            left = np.asarray([[0.0, -0.0, -0.0], [1.0, np.nan, -2.0]], dtype=dtype)
+            right = np.asarray([0.0, 0.0, -0.0], dtype=dtype)
+            for a, b in ((left, right), (right, left)):
+                result = numpy_suite.ravel_ieee_minimum(a, b)
+                self.assertEqual(result.dtype, dtype)
+                self.assertEqual(np.signbit(result[0]).tolist(), [False, True, True])
+                self.assertEqual(result[1, 0], 0.0)
+                self.assertTrue(np.isnan(result[1, 1]))
+                self.assertEqual(result[1, 2], -2.0)
+
+    def test_ieee_extrema_zero_sign_is_independent_of_order_dtype_and_axis(self) -> None:
+        for dtype in (np.float32, np.float64):
+            for values in ([0.0, -0.0], [-0.0, 0.0], [-0.0, -0.0], [0.0, 0.0]):
+                array = np.asarray(values, dtype=dtype)
+                for operation in ("min", "max"):
+                    result = numpy_suite.ravel_ieee_extremum(array, operation)
+                    expected = bool(np.any(np.signbit(array))) if operation == "min" else bool(np.all(np.signbit(array)))
+                    self.assertEqual(result.dtype, dtype)
+                    self.assertEqual(float(result), 0.0)
+                    self.assertEqual(bool(np.signbit(result)), expected)
+            for operation, other in (("min", 2.0), ("max", -2.0)):
+                rows = np.asarray([[0.0, -0.0, other], [-0.0, -0.0, other], [0.0, 0.0, other]], dtype=dtype)
+                expected = [operation == "min", True, False]
+                for array, axis in ((rows, 1), (rows.T, 0), (rows[:, ::-1], 1)):
+                    result = numpy_suite.ravel_ieee_extremum(array, operation, axis)
+                    self.assertEqual(np.signbit(result).tolist(), expected)
+                    self.assertTrue(np.all(result == 0))
+            array = np.asarray([[1.0, np.nan], [np.inf, -np.inf]], dtype=dtype)
+            for operation in ("min", "max"):
+                self.assertTrue(np.isnan(numpy_suite.ravel_ieee_extremum(array, operation)))
+                result = numpy_suite.ravel_ieee_extremum(array, operation, axis=1)
+                self.assertTrue(np.isnan(result[0]))
+                self.assertEqual(result[1], -np.inf if operation == "min" else np.inf)
+        with self.assertRaises(ValueError):
+            numpy_suite.ravel_ieee_extremum(np.asarray([0.0]), "unknown")
+
     def test_registry_covers_required_dimensions(self) -> None:
         rows = numpy_suite.cases(numpy_suite.Fixture())
         names = {row["case"] for row in rows}

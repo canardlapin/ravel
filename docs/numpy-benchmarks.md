@@ -238,6 +238,15 @@ checked in for
 and
 [JDK 21](../modules/benchmarks/results/2026-07-29-local-jdk21-vector-frontier/).
 
+The common-operations reference adapter explicitly normalizes zero-valued
+minimum/maximum reductions to Ravel's IEEE contract: minimum selects negative
+zero if present, and maximum selects positive zero if present. Raw NumPy
+equal-zero selection can vary with traversal or SIMD grouping. The named
+`ravel_ieee_extremum` reduction adapter and `ravel_ieee_minimum` elementwise
+adapter preserve finite extrema, NaN propagation, axes/broadcasting and dtype
+while making that sign policy explicit; it is not a claim of raw
+NumPy signed-zero bit equality. The comparator still checks every result bit.
+
 On JDK 25 AArch64, exact extrema improved 2.59-2.60x, `Int` sum and product
 improved 3.04x and 2.64x, and `Long` sum improved 1.34x. `Long` product fell to
 0.14x and is rejected. The clean JDK 21 rows confirm 2.46-2.67x for `Int` sum

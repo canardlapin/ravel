@@ -333,6 +333,33 @@ final class NDArray[A, +R <: AnyRank] private[ravel] (
     builder.result()
 
 object NDArray:
+  /** Copy a primitive Double buffer in logical row-major order into owned canonical storage. The
+    * input length must equal the shape size. Later input mutations cannot affect the result. Copies
+    * through primitive storage without an iterator or per-element boxing on JVM and JS.
+    */
+  def fromArrayCopy[R <: AnyRank](shape: Shape[R], values: Array[Double]): NDArray[Double, R] =
+    if values.length != shape.size then
+      throw ShapeMismatch(shape.toString, s"values(count = ${values.length})")
+    val storage = ProbeApi.allocate[Double](shape.size)(using DType.doubleDType)
+    val raw = storage.asInstanceOf[DoubleStorage].raw
+    var i = 0
+    while i < values.length do
+      raw(i) = values(i)
+      i += 1
+    new NDArray(storage, Layout.contiguous(shape, shape.size), DType.doubleDType)
+
+  /** Float counterpart of [[fromArrayCopy]]. Preserves Float values without widening. */
+  def fromArrayCopy[R <: AnyRank](shape: Shape[R], values: Array[Float]): NDArray[Float, R] =
+    if values.length != shape.size then
+      throw ShapeMismatch(shape.toString, s"values(count = ${values.length})")
+    val storage = ProbeApi.allocate[Float](shape.size)(using DType.floatDType)
+    val raw = storage.asInstanceOf[FloatStorage].raw
+    var i = 0
+    while i < values.length do
+      raw(i) = values(i)
+      i += 1
+    new NDArray(storage, Layout.contiguous(shape, shape.size), DType.floatDType)
+
   def scalar[A](value: A)(using dtype: DType[A]): Array0[A] =
     val storage = ProbeApi.allocate[A](1)
     ProbeApi.set(storage, 0, value)
