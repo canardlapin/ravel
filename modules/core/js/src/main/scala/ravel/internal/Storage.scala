@@ -31,8 +31,8 @@ private[ravel] final class UInt16Storage(val raw: Uint16Array) extends Storage[U
 private[ravel] final class IntStorage(val raw: Int32Array) extends Storage[Int]:
   def length: Int = raw.length
 
-/** Scala.js Long is opaque to JavaScript and has no ravel-core 0.1 typed-array contract. This fallback
-  * preserves Scala Long semantics but is not a JS fast-path representation.
+/** Scala.js Long is opaque to JavaScript and has no ravel-core 0.1 typed-array contract. This
+  * fallback preserves Scala Long semantics but is not a JS fast-path representation.
   */
 private[ravel] final class LongStorage(val raw: Array[Long]) extends Storage[Long]:
   def length: Int = raw.length

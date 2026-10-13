@@ -99,6 +99,12 @@ extension [A, R <: AnyRank](array: ReadableArray[A, R])(using
   def isFinite: NDArray[Boolean, R] =
     KernelApi.floatingPredicate(KernelOp.IsFinite, array)
 
+  /** True iff every logical value is finite; true for an empty array. Reads owned, borrowed and
+    * mutable layouts directly without a Boolean array or boxing. Scratch is bounded by rank; the
+    * scan may stop at the first non-finite value.
+    */
+  def allFinite: Boolean = FiniteReduction.all(array)
+
 extension [A, R <: AnyRank](array: ReadableArray[A, R])(using
     @unused ordered: OrderedDType[A]
 )

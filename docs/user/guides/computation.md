@@ -16,6 +16,25 @@ val grid: Array2[Double] =
 `fromSeq` requires exactly `shape.size` values. For dynamic or higher ranks,
 construct a `Shape` explicitly and pass it to the shape-taking overloads.
 
+For a primitive `Array[Double]` or `Array[Float]`, `fromArrayCopy` requires the
+exact element count and copies into owned canonical storage. It uses primitive
+loads and stores on both JVM and Scala.js; later changes to the input buffer do
+not affect the result.
+
+```scala mdoc
+val primitive = Array(1.0, 2.0, 3.0, 4.0)
+val copied = NDArray.fromArrayCopy(Shape(2, 2), primitive)
+primitive(0) = Double.NaN
+copied.allFinite
+```
+
+`allFinite` reduces any readable Float or Double layout to one Boolean, with
+`true` for an empty array. It checks only logical values (including strided,
+reversed and broadcast views), stops when it encounters NaN or either infinity,
+and uses at most rank-sized scratch. It does not create the per-cell Boolean
+array returned by `isFinite`. Borrowed and mutable arrays are scanned in their
+current state; callers must keep external writes from racing the scan.
+
 ## Broadcast trailing axes
 
 Binary array operations align trailing axes. A dimension is compatible when
