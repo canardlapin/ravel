@@ -12,6 +12,18 @@ import numpy as np
 
 
 class CommonOpsTest(unittest.TestCase):
+    def test_elementwise_minimum_preserves_ieee_zero_rule_with_broadcast_and_nan(self) -> None:
+        for dtype in (np.float32, np.float64):
+            left = np.asarray([[0.0, -0.0, -0.0], [1.0, np.nan, -2.0]], dtype=dtype)
+            right = np.asarray([0.0, 0.0, -0.0], dtype=dtype)
+            for a, b in ((left, right), (right, left)):
+                result = numpy_suite.ravel_ieee_minimum(a, b)
+                self.assertEqual(result.dtype, dtype)
+                self.assertEqual(np.signbit(result[0]).tolist(), [False, True, True])
+                self.assertEqual(result[1, 0], 0.0)
+                self.assertTrue(np.isnan(result[1, 1]))
+                self.assertEqual(result[1, 2], -2.0)
+
     def test_ieee_extrema_zero_sign_is_independent_of_order_dtype_and_axis(self) -> None:
         for dtype in (np.float32, np.float64):
             for values in ([0.0, -0.0], [-0.0, 0.0], [-0.0, -0.0], [0.0, 0.0]):

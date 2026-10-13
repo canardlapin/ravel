@@ -242,8 +242,9 @@ The common-operations reference adapter explicitly normalizes zero-valued
 minimum/maximum reductions to Ravel's IEEE contract: minimum selects negative
 zero if present, and maximum selects positive zero if present. Raw NumPy
 equal-zero selection can vary with traversal or SIMD grouping. The named
-`ravel_ieee_extremum` adapter preserves finite extrema, NaN propagation, axes
-and dtype while making that sign policy explicit; it is not a claim of raw
+`ravel_ieee_extremum` reduction adapter and `ravel_ieee_minimum` elementwise
+adapter preserve finite extrema, NaN propagation, axes/broadcasting and dtype
+while making that sign policy explicit; it is not a claim of raw
 NumPy signed-zero bit equality. The comparator still checks every result bit.
 
 On JDK 25 AArch64, exact extrema improved 2.59-2.60x, `Int` sum and product

@@ -259,6 +259,14 @@ def ravel_wrap_reduce(
     return ufunc.reduce(values, axis=axis, dtype=values.dtype)
 
 
+def ravel_ieee_minimum(left: np.ndarray, right: np.ndarray) -> Any:
+    """Elementwise IEEE minimum with the same explicit zero rule as reductions."""
+    result = np.minimum(left, right, order="C")
+    negative = np.signbit(left) | np.signbit(right)
+    signed_zero = np.copysign(np.zeros_like(result), np.where(negative, -1, 1))
+    return np.where(result == 0, signed_zero, result).astype(result.dtype, order="C")
+
+
 class Fixture:
     def __init__(self) -> None:
         rows = np.arange(4, dtype=np.int64)[:, None]
@@ -1844,7 +1852,7 @@ def cases(fixture: Fixture) -> list[dict[str, Any]]:
             "float64",
             "contiguous",
             "bits",
-            lambda: np.minimum(f.signed_zero_left, f.signed_zero_right, order="C"),
+            lambda: ravel_ieee_minimum(f.signed_zero_left, f.signed_zero_right),
         ),
         row(
             "signed_zero_add",
