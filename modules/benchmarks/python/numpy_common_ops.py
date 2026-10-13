@@ -233,10 +233,20 @@ def ravel_ieee_extremum(
     array: np.ndarray, operation: str, axis: int | None = None
 ) -> Any:
     values = np.asarray(array)
-    ufunc = np.minimum if operation == "min" else np.maximum
-    if axis is None:
-        return ufunc.reduce(values)
-    return ufunc.reduce(values, axis=axis)
+    if operation not in ("min", "max"):
+        raise ValueError(f"unsupported IEEE extremum: {operation}")
+    result = (np.min if operation == "min" else np.max)(values, axis=axis)
+    # NumPy's equal-zero selection can depend on traversal/SIMD grouping.
+    # This named Ravel adapter promises IEEE min(-0,+0)=-0 and max(-0,+0)=+0,
+    # while preserving NumPy's ordinary finite extrema and NaN propagation.
+    zeros = values == 0
+    if operation == "min":
+        negative = np.any(zeros & np.signbit(values), axis=axis)
+    else:
+        negative = ~np.any(zeros & ~np.signbit(values), axis=axis)
+    signed_zero = np.copysign(np.zeros_like(result), np.where(negative, -1, 1))
+    corrected = np.where(result == 0, signed_zero, result).astype(values.dtype)
+    return corrected[()] if corrected.ndim == 0 else corrected
 
 
 def ravel_wrap_reduce(
